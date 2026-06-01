@@ -34,7 +34,7 @@ Now replace spatial position $x$ with body mass $w$, and cars with fish. Let $n(
 
 The governing equation (known as the McKendrick–von Foerster equation) is:
 
-$$\frac{\partial n}{\partial t} = -\frac{\partial}{\partial w}\big[g(w)\, n(w)\big] - \mu(w)\, n(w)$$
+$$\frac{\partial n}{\partial t} = -\frac{\partial}{\partial w}\big[g(w)\ n(w)\big] - \mu(w)\ n(w)$$
 
 where:
 
