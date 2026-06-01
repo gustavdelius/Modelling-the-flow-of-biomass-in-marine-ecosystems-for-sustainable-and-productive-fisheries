@@ -34,24 +34,24 @@ Now replace spatial position $x$ with body mass $w$, and cars with fish. Let $n(
 
 The governing equation (known as the McKendrick–von Foerster equation) is:
 
-$$\frac{\partial n}{\partial t} = -\frac{\partial}{\partial w}\big[G(w)\, n(w)\big] - \mu(w)\, n(w)$$
+$$\frac{\partial n}{\partial t} = -\frac{\partial}{\partial w}\big[g(w)\, n(w)\big] - \mu(w)\, n(w)$$
 
 where:
 
 | Symbol | Meaning |
 |--------|---------|
-| $G(w)$ | Growth rate of an individual fish of mass $w$ (the analogue of car velocity) |
+| $g(w)$ | Growth rate of an individual fish of mass $w$ (the analogue of car velocity) |
 | $\mu(w)$ | Size-dependent mortality rate (natural predation **plus** fishing mortality) |
 
 The mortality term $\mu(w)\,n(w)$ means this is not a pure conservation equation — fish can leave the system by dying at any size, not only by reaching the largest size class.
 
 ### The non-linearity: growth depends on density
 
-Fish grow exclusively by eating. The prey that determine $G(w)$ are smaller fish (at masses far to the *left* on the $w$-axis), so the dependence of $G$ on $n$ is **non-local** — unlike traffic, where a car's speed depends only on the density immediately nearby.
+Fish grow exclusively by eating. The prey that determine $g(w)$ are smaller fish (at masses far to the *left* on the $w$-axis), so the dependence of $G$ on $n$ is **non-local** — unlike traffic, where a car's speed depends only on the density immediately nearby.
 
 This produces the same feedback mechanism as traffic jams:
 
-> High fish abundance at mass $w$ → prey depleted → $G(w)$ falls → fish spend longer at mass $w$ → local density increases further → prey depleted further
+> High fish abundance at mass $w$ → prey depleted → $g(w)$ falls → fish spend longer at mass $w$ → local density increases further → prey depleted further
 
 This self-reinforcing cycle is the **jamming instability in size space**. A small random perturbation in abundance at one size class can amplify into a full pile-up, provided the system is in the right parameter regime.
 
@@ -63,7 +63,7 @@ On a motorway, variable speed limits artificially reduce velocity to prevent pil
 
 ## The MIZER Model
 
-Simulations will be run using [MIZER](https://sizespectrum.org/mizer/), an R package for size-spectrum modelling. MIZER computes $G(w)$ via a **predation kernel** that specifies the preferred prey sizes for a predator of mass $w$, then integrates that preference over the actual size spectrum to obtain the growth rate. This naturally captures the non-local, density-dependent structure of $G(w)$: increased predator abundance directly suppresses $G$ through prey depletion.
+Simulations will be run using [MIZER](https://sizespectrum.org/mizer/), an R package for size-spectrum modelling. MIZER computes $g(w)$ via a **predation kernel** that specifies the preferred prey sizes for a predator of mass $w$, then integrates that preference over the actual size spectrum to obtain the growth rate. This naturally captures the non-local, density-dependent structure of $g(w)$: increased predator abundance directly suppresses $g$ through prey depletion.
 
 ### Plankton resource dynamics
 
@@ -89,8 +89,8 @@ $$R^* \approx \frac{r \cdot c}{r + \mu_R \cdot n}$$
 
 Two contrasting regimes emerge:
 
-- **Large $r$:** $R^* \approx c$ regardless of how many fish are present. The resource replenishes quickly, so $G(w)$ is nearly independent of fish density — no feedback, no jam.
-- **Small $r$:** $R^*$ is highly sensitive to $n$. A small increase in fish abundance sharply depletes the resource, strongly reducing $G(w)$, causing fish to accumulate at that size — triggering the jam.
+- **Large $r$:** $R^* \approx c$ regardless of how many fish are present. The resource replenishes quickly, so $g(w)$ is nearly independent of fish density — no feedback, no jam.
+- **Small $r$:** $R^*$ is highly sensitive to $n$. A small increase in fish abundance sharply depletes the resource, strongly reducing $g(w)$, causing fish to accumulate at that size — triggering the jam.
 
 A low replenishment rate therefore maximises the coupling between fish density and growth rate, placing the system in the unstable regime where jams can form spontaneously from small random fluctuations in abundance.
 
