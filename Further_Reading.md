@@ -118,6 +118,8 @@ Applied study using a size-spectrum model to test how varying fishing pressure a
 Proceedings of the Royal Society A, 229(1178)
 https://doi.org/10.1098/rspa.1955.0112
 The original paper deriving the LWR conservation PDE — the exact traffic-flow equation your supervisor used as the analogy for the fish model. Reading the source makes the mathematical parallel to the McKendrick–von Foerster equation very clear.
+---
+20.https://rpubs.com/gustav/plankton-anchovy
 
 ### Online Tools & Simulations
 
