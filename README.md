@@ -69,7 +69,7 @@ Simulations will be run using [MIZER](https://sizespectrum.org/mizer/), an R pac
 
 Fish also consume plankton. MIZER models the plankton resource $R(w)$ using **semi-chemostat dynamics**:
 
-$$\frac{dR}{dt} = r(w)\,\big[c(w) - R(w)\big] - \mu_R(w)\, R(w)\, n(w)$$
+$$\frac{dR}{dt} = r(w)\\big[c(w) - R(w)\big] - \mu_R(w)\ R(w)\ n(w)$$
 
 where:
 
