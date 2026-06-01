@@ -2,26 +2,6 @@
 
 ### Papers
 
-- **Sheldon et al. (1972)** — *The Size Distribution of Particles in the Ocean*
-  The foundational paper establishing that marine biomass is roughly uniformly distributed across logarithmic size classes — the empirical basis for size-spectrum models.
-  <https://doi.org/10.4319/lo.1972.17.3.0327>
-
-- **Andersen & Beyer (2006)** — *Asymptotic Size Determines Species Abundance in the Marine Size Spectrum*
-  Core MIZER theory paper deriving scaling laws for fish abundance from predation kernels.
-  <https://doi.org/10.1086/507887>
-
-- **Hartvig et al. (2011)** — *Food Web Framework for Size-Structured Populations*
-  Develops the multi-species size-spectrum framework including the predation kernel and semi-chemostat resource dynamics described in this meeting.
-  <https://doi.org/10.1016/j.jtbi.2010.12.006>
-
-- **Blanchard et al. (2014)** — *mizer: an R package for multispecies size-spectrum models*
-  The primary software reference for the MIZER model used in this project.
-  <https://doi.org/10.1111/2041-210X.12745>
-
-- **Lighthill & Whitham (1955)** — *On Kinematic Waves*
-  Original paper deriving the continuum traffic flow PDE (LWR model) that directly analogises to the fish size-spectrum equation.
-  <https://doi.org/10.1098/rspa.1955.0112>
-
 
 
 1. Nagel & Schreckenberg (1992) — A Cellular Automaton Model for Freeway Traffic
@@ -81,11 +61,7 @@ A more recent paper that explicitly proves the existence of Hopf bifurcations an
 10. Datta, Delius & Law (2011) — A Stability Analysis of the Power-Law Steady State of Marine Size Spectra
 Journal of Mathematical Biology, 63(4), 779–799traffic flow models as sensitivity parameters vary. Directly bridges the traffic and dynamical-systems language — useful for understanding what type of instability the fish project is dealing with.
 
----
-10. Datta, Delius & Law (2011) — A Stability Analysis of the Power-Law Steady State of Marine Size Spectra
-Journal of Mathematical Biology, 63(4), 779–799
-https://doi.org/10.1007/s00285-010-0387-z
-Already recommended in the fish list, but worth re-emphasising here: this paper performs the exact same type of linear stability analysis for the McKendrick–von Foerster fish equation that papers 2, 3, and 8 above do for traffic models. Reading it alongside the traffic papers shows precisely how the two instability problems are mathematically equivalent — and it is from the University of York, so your supervisor almost certainly knows it well.
+
 
 
 11. Sheldon, Prakash & Sutcliffe (1972) — The Size Distribution of Particles in the Ocean
