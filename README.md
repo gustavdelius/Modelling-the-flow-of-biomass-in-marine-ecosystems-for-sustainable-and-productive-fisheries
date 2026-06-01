@@ -96,6 +96,4 @@ A low replenishment rate therefore maximises the coupling between fish density a
 
 ---
 
-## Research Plan
 
-The immediate task is to build a **single-species MIZER model** feeding on a resource with a low replenishment rate, then identify the parameter regimes that produce the jamming instability. The aim is to find what combination of parameters pushes the system past the critical threshold — beyond which even a tiny random excess of fish at one size class is enough to trigger a self-sustaining pile-up. Once those regimes are mapped, the next step is to investigate whether adjusting fishing mortality can prevent or dissolve the jam.
