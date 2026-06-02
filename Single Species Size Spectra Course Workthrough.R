@@ -32,7 +32,6 @@ biomass_density <- n * w(params)#w returns the weights at the start of eaach siz
 
 biomass <- biomass_density * dw(params)
 
-#The below does work, so if I want a cdf plot, it seems I'll need to use this:
 # Initialise an array with the right dimensions
 cumulative_biomass <- biomass
 # Calculate the cumulative sum of all biomasses in previous bins
@@ -46,7 +45,7 @@ p_biomass_cdf <- ggplot(melt(cdf), aes(x = w, y = value)) +
        y = "% of total biomass")
 p_biomass_cdf
 
-#plotCDF(params, log_x = FALSE)#still doesn't work,weird
+plotCDF(params, log_x = FALSE)
 
 growth_rate <- getEGrowth(params)
 growth_rate[1, 61]
@@ -68,7 +67,7 @@ lm(log(m_small_fish) ~ log(w_small_fish))
 plot(n, log_x = TRUE, log_y = TRUE)
 
 n_small_fish <- n[w(params) <= 10]
-lm(log(n_small_fish) ~ log(w_small_fish))#alternate way to find thr allemetry coefficient
+lm(log(n_small_fish) ~ log(w_small_fish))#alternate way to find the allemetry coefficient
 
 plotSpectra(params, wlim = c(10, NA))#w axis is 10 and above
 
@@ -92,7 +91,7 @@ pc <- plot(psi(params_changed_maturity), log_x = FALSE) +
              lty = 2) +
   geom_vline(xintercept = species_params(params_changed_maturity)$w_mat25, 
              lty = 2, col = "grey")
-pc#this doesn't work either,because psi doesn't seem to exist
+pc
 
 addPlot(p, psi(params_changed_maturity))#for comparison
 
