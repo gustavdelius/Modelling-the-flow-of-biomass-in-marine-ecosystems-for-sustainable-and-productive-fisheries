@@ -1,0 +1,51 @@
+[
+  {
+    "objectID": "index.html",
+    "href": "index.html",
+    "title": "Day One: Setting the Stage",
+    "section": "",
+    "text": "The meeting this morning was a lot to take in. The idea that fishing could actually improve ecosystem productivity rather than harm it feels almost counterintuitive at first. But once the traffic analogy clicked, it made complete sense. Fish biomass flowing through size space behaves mathematically like cars on a motorway. When conditions are right, you get a phantom traffic jam, a pile-up at one size class that starves the fish above and below it. And just as motorway agencies can use speed limits to prevent jams, targeted fishing could in theory relieve them.\nThat’s the project. It’s a genuinely novel idea and it’s exciting to be working on it from day one."
+  },
+  {
+    "objectID": "index.html#how-it-started",
+    "href": "index.html#how-it-started",
+    "title": "Day One: Setting the Stage",
+    "section": "",
+    "text": "The meeting this morning was a lot to take in. The idea that fishing could actually improve ecosystem productivity rather than harm it feels almost counterintuitive at first. But once the traffic analogy clicked, it made complete sense. Fish biomass flowing through size space behaves mathematically like cars on a motorway. When conditions are right, you get a phantom traffic jam, a pile-up at one size class that starves the fish above and below it. And just as motorway agencies can use speed limits to prevent jams, targeted fishing could in theory relieve them.\nThat’s the project. It’s a genuinely novel idea and it’s exciting to be working on it from day one."
+  },
+  {
+    "objectID": "index.html#what-we-got-through-today",
+    "href": "index.html#what-we-got-through-today",
+    "title": "Day One: Setting the Stage",
+    "section": "What We Got Through Today",
+    "text": "What We Got Through Today\n\nCleaning Up the Meeting Notes\nThe first thing I did was sort out the raw transcript from this morning’s meeting.\nI also converted everything in the notes folder to markdown so it’s all in one consistent, readable format. The Understanding of the project.md file got a full rewrite as in my first draft, it was a wall of text before, with no structure and a couple of logical errors. Now it has proper sections, the governing equations laid out cleanly with variable tables, and a clear explanation of why low resource replenishment creates jams (which required actually thinking through the equilibrium algebra rather than just restating the supervisor’s words).\n\n\nFinding Simulation Tools\nFound some genuinely useful interactive simulations to build intuition with:\n\nMartin Treiber’s ring-road sim — you can nudge one car and watch a jam propagate backward. Extremely satisfying.\nMIT’s jamiton page — interactive explorable explanations of the LWR PDE, directly tied to the equations discussed in the meeting.\nThe MIZER interactive course — runs R in the background via Binder. This one is directly on the path to what I’ll be doing in code tomorrow.\n\n\n\nLiterature — Twenty Papers and Counting\nI put together two reading lists: ten papers on the fish side and ten on the traffic side. The fish papers run from Sheldon et al.’s foundational 1972 observation that marine biomass is roughly flat across logarithmic size classes all the way through to the MIZER software paper. The traffic papers focus specifically on bifurcations, phase transitions, and the critical constants that imply jam formation."
+  },
+  {
+    "objectID": "index.html#the-paper-analysis",
+    "href": "index.html#the-paper-analysis",
+    "title": "Day One: Setting the Stage",
+    "section": "The Paper Analysis",
+    "text": "The Paper Analysis\nThis is where the day got genuinely hard.\nSeven papers are sitting in the papers folder, and I worked through all of them in depth to produce a full analysis PDF. Some of them were dense in a way that required real concentration. Kerner & Konhäuser (1994) in particular is a 30-page Physical Review paper packed with phase-plane analysis, nonlinear cluster theory, and pages of coupled ODEs. These are not light reads.\nBut the key is that they’re all saying versions of the same thing, just at different levels of generality. Once you have the central idea, a transport system with density-dependent flux will jam when the feedback between density and speed/growth is strong enough, each paper is filling in a different piece of the picture. The payoff from grinding through them is that you build a map of the terrain before you start coding.\n\n\n\n\n\n\nNoteWhat I pulled from each paper\n\n\n\nDatta, Delius & Law (2011) — Most important. Same equations, same institution. Derives the exact stability conditions for the McKendrick-von Foerster equation: large predator:prey ratio \\(\\beta\\), small diet breadth \\(\\sigma\\), low feeding efficiency \\(K\\) all push toward instability.\nRochet & Benoît (2012) — Most directly relevant biologically. Shows that selective fishing amplifies oscillations in the size spectrum, with large fish being far more destabilising targets than small fish. The phase portrait in (selectivity, intensity) space is essentially the diagram the project wants to produce.\nBando et al. (1995) — Clearest derivation of the instability condition: \\(V'(b) &gt; a/2\\). Uniform traffic jams if the slope of the velocity function exceeds half the driver sensitivity. Maps directly onto the fish model.\nKerner & Konhäuser (1994) — Three-regime phase structure: stable, metastable, unstable. The metastable regime (where a large perturbation can nucleate a jam even though small ones die out) is likely to appear in MIZER too.\n\n\n\nThe Ranking\nAfter skimming through all 20, the top 5 order of importance for this project is:\n\nDatta, Delius & Law (2011)\nRochet & Benoît (2012)\nBando et al. (1995)\nKerner & Konhäuser (1994)\nSugiyama et al. (2008)\n\nPapers 1 and 2 are in a different tier as they’re the core theoretical and biological foundation. Papers 3-5 build intuition."
+  },
+  {
+    "objectID": "index.html#what-tomorrow-looks-like",
+    "href": "index.html#what-tomorrow-looks-like",
+    "title": "Day One: Setting the Stage",
+    "section": "What Tomorrow Looks Like",
+    "text": "What Tomorrow Looks Like\nTomorrow is about getting hands-on with MIZER. The goal is to build a single-species model feeding on a resource with a low replenishment rate, and start feeling out the parameter space. No polished results expected because this is an intuition-building session.\nConcretely, that means:\n\nGetting MIZER installed and running in R\nFollowing the MIZER course fishing scenarios tutorial to understand the basic API\nBuilding the simplest possible single-species model (one species, one resource)\nSetting the resource replenishment rate \\(r\\) low and watching what happens to the size spectrum\nTrying to reproduce something that looks like a jam — a localised excess of fish at one size class that self-amplifies rather than smoothing out\n\nThe aim isn’t to find the exact bifurcation point tomorrow but instead to confirm that the instability exists in MIZER at all and get a feel for which parameters matter most."
+  },
+  {
+    "objectID": "index.html#reflection",
+    "href": "index.html#reflection",
+    "title": "Day One: Setting the Stage",
+    "section": "Reflection",
+    "text": "Reflection\nHonestly, today was a good day. The literature is dense but it’s tractable, and the more you sit with the traffic analogy the more natural it feels. The fish model and the traffic model are not just metaphorically similar but structurally identical in the way that matters: both are conservation laws with density-dependent flux, and both jam when the feedback between density and transport rate is strong enough.\nWhat the project adds is the simulation side, pushing the model into regimes the analytical approach can’t easily reach, and the intervention side by using fishing to actively reshape the dynamics rather than just observe them.\nPlenty to get on with. On to the code."
+  },
+  {
+    "objectID": "about.html",
+    "href": "about.html",
+    "title": "About",
+    "section": "",
+    "text": "About this site\n\n1 + 1\n\n[1] 2"
+  }
+]
