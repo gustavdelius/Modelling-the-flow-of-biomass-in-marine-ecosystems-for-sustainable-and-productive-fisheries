@@ -1,0 +1,394 @@
+---
+title: "Traffic Jams in Fish Size Spectra: Setting Up and Exploring the Model"
+author: "Gustav Delius"
+date: today
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    code-fold: true
+    self-contained: true
+execute:
+  warning: false
+  message: false
+  cache: true
+---
+
+## Background
+
+The central hypothesis of this project is that fish population dynamics can
+exhibit a **traffic jam instability** analogous to phantom jams on motorways.
+In the McKendrick–von Foerster equation
+
+$$\frac{\partial N(w)}{\partial t} = -\frac{\partial}{\partial w}\big[g(w)\,N(w)\big] - \mu(w)\,N(w),$$
+
+the growth rate $g(w)$ plays the role of vehicle velocity. A traffic jam forms
+when high fish density at size $w$ depletes the prey resource at size
+$w' \approx w/\beta$ ($\beta \approx 100$ is the preferred predator–prey mass
+ratio), which reduces $g(w)$, which causes fish to linger at $w$, further
+depleting the resource — a self-reinforcing feedback.
+
+The plankton resource follows semi-chemostat dynamics:
+$$\frac{dN_R}{dt} = r_R\,(c_R - N_R) - \mu_R\,N_R,$$
+giving equilibrium abundance $N_R^* = r_R\,c_R / (r_R + \mu_R)$.
+
+When $r_R$ is small relative to $\mu_R$ (slow replenishment), the resource
+level $N_R^*/c_R = r_R/(r_R + \mu_R)$ is low, predation strongly depletes the
+resource, and any increase in fish density causes a large relative drop in
+$N_R^*$:
+$$\frac{\delta N_R^*}{N_R^*} = -\frac{\delta\mu_R}{r_R + \mu_R}.$$
+This coupling between fish density and growth rate is maximised when
+$r_R \ll \mu_R$.
+
+## Model setup
+
+```{r setup}
+library(mizer)
+library(ggplot2)
+```
+
+### `newSingleSpeciesParams()` and `setResource()`
+
+We use `newSingleSpeciesParams()` to place a single species in a power-law
+background and `setResource()` to switch the resource from the default
+fixed background (`resource_constant`) to semi-chemostat dynamics
+(`resource_semichemostat`) with a controllable replenishment rate.
+
+The feeding level
+
+$$f(w) = \frac{E(w)}{E(w) + h\,w^n}$$
+
+is the fraction of maximum intake rate actually achieved. The growth rate
+
+$$g(w) = \alpha\,h\,w^n\,[f(w) - f_c]$$
+
+is zero when $f = f_c$ (the critical feeding level, default 0.25) and rises
+linearly above it. Setting `f0 = 0.3` — just above $f_c = 0.25$ — places fish
+in a regime where any reduction in resource abundance dramatically reduces
+growth, exactly as required for the jam.
+
+```{r params}
+params_base <- newSingleSpeciesParams(
+  species_name       = "Target species",
+  w_max              = 1e4,     # 10 kg
+  kappa              = 0.005,
+  f0                 = 0.3,     # close to fc = 0.25
+  reproduction_level = 0
+)
+
+# All three scenarios use r_R = 0.1 via setResource(); only f0 differs.
+# Changing r_R with balance = TRUE does not change the jam dynamics because
+# the equilibrium feeding level stays at f0. The role of r_R is indirect:
+# in a real ecosystem a low r_R depletes the resource and pushes f0 toward fc.
+params_low_r  <- setResource(params_base, resource_rate = 0.1,
+                             resource_dynamics = "resource_semichemostat")
+params_high_r <- setResource(params_base, resource_rate = 10,
+                             resource_dynamics = "resource_semichemostat")
+
+params_mid <- newSingleSpeciesParams(
+  species_name       = "Target species",
+  w_max              = 1e4,
+  kappa              = 0.005,
+  f0                 = 0.4,     # moderate distance from fc
+  reproduction_level = 0
+) |>
+  setResource(resource_rate = 0.1, resource_dynamics = "resource_semichemostat")
+
+params_stable <- newSingleSpeciesParams(
+  species_name       = "Target species",
+  w_max              = 1e4,
+  kappa              = 0.005,
+  f0                 = 0.6,     # well above fc; insensitive to prey changes
+  reproduction_level = 0
+) |>
+  setResource(resource_rate = 0.1, resource_dynamics = "resource_semichemostat")
+```
+
+## What `balance = TRUE` does
+
+`setResource()` uses `balance = TRUE` by default: it adjusts the carrying
+capacity $c_R(w)$ so that the current resource abundance $N_R(w)$ is already
+at its semi-chemostat equilibrium. As a result **both the low- and high-$r_R$
+models start with the same feeding level** $f_0 = 0.3$.
+
+```{r balance}
+cat("Resource level N_R/c_R at t = 0 (equilibrium by balance = TRUE):\n")
+cat("  low  r_R = 0.1:", round(range(resource_level(params_low_r)),  3), "\n")
+cat("  high r_R = 10 :", round(range(resource_level(params_high_r)), 3), "\n")
+```
+
+The range `[0.33, 1]` for the low-$r_R$ case means that at the prey sizes of
+the abundant small fish, $r_R \ll \mu_R$ and the resource is heavily depleted.
+The `balance = TRUE` setting compensates by setting $c_R$ very high, preserving
+the equilibrium. **The relevant implication for real ecosystems**: in a system
+where $r_R$ is genuinely small, a naturally established fish population would
+settle at a lower feeding level (nearer $f_c$) because the resource cannot
+sustain a high $N_R^*$.
+
+## The coupling mechanism
+
+Growth rate collapses near $f_c$ when resource is even slightly depleted.
+
+The key point is that `resource_level(p) <- rl` adjusts the *carrying
+capacity* $c_R$, not the actual resource abundance $N_R$; `getEGrowth()`
+uses $N_R$, so we must scale `initialNResource()` directly.
+
+With $f_0 = 0.3$ and $f_c = 0.25$, the growth rate is zero when
+$$N_R \leq N_R^{\,\text{base}} \times \frac{(1-f_0)\,f_c}{f_0(1-f_c)} \approx 0.778\,N_R^{\,\text{base}}.$$
+So a mere 22% drop in resource abundance is enough to halt all growth — the
+fish analogue of a motorway grinding to a complete standstill.
+
+```{r coupling-plot}
+#| fig-cap: "Growth rate g(w) when N_R is scaled to different fractions of its baseline value. With f₀ = 0.3 (only 20% above fc = 0.25), a 10% drop in N_R halves g(w); a 20% drop leaves only 11% of normal growth."
+#| fig-width: 8
+#| fig-height: 4.5
+
+# Use depletion levels where g > 0; rl > (1-f0)*fc / (f0*(1-fc)) ~ 0.778
+depletion_df <- do.call(rbind, lapply(c(1.0, 0.95, 0.90, 0.85, 0.80), function(rl) {
+  p <- params_base
+  initialNResource(p) <- initialNResource(p) * rl   # actually reduce N_R
+  data.frame(
+    resource_level = factor(rl),
+    w              = w(p),
+    g              = getEGrowth(p)["Target species", ]
+  )
+}))
+
+ggplot(depletion_df, aes(x = w, y = g, colour = resource_level)) +
+  geom_line(linewidth = 0.9) +
+  scale_x_log10(labels = scales::label_log(), breaks = 10^(-2:4)) +
+  scale_colour_viridis_d(direction = -1,
+                         name = expression(N[R] ~ "(fraction of baseline)")) +
+  labs(x = "Body mass w (g)", y = "Growth rate g(w) (g/yr)") +
+  theme_bw(base_size = 13)
+```
+
+This is the **traffic-jam mechanism**: fish growing through a size class where
+the resource has been depleted find themselves nearly unable to grow. They
+linger, consuming more resource, and the jam is self-reinforcing.
+
+## Where is the coupling strongest?
+
+Resource depletion (low $N_R/c_R$) occurs where predation mortality $\mu_R$ is
+large relative to $r_R$. In the single-species model this is at the smallest
+sizes, where the many small fish eat heavily.
+
+```{r resource-level-plot}
+#| fig-cap: "Resource level across the full size spectrum for two replenishment rates. Low r_R creates strong depletion where fish predation is heavy (small prey sizes). High r_R keeps the resource near capacity everywhere."
+#| fig-width: 8
+#| fig-height: 4.5
+
+wf   <- w_full(params_low_r)
+rl_df <- data.frame(
+  w     = rep(wf, 2),
+  level = c(resource_level(params_low_r), resource_level(params_high_r)),
+  model = rep(c("low r_R = 0.1", "high r_R = 10"), each = length(wf))
+)
+rl_df <- rl_df[is.finite(rl_df$level) & rl_df$level > 0, ]
+
+ggplot(rl_df, aes(x = w, y = level, colour = model)) +
+  geom_line(linewidth = 1) +
+  scale_x_log10(labels = scales::label_log(), breaks = 10^(-12:4)) +
+  scale_colour_manual(values = c("firebrick", "steelblue"), name = NULL) +
+  labs(x = "Resource size w (g)",
+       y = expression(N[R]/c[R] ~ "(resource level)")) +
+  theme_bw(base_size = 13) +
+  theme(legend.position = "bottom")
+```
+
+**Key finding**: with $r_R = 0.1$, the resource is depleted to ~33% of
+capacity at the prey sizes of the smallest fish (where $\mu_R \approx 3 \gg r_R$).
+With $r_R = 10$, the resource stays near capacity everywhere. In a real
+ecosystem, the low-$r_R$ state would naturally correspond to near-$f_c$ feeding
+for the fish living at those sizes.
+
+## Demonstrating the traffic jam
+
+### Perturbation experiment
+
+We add a Gaussian density excess (4× normal density) centred at $w = 50\,\mathrm{g}$
+and track how it evolves over 30 years in three scenarios:
+
+| Scenario | $f_0$ | $r_R$ | Expected behaviour |
+|---|---|---|---|
+| Jam-prone | 0.3 | 0.1 | Slow wave; long-lived excess |
+| Intermediate | 0.4 | 0.1 | Wave decays over ~15 yr |
+| Stable | 0.6 | 0.1 | Fast wave; excess dissipates in ~10 yr |
+
+All three use the same `r_R = 0.1` via `setResource()`. Varying $r_R$ with
+`balance = TRUE` does **not** change the jam signal because the equilibrium
+feeding level stays fixed at $f_0$. The role of a low $r_R$ is therefore
+**indirect**: in a real ecosystem, depleted plankton (low $N_R^*/c_R$)
+naturally pushes the fish feeding level toward $f_c$, entering the jam-prone
+regime shown by the red curve here.
+
+```{r perturbation-setup}
+add_bump <- function(params, w_bump = 50, amplitude = 4, log10_sigma = 0.4) {
+  N0   <- initialN(params)
+  wv   <- w(params)
+  bump <- amplitude * exp(-((log10(wv) - log10(w_bump))^2) / (2 * log10_sigma^2))
+  N0[1, ] <- N0[1, ] * (1 + bump)
+  initialN(params) <- N0
+  params
+}
+
+run_pair <- function(params, t_max = 30) {
+  base <- project(params, t_max = t_max, effort = 0, progress_bar = FALSE)
+  pert <- project(add_bump(params), t_max = t_max, effort = 0, progress_bar = FALSE)
+  list(base = base, pert = pert)
+}
+
+sims_jam    <- run_pair(params_low_r)
+sims_mid    <- run_pair(params_mid)
+sims_stable <- run_pair(params_stable)
+```
+
+```{r wave-extraction}
+get_wave <- function(sim_base, sim_pert, label) {
+  N_b   <- N(sim_base)[, 1, ]
+  N_p   <- N(sim_pert)[, 1, ]
+  times <- as.numeric(dimnames(N_b)[[1]])
+  wv    <- w(sim_base@params)
+  do.call(rbind, lapply(seq_along(times), function(i) {
+    r  <- N_p[i, ] / N_b[i, ]
+    ok <- is.finite(r) & N_b[i, ] > 0 & r > 0 & wv > 0.01
+    if (!any(ok)) return(NULL)
+    data.frame(time = times[i],
+               amplitude = max(r[ok]),
+               peak_w    = wv[ok][which.max(r[ok])],
+               scenario  = label)
+  }))
+}
+
+wave_df <- rbind(
+  get_wave(sims_jam$base,    sims_jam$pert,    "jam-prone: f0=0.3 (near fc=0.25)"),
+  get_wave(sims_mid$base,    sims_mid$pert,    "intermediate: f0=0.4"),
+  get_wave(sims_stable$base, sims_stable$pert, "stable: f0=0.6")
+)
+wave_df$scenario <- factor(wave_df$scenario, levels = unique(wave_df$scenario))
+```
+
+### Jam amplitude
+
+```{r amplitude-plot}
+#| fig-cap: "Peak density excess over time (all three runs use r_R = 0.1). Proximity to fc = 0.25 is the key variable: f₀ = 0.3 keeps the jam alive for 30+ years; f₀ = 0.4 decays within 15 years; f₀ = 0.6 is gone by t = 10 yr."
+#| fig-width: 8
+#| fig-height: 4.5
+
+ggplot(wave_df, aes(x = time, y = amplitude, colour = scenario)) +
+  geom_line(linewidth = 1) +
+  geom_hline(yintercept = 1, linetype = "dashed", colour = "grey40") +
+  scale_colour_manual(values = c("firebrick", "darkorange", "steelblue"),
+                      name = NULL) +
+  labs(x = "Time (years)",
+       y = "Peak ratio  N_perturbed / N_baseline") +
+  theme_bw(base_size = 13) +
+  theme(legend.position = "bottom")
+```
+
+### Wave speed
+
+```{r speed-plot}
+#| fig-cap: "Location of the density peak over time (log scale). With f₀ = 0.3 the peak advances from 50 g to only ~1000 g in 30 years (slow traffic). With f₀ = 0.4 it reaches ~5000 g; with f₀ = 0.6 it exits the domain within 10 years."
+#| fig-width: 8
+#| fig-height: 4.5
+
+ggplot(wave_df, aes(x = time, y = peak_w, colour = scenario)) +
+  geom_line(linewidth = 1) +
+  scale_y_log10(labels = scales::label_log(), breaks = 10^(0:4)) +
+  scale_colour_manual(values = c("firebrick", "darkorange", "steelblue"),
+                      name = NULL) +
+  labs(x = "Time (years)",
+       y = "Body mass of density peak (g)") +
+  theme_bw(base_size = 13) +
+  theme(legend.position = "bottom")
+```
+
+### Heatmap
+
+```{r heatmap}
+#| fig-cap: "Size–time heatmap of log₂(N_perturbed / N_baseline) for the jam-prone scenario. The red band advances slowly, confirming that fish near the critical feeding level propagate density excesses much more slowly than well-fed fish."
+#| fig-width: 9
+#| fig-height: 5.5
+
+N_b <- N(sims_jam$base)[, 1, ]
+N_p <- N(sims_jam$pert)[, 1, ]
+wv  <- w(params_low_r)
+tv  <- as.numeric(dimnames(N_b)[[1]])
+
+ratio_mat <- N_p / N_b
+ratio_mat[!is.finite(ratio_mat) | ratio_mat <= 0] <- NA
+hm_df <- data.frame(
+  w          = rep(wv,  each  = length(tv)),
+  time       = rep(tv,  times = length(wv)),
+  log2_ratio = as.vector(log2(ratio_mat))
+)
+
+ggplot(hm_df, aes(x = w, y = time, fill = log2_ratio)) +
+  geom_raster() +
+  scale_x_log10(labels = scales::label_log(), breaks = 10^(0:4)) +
+  scale_fill_gradient2(low = "steelblue", mid = "white", high = "firebrick",
+                       midpoint = 0, limits = c(-1.5, 1.5),
+                       oob = scales::squish, na.value = "white",
+                       name = expression(log[2](N/N[base]))) +
+  labs(x = "Body mass w (g)", y = "Time (years)") +
+  theme_bw(base_size = 13)
+```
+
+## Summary of findings
+
+```{r summary-table, echo=FALSE}
+#| tbl-cap: "Persistence of the density excess: amplitude at key time points."
+library(knitr)
+tab <- do.call(rbind, lapply(levels(wave_df$scenario), function(scen) {
+  d <- wave_df[wave_df$scenario == scen, ]
+  data.frame(
+    Scenario  = scen,
+    `t = 0`  = round(d$amplitude[d$time == 0],  2),
+    `t = 10` = round(d$amplitude[d$time == 10], 2),
+    `t = 30` = round(d$amplitude[d$time == 30], 2),
+    `Decay`  = paste0(round(100*(1 - d$amplitude[d$time == 30] /
+                                     d$amplitude[d$time == 0]), 0), "%"),
+    check.names = FALSE
+  )
+}))
+kable(tab, row.names = FALSE)
+```
+
+### Conclusions
+
+1. **Near-critical feeding is the key condition.** With $f_0 = 0.3$ (only 20%
+   above $f_c = 0.25$), the density excess decays by only 43% over 30 years.
+   With $f_0 = 0.6$ it dissipates within 10 years. This is the fish analogue
+   of a traffic queue: slow-moving vehicles preserve congestion far longer
+   than fast-moving ones.
+
+2. **Low $r_R$ creates the near-critical state in real ecosystems.** The
+   resource is depleted to ~33% of capacity at the prey sizes of the abundant
+   small fish when $r_R = 0.1$. A real fish population that self-regulates
+   against this depleted resource would naturally settle at a feeding level
+   near $f_c$, placing the system in the jam-prone regime.
+
+3. **The density-dependent coupling (resource depletion by the bump fish) is
+   weak in this single-species model.** The perturbation at $w = 50\,\mathrm{g}$
+   causes negligible additional depletion at the preferred prey size
+   ($w \approx 0.5\,\mathrm{g}$) because the predation mortality on the
+   resource at that size is already tiny ($\mu_R \approx 10^{-7}$ yr$^{-1}$)
+   relative to $r_R$. The jam signal shown here is primarily a **kinematic**
+   effect (slow propagation near $f_c$), not yet a fully self-sustaining
+   **dynamic** instability.
+
+4. **A stronger coupling — and therefore a self-amplifying jam — is expected
+   in a multispecies model** where fish eat other fish. In such a model, a
+   dense cohort at size $w$ directly depletes the fish at size $w/\beta$,
+   creating a strong non-local feedback that can push the system past the
+   instability threshold.
+
+### Next steps
+
+- Set up a community or trait-based model (`newCommunityParams()` or
+  `newTraitParams()`) with inter-species predation to get the stronger coupling.
+- Search for the bifurcation parameter (perhaps $r_R$ itself, or fish density)
+  at which the jam transitions from a decaying wave to a growing instability.
+- Investigate whether targeted fishing at the jam size class can dissolve the
+  jam and restore productivity — the central hypothesis of the project.
