@@ -1,6 +1,9 @@
 [
   {
     "listing": "/index.html",
-    "items": []
+    "items": [
+      "/posts/2026-06-02-day-two.html",
+      "/posts/2026-06-01-day-one.html"
+    ]
   }
 ]
