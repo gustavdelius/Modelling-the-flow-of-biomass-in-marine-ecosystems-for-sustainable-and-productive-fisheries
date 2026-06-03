@@ -7,24 +7,35 @@ library(mizerExperimental)
 library(tidyverse)
 
 params <- newSingleSpeciesParams(lambda = 2.05)
+# Knock the initial population off steady state
 
-# Baseline
-sim_base <- project(params, t_max = 100)
+
+
 
 # Resource rate experiments
 params_low_r <- setResource(params, resource_rate = 0.001,resource_dynamics = "resource_semichemostat")
 
+initialN(params) <- initialN(params) * 0.01
+initialN(params_low_r) <- initialN(params_low_r) * 0.01
+# initialNResource(params) <- initialNResource(params) * 0.5
+# initialNResource(params_low_r) <- initialNResource(params_low_r) * 0.5
+# Baseline
+sim_base <- project(params, t_max = 100)
+
+#Low Resource rate
 sim_low_r <- project(params_low_r, t_max = 100)
 
-# Growth curve comparison
-p1 <- plotGrowthCurves(sim_base) + ggtitle("Baseline")
-p2 <- plotGrowthCurves(sim_low_r) + ggtitle("Low resource rate")
-wrap_plots(p1, p2)
+#sum(resource_capacity(params_low_r) - resource_capacity(params))
+
+# Growth curve comparison,quite useless, doesn't reveal much of anything
+# p1 <- plotGrowthCurves(sim_base) + ggtitle("Baseline")
+# p2 <- plotGrowthCurves(sim_low_r) + ggtitle("Low resource rate")
+# wrap_plots(p1, p2)
 
 # Spectra comparison
-p3 <- plotSpectra(sim_base, time_range = 90:100) + ggtitle("Baseline")
-p4 <- plotSpectra(sim_low_r, time_range = 90:100) + ggtitle("Low resource rate")
-wrap_plots(p3,p4)
+# p3 <- plotSpectra(sim_base, time_range = 90:100) + ggtitle("Baseline")
+# p4 <- plotSpectra(sim_low_r, time_range = 90:100) + ggtitle("Low resource rate")
+# wrap_plots(p3,p4)
 plotSpectraRelative(sim_base,sim_low_r)
 
 # Deviation from power law
@@ -42,4 +53,4 @@ deviation_plot(sim_base, "Baseline")
 deviation_plot(sim_low_r, "Low resource rate")
 
 #Animate sim
-animate(sim_low_r)
+animateSpectra(sim_low_r)

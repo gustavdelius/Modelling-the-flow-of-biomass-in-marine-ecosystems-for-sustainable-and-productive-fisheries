@@ -1,0 +1,160 @@
+---
+title: "Day Two: Git, GitHub & Mizer Traffic Jams"
+author: "Sami Aden"
+date: "2026-06-02"
+categories: [git, mizer, coding, size-spectrum]
+description: "A day of friction: wrestling Git into RStudio for the first time, and then trying to coax Mizer out of its comfortable steady state."
+---
+
+## How It Started
+
+Yesterday ended with a plan: get MIZER running, build the simplest possible single-species model, and try to see a jam. Simple enough on paper. What I didn't account for was that before any of that, the project needed to actually be on GitHub and setting up Git inside RStudio turned out to be its own battle entirely.
+
+------------------------------------------------------------------------
+
+## The Git Problem
+
+I've used Git before, but always through VS Code on WSL. The workflow there is second nature: open a terminal, `git init`, `git add`, `git commit`, done. RStudio's Git panel is a completely different mental model, and for a while it wasn't obvious where anything lived or why it wasn't behaving.
+
+The first surprise was the line ending warnings. Every file I staged threw a wall of:
+
+```         
+warning: LF will be replaced by CRLF the next time Git touches it
+```
+
+On WSL this never comes up because you're already on a Linux filesystem. On native Windows, Git is converting line endings between the repo and the working directory, and RStudio doesn't hide that from you. It's not an error, just noise but it took a while to confirm that, because my instinct was that something had gone wrong. The fix was a `.gitattributes` file telling Git to handle line endings consistently and stop warning about it.
+
+The second problem was worse. Trying to push anything longer than a short path failed silently at first, and then failed loudly with a cryptic error about the path being too long. Windows caps file paths at 260 characters by default, and the project folder name alone is already a good chunk of that. The fix is a single config flag:
+
+``` bash
+git config --global core.longpaths true
+```
+
+But it also requires enabling long paths at the Windows level via the registry, which isn't something I'd ever had to think about on WSL.
+
+The third thing (this one stalled me for a good twenty minutes) was credentials. RStudio asked for a GitHub password and rejected it, because GitHub stopped accepting passwords in 2021. You need a Personal Access Token. Once I generated one and pointed Git at the Windows Credential Manager with `git config --global credential.helper manager`, everything went through cleanly. But it wasn't obvious that was the issue until I dug into the error message properly.
+
+By the end of it the repo was on GitHub and rendering to GitHub Pages via the `docs/` folder. That felt like a real win, but it had taken most of the morning.
+
+------------------------------------------------------------------------
+
+## Getting into Mizer
+
+With the repo sorted, the afternoon was for MIZER.Initially, I ran into a problem,which was that I had accidentally installed an older version of Mizer,without any of the newer functions. Updating it was straightforward enough, `devtools::install_github("sizespectrum/mizer")`, though it requires Rtools on Windows since it compiles from source, which added another fifteen minutes of waiting.
+
+The first model came together quickly. A single species, a resource spectrum, default parameters:
+
+```{r}
+#| message: false
+#| warning: false
+library(mizer)
+library(mizerExperimental)
+library(tidyverse)
+params <- newSingleSpeciesParams(lambda = 2.05)
+sim_base <- project(params, t_max = 100)
+plotSpectra(sim_base, time_range = 90:100)
+```
+
+And it worked. The spectrum was there, smooth, exactly what you'd expect; a clean power law line on a log-log plot. Which was the problem.
+
+------------------------------------------------------------------------
+
+## Breaking the Steady State
+
+This is where the day got frustrating.
+
+MIZER's `project()` function runs the model forward in time and stores snapshots at each timestep. The idea was to animate those snapshots and watch the spectrum evolve, to see whether a jam would nucleate and grow. But when I tried to build the animation, nothing moved. The model reached its steady state so quickly that by `t = 10` or so, all 100 frames of the animation were essentially identical. You'd press play and nothing would happen.
+
+The problem is that `newSingleSpeciesParams()` initialises the model at a state that's already close to equilibrium. The dynamics exist, the model *can* move, but it has nowhere to go because it starts near the fixed point. It's like trying to film a pendulum by starting it in the vertical position.
+
+The solution, once I found it, was obvious in retrospect. You have to start the model somewhere far from steady state so it has to travel to get there:
+
+```{r}
+#| message: false
+#| warning: false
+#| output: false
+# Resource rate experiments
+params_low_r <- setResource(params, resource_rate = 0.001, resource_dynamics = "resource_semichemostat")
+
+initialN(params) <- initialN(params) * 0.01
+initialN(params_low_r) <- initialN(params_low_r) * 0.01
+
+# Baseline
+sim_base <- project(params, t_max = 100)
+
+# Low resource rate
+sim_low_r <- project(params_low_r, t_max = 100)
+```
+
+Knocking the fish population down to 1% of their equilibrium values forces the whole system to rebuild from scratch. Now when you animate it, you can actually watch the spectrum grow and settle and more importantly, you can see whether it settles smoothly or whether a bump forms along the way.
+
+::: callout-note
+## Making the animation
+
+Making the simulation was much simpler than I first thought, mainly thanks to the new functions.
+
+```{r}
+#| message: false
+animateSpectra(sim_low_r)
+```
+:::
+
+The other diagnostic was the deviation from power law plot, applied to the resource spectrum.
+
+::: callout-note
+## Deviation from Power Law Plot
+
+This plot divides the actual resource spectrum by the expected power law at each size class. The baseline should sit at a constant ratio across all sizes. Any departure from that flat line means the resource is accumulating or being depleted at that size relative to what the power law predicts.
+
+```{r}
+#| fig-width: 10
+#| fig-height: 5
+deviation_plot <- function(sim, title) {
+  spec <- finalNResource(sim)
+  expected <- params@w_full^(-2.05)
+  deviation <- spec / expected
+  plot(params@w_full, deviation, type = "l", log = "x",
+       main = title, xlab = "Size (g)", ylab = "Deviation from power law")
+  abline(h = 1, lty = 2)
+}
+
+par(mfrow = c(1, 2))
+deviation_plot(sim_base,  "Baseline")
+deviation_plot(sim_low_r, "Low resource rate")
+```
+:::
+
+------------------------------------------------------------------------
+
+## What the Experiments Showed
+
+With the animation working, I ran two variants: baseline and low resource replenishment (`resource_rate = 0.001`). The deviation-from-power-law plot on the resource spectrum made the contrast between the two cases visible.
+
+The baseline was a flat line. The resource sits at a constant ratio to the power law across every size class, which is exactly what you would expect from a system at steady state. The low resource rate case was different: a small positive bump appeared at very small plankton sizes, and a clear dip appeared at around 1g, precisely where the fish feed most actively. When replenishment is slow, fish draw the resource down faster than it can recover at that size, and the deficit shows up cleanly in the plot.
+
+That is a proof of mechanism rather than a positive result. The model is behaving correctly and the physics is there, but the resource depletion at 0.001 is only about 0.2% below the power law baseline. That is not deep enough to meaningfully slow fish growth or cause biomass to pile up at that size. The maturation bottleneck is still dominating the signal completely. To see a resource-driven jam, the replenishment rate needs to be pushed much lower, to the point where the depletion at feeding size actually forces fish to slow down and accumulate.
+
+------------------------------------------------------------------------
+
+## What Tomorrow Looks Like
+
+The steady-state issue is solved, the animation works, and the baseline experiments are done. Next is to try to push the model into the regime where resource dynamics, rather than maturation, are the dominant source of instability. That probably means:
+
+- Much lower values of `resource_rate` than I tried today
+- Trying a multi-species model where a predator depends tightly on prey, so the predator-prey feedback can create its own oscillations
+- Starting to think about what a proper bifurcation diagram would look like, sweeping across one parameter and recording where the spectrum deviates from the power law
+- Increasing or decreasing the starting population in a specific range
+
+The goal is still intuition-building, not results. But I want to at least *see* a resource-driven instability before I start trying to characterise it.
+
+------------------------------------------------------------------------
+
+## Reflection
+
+Today was a day of friction. The Git problems in the morning weren't intellectually interesting, they were just obstacles, the kind of thing that costs time without teaching you anything useful about the actual project. But they're sorted now, the repo is live, and that won't have to be done again.
+
+The Mizer work was more rewarding, even where it was frustrating. The steady-state problem felt like a dead end for a while, but the fix made me think harder about what the model is actually doing and the realisation that MIZER initialises near equilibrium by design is genuinely useful context for everything that follows. You can't just run the model and hope for dynamics, you have to consciously choose your initial conditions.
+
+The maturation result is worth sitting with. It suggests the project's most interesting regime is one where you've specifically engineered the model to suppress the maturation bottleneck, or where you're looking at a species where that bottleneck doesn't dominate. Either way, it narrows the search.
+
+On to the next parameter sweep.

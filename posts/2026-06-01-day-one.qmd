@@ -1,0 +1,95 @@
+---
+title: "Day One: Setting the Stage"
+author: "Sami Aden"
+date: "2026-06-01"
+categories: [research, mizer, traffic, size-spectrum]
+description: "First day of the project: getting to grips with the literature, cleaning up notes, and building the map before the territory."
+---
+
+## How It Started
+
+The meeting this morning was a lot to take in. The idea that *fishing could actually improve ecosystem productivity* rather than harm it feels almost counterintuitive at first. But once the traffic analogy clicked, it made complete sense. Fish biomass flowing through size space behaves mathematically like cars on a motorway. When conditions are right, you get a phantom traffic jam, a pile-up at one size class that starves the fish above and below it. And just as motorway agencies can use speed limits to prevent jams, targeted fishing could in theory *relieve* them.
+
+That's the project. It's a genuinely novel idea and it's exciting to be working on it from day one.
+
+------------------------------------------------------------------------
+
+## What We Got Through Today
+
+### Cleaning Up the Meeting Notes
+
+The first thing I did was sort out the raw transcript from this morning's meeting.
+
+I also converted everything in the notes folder to markdown so it's all in one consistent, readable format. The `Understanding of the project.md` file got a full rewrite as in my first draft, it was a wall of text before, with no structure and a couple of logical errors. Now it has proper sections, the governing equations laid out cleanly with variable tables, and a clear explanation of *why* low resource replenishment creates jams (which required actually thinking through the equilibrium algebra rather than just restating the supervisor's words).
+
+### Finding Simulation Tools
+
+Found some genuinely useful interactive simulations to build intuition with:
+
+-   [**Martin Treiber's ring-road sim**](https://mtreiber.de/MicroApplet/RingRoad.html) — you can nudge one car and watch a jam propagate backward. Extremely satisfying.
+-   [**MIT's jamiton page**](https://math.mit.edu/traffic/) — interactive explorable explanations of the LWR PDE, directly tied to the equations discussed in the meeting.
+-   [**The MIZER interactive course**](https://course.mizer.sizespectrum.org/use/fishing-scenarios.html) — runs R in the background via Binder. This one is directly on the path to what I'll be doing in code tomorrow.
+
+### Literature — Twenty Papers and Counting
+
+I put together two reading lists: ten papers on the fish side and ten on the traffic side. The fish papers run from Sheldon et al.'s foundational 1972 observation that marine biomass is roughly flat across logarithmic size classes all the way through to the MIZER software paper. The traffic papers focus specifically on bifurcations, phase transitions, and the critical constants that imply jam formation.
+
+------------------------------------------------------------------------
+
+## The Paper Analysis
+
+This is where the day got genuinely hard.
+
+Seven papers are sitting in the papers folder, and I worked through all of them in depth to produce a full analysis PDF. Some of them were dense in a way that required real concentration. Kerner & Konhäuser (1994) in particular is a 30-page Physical Review paper packed with phase-plane analysis, nonlinear cluster theory, and pages of coupled ODEs. These are not light reads.
+
+But the key is that they're all saying versions of the same thing, just at different levels of generality. Once you have the central idea, *a transport system with density-dependent flux will jam when the feedback between density and speed/growth is strong enough*, each paper is filling in a different piece of the picture. The payoff from grinding through them is that you build a map of the terrain before you start coding.
+
+::: callout-note
+## What I pulled from each paper
+
+**Datta, Delius & Law (2011)** — *Most important.* Same equations, same institution. Derives the exact stability conditions for the McKendrick-von Foerster equation: large predator:prey ratio $\beta$, small diet breadth $\sigma$, low feeding efficiency $K$ all push toward instability.
+
+**Rochet & Benoît (2012)** — Most directly relevant biologically. Shows that selective fishing amplifies oscillations in the size spectrum, with large fish being far more destabilising targets than small fish. The phase portrait in (selectivity, intensity) space is essentially the diagram the project wants to produce.
+
+**Bando et al. (1995)** — Clearest derivation of the instability condition: $V'(b) > a/2$. Uniform traffic jams if the slope of the velocity function exceeds half the driver sensitivity. Maps directly onto the fish model.
+
+**Kerner & Konhäuser (1994)** — Three-regime phase structure: stable, metastable, unstable. The metastable regime (where a large perturbation can nucleate a jam even though small ones die out) is likely to appear in MIZER too.
+:::
+
+### The Ranking
+
+After skimming through all 20, the top 5 order of importance for *this* project is:
+
+1.  Datta, Delius & Law (2011)
+2.  Rochet & Benoît (2012)
+3.  Bando et al. (1995)
+4.  Kerner & Konhäuser (1994)
+5.  Sugiyama et al. (2008)
+
+Papers 1 and 2 are in a different tier as they're the core theoretical and biological foundation. Papers 3-5 build intuition.
+
+------------------------------------------------------------------------
+
+## What Tomorrow Looks Like
+
+Tomorrow is about getting hands-on with MIZER. The goal is to build a single-species model feeding on a resource with a low replenishment rate, and start feeling out the parameter space. No polished results expected because this is an *intuition-building* session.
+
+Concretely, that means:
+
+-   Getting MIZER installed and running in R
+-   Following the [MIZER course fishing scenarios tutorial](https://course.mizer.sizespectrum.org/use/fishing-scenarios.html) to understand the basic API
+-   Building the simplest possible single-species model (one species, one resource)
+-   Setting the resource replenishment rate $r$ low and watching what happens to the size spectrum
+-   Trying to reproduce something that *looks* like a jam — a localised excess of fish at one size class that self-amplifies rather than smoothing out
+
+The aim isn't to find the exact bifurcation point tomorrow but instead to confirm that the instability exists in MIZER at all and get a feel for which parameters matter most.
+
+------------------------------------------------------------------------
+
+## Reflection
+
+Honestly, today was a good day. The literature is dense but it's tractable, and the more you sit with the traffic analogy the more natural it feels. The fish model and the traffic model are not just *metaphorically* similar but structurally identical in the way that matters: both are conservation laws with density-dependent flux, and both jam when the feedback between density and transport rate is strong enough.
+
+What the project adds is the *simulation* side, pushing the model into regimes the analytical approach can't easily reach, and the *intervention* side by using fishing to actively reshape the dynamics rather than just observe them.
+
+Plenty to get on with. On to the code.
