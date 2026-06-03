@@ -67,7 +67,23 @@ par(mfrow = c(3, 1), mar = c(4, 4, 2, 1))  # 3 rows (one per size range), 1 colu
 
 
 
+#no longer need to loop
+#Got Osiciliatory motion!!!!!!!!!!!!!
+p <- newSingleSpeciesParams(lambda = 2.05)
 
+r <- resource_rate(p)
+r <- r*0.0001
+p <- setResource(p,resource_rate = r,resource_dynamics = "resource_semichemostat")
+rng <- test_sizes[["large"]]
+idx <- p@w >= rng[1] & p@w <= rng[2]
+initialN(p)[, idx] <- initialN(p)[, idx] * 5
+
+sim <- project(p, t_max = 100,t_save = 0.5)
+
+
+# Deviation from power law
+deviation_plot(sim, paste("Deviation — bump at", label, "range"))
+animateSpectra(sim,resource=FALSE,log_x=FALSE,log_y=FALSE,power=2)
 
 for (label in names(test_sizes)) {
   p <- newSingleSpeciesParams(lambda = 2.05)
@@ -77,14 +93,14 @@ for (label in names(test_sizes)) {
   idx <- p@w >= rng[1] & p@w <= rng[2]
   initialN(p)[, idx] <- initialN(p)[, idx] * 5
   
-  sim <- project(p, t_max = 6,t_save = 0.2)
+  sim <- project(p, t_max = 10,t_save = 0.5)
   
   
   # Deviation from power law
   deviation_plot(sim, paste("Deviation — bump at", label, "range"))
   animateSpectra(sim,resource=FALSE,log_x=FALSE,log_y=FALSE,power=2)
   n_pp <- initialNResource(params)
-  n_pp[] <- NResource(sim)[30,]
+  n_pp[] <- NResource(sim)[15,]
 
   growth_rate <- getEGrowth(params,n_pp=n_pp)
   #plot(growth_rate, log = "")
@@ -97,115 +113,4 @@ for (label in names(test_sizes)) {
   plot2(growth_rate,growth_rate_2,log="")
 }
 
-# resource_rates <- c(0.001, 0.0001, 0.00001, 0.000001, 0.0000001)
-# 
-# plot_list <- list()
-# 
-# for (rate in resource_rates) {
-#   p <- newSingleSpeciesParams(lambda = 2.05)
-#   p <- setResource(p, resource_rate = rate,
-#                    resource_dynamics = "resource_semichemostat")
-#   
-#   idx <- p@w >= 10 & p@w <= 100
-#   initialN(p)[, idx] <- initialN(p)[, idx] * 5
-#   
-#   t_max <- min(ceiling(5 / rate), 2000)
-#   sim <- project(p, t_max = t_max, dt = 1)
-#   
-#   w_full <- sim@params@w_full
-#   deviation <- finalNResource(sim) / w_full^(-2.05)
-#   
-#   plot_list[[as.character(rate)]] <- data.frame(
-#     w         = w_full,
-#     deviation = deviation,
-#     rate      = as.character(rate)
-#   )
-# }
-# 
-# bind_rows(plot_list) |>
-#   ggplot(aes(x = w, y = deviation, colour = rate)) +
-#   geom_line() +
-#   scale_x_log10(limits = c(1e-3, 1e3)) +
-#   labs(x = "Size (g)", y = "Deviation from power law",
-#        colour = "Resource rate",
-#        title = "Resource depletion vs resource rate (large bump)") +
-#   theme_minimal()
 
-
-#resource_rates <- c(0.001, 0.0001, 0.00001, 0.000001, 0.0000001)
-resource_rates <- c(0.001)
-
-for (rate in resource_rates) {
-  p <- newSingleSpeciesParams(lambda = 2.05)
-  p <- setResource(p, resource_rate = rate,
-                   resource_dynamics = "resource_semichemostat")
-  sim_no_bump <- project(p, t_max = 2000, dt = 1)
-  idx <- p@w >= 10 & p@w <= 100
-  initialN(p)[, idx] <- initialN(p)[, idx] * 5
-  
-  sim_bump    <- project(p,    t_max = 2000, dt = 1)
-  
-  
-  print(plotSpectraRelative(sim_no_bump, sim_bump))
-  
-  
-}
-
-# times <- as.numeric(dimnames(sim_no_bump@n)[[1]])
-# 
-#  
-# p_base <- newSingleSpeciesParams(lambda = 2.05)
-# p_base <- setResource(p_base, resource_rate = 0.001,
-#                       resource_dynamics = "resource_semichemostat")
-# 
-# p_bump <- p_base
-# idx <- p_bump@w >= 10 & p_bump@w <= 100
-# initialN(p_bump)[, idx] <- initialN(p_bump)[, idx] * 5
-# 
-# sim_no_bump <- project(p_base, t_max = 2000, dt = 1)
-# sim_bump    <- project(p_bump, t_max = 2000, dt = 1)
-# 
-# n_base <- sim_no_bump@n
-# n_bump <- sim_bump@n
-# times  <- as.numeric(dimnames(sim_no_bump@n)[[1]])
-# w      <- p_base@w
-# 
-# bump_idx <- w >= 10 & w <= 100
-# 
-# rel_diff_over_time <- sapply(seq_along(times), function(t) {
-#   base_t <- n_base[t, 1, bump_idx]
-#   bump_t <- n_bump[t, 1, bump_idx]
-#   mean((bump_t - base_t) / (base_t + 1e-10))
-# })
-# 
-# p1 <- data.frame(time = times, rel_diff = rel_diff_over_time) |>
-#   ggplot(aes(x = time, y = rel_diff)) +
-#   geom_line() +
-#   geom_hline(yintercept = 0, linetype = "dashed") +
-#   labs(x = "Time", y = "Mean relative difference",
-#        title = "Bump at 10–100g: does it persist or dissipate?") +
-#   theme_minimal()
-# 
-# time_idx <- seq(1, length(times), by = 20)
-# 
-# heatmap_data <- do.call(rbind, lapply(time_idx, function(ti) {
-#   base_t <- n_base[ti, 1, ]
-#   bump_t <- n_bump[ti, 1, ]
-#   data.frame(
-#     time     = times[ti],
-#     w        = w,
-#     rel_diff = (bump_t - base_t) / (base_t + 1e-10)
-#   )
-# }))
-# 
-# p2 <- heatmap_data |>
-#   filter(w >= 0.1, w <= 1000) |>
-#   ggplot(aes(x = w, y = time, fill = rel_diff)) +
-#   geom_tile() +
-#   scale_x_log10() +
-#   scale_fill_gradient2(low = "blue", mid = "white", high = "red", midpoint = 0) +
-#   labs(x = "Size (g)", y = "Time", fill = "Relative diff",
-#        title = "Relative difference across size and time") +
-#   theme_minimal()
-# 
-# p1 / p2
