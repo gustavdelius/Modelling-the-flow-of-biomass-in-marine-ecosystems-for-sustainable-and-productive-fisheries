@@ -62,8 +62,9 @@ This seeds a localised excess of fish at large body sizes which is exactly the k
 ### The Full Experiment
 
 ```{r}
-#| fig-width: 10
-#| fig-height: 5
+#| message: false
+#| warning: false
+#| output: false
 library(mizer)
 library(patchwork)
 library(reshape2)
@@ -101,6 +102,12 @@ initialN(p)[, idx] <- initialN(p)[, idx] * 5
 
 # Run simulation
 sim <- project(p, t_max = 100, t_save = 0.5)
+
+```
+
+```{r}
+#| fig-width: 10
+#| fig-height: 5
 # Deviation from power law
 deviation_plot(sim, "Deviation — bump at large range")
 ```
