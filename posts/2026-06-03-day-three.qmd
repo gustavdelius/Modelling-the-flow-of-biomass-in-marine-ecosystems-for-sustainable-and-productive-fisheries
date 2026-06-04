@@ -1,14 +1,8 @@
 ---
-title: "Day 3: Contents Pages, Oscillations & the Power Law Penny Drop"
-author: "Samia"
+title: "Day 3: Contents Pages, Oscillations & the Power Law Realisation"
+author: "Sami Aden"
 date: "2026-06-03"
-format:
-  html:
-    toc: true
-    toc-depth: 3
-    theme: flatly
-    code-fold: true
-categories: [research, mizer, oscillations, size-spectrum, blog]
+categories: [research, mizer, oscillations, coding, size-spectrum]
 description: "A blog restructure in the morning, then a breakthrough in the afternoon: oscillatory dynamics finally appearing in the single species model."
 ---
 
@@ -113,33 +107,6 @@ deviation_plot(sim, "Deviation — bump at large range")
 
 ```{r}
 #| message: false
-library(mizer)
-library(patchwork)
-library(reshape2)
-library(plotly)
-library(dplyr)
-library(mizerExperimental)
-library(tidyverse)
-library(glue)
-
-# Build params
-p <- newSingleSpeciesParams(lambda = 2.05)
-
-# Scale down resource rate as a power law (not a constant)
-r <- resource_rate(p)
-r <- r * 0.0001
-p <- setResource(p,
-                 resource_rate = r,
-                 resource_dynamics = "resource_semichemostat"
-)
-
-# Perturb the large size range
-rng <- c(10, 100)
-idx <- p@w >= rng[1] & p@w <= rng[2]
-initialN(p)[, idx] <- initialN(p)[, idx] * 5
-
-# Run simulation
-sim <- project(p, t_max = 100, t_save = 0.5)
 animateSpectra(sim, resource = FALSE, log_x = FALSE, log_y = FALSE, power = 2)
 ```
 
