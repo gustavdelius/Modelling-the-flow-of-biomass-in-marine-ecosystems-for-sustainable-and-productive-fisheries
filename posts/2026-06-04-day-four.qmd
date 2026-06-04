@@ -1,0 +1,174 @@
+---
+title: "Day 4: Finding the Stability Boundary"
+author: "Sami Aden"
+date: "2026-06-04"
+categories: [research, mizer, oscillations, phase-diagram, stability]
+description: "A productive day: oscillations confirmed, a phase diagram mapped out, and a rough stability boundary found in beta-sigma parameter space."
+---
+
+## A Good Day
+
+Some days in research feel like you're pushing against a wall. Today was not one of those days. By the end of the afternoon, there was a clear picture of where in parameter space the single-species mizer model oscillates and more importantly, where it doesn't. That boundary is exactly what this project needs to start asking meaningful questions about fishing interventions.
+
+------------------------------------------------------------------------
+
+## Finding Oscillations
+
+The starting point was confirming that the oscillatory behaviour found yesterday wasn't a one-off. By systematically varying $\sigma$ (diet breadth) across a range of values while keeping $\beta$ fixed, it was possible to see clearly that oscillation amplitude increases as $\sigma$ decreases: smaller diet breadth means tighter predator-prey coupling, which amplifies perturbations rather than absorbing them.
+
+The key to making this comparison meaningful was measuring **relative amplitude**, the peak-to-peak oscillation as a fraction of the mean biomass, rather than absolute amplitude. Absolute amplitude is confounded by the steady-state biomass level, which itself changes with $\sigma$ and $\beta$. Relative amplitude strips that out and gives a like-for-like comparison across parameter combinations.
+
+::: callout-note
+### An example of the oscillations(  $\beta$ = 30, $\sigma$ = 0.5) {.callout-note}
+
+```{r}
+#| message: false
+#| warning: false
+#| output: false
+library(mizer)
+library(patchwork)
+library(reshape2)
+library(plotly)
+library(dplyr)
+library(mizerExperimental)
+library(tidyverse) 
+library(glue)
+
+############# Iterating on previous work - gonna vary sigma and beta and (maybe) kappa ##########################
+########################### Varying Beta #########################################
+# Deviation from power law
+deviation_plot <- function(sim, title) {
+  spec <- finalNResource(sim)
+  expected <- params@w_full^(-2.05)
+  deviation <- spec / expected
+  plot(params@w_full, deviation, type = "l", log = "x",
+       main = title, xlab = "Size (g)", ylab = "Deviation from power law")
+  abline(h = 1, lty = 2)
+}
+
+test_sizes <- list(
+  "small"  = c(0.1, 1),
+  "medium" = c(1, 10),
+  "large"  = c(10, 100)
+)#size ranges in which we are changing the initial population
+par(mfrow = c(5, 2), mar = c(4, 4, 2, 1))  # 3 rows (one per size range), 1 columns (deviation)
+
+varying_beta_sigma_test <- function(beta_new = 100, sigma_new = 1.3) {
+  test_sizes <- list(
+    "small"  = c(0.1, 1),
+    "medium" = c(1, 10),
+    "large"  = c(10, 100)
+  )
+  par(mfrow = c(3, 1), mar = c(4, 4, 2, 1))
+  p <- newSingleSpeciesParams(lambda = 2.05, beta = beta_new, sigma = sigma_new)
+  
+  r <- resource_rate(p)
+  r <- r * 0.001
+  p <- setResource(p, resource_rate = r, resource_dynamics = "resource_semichemostat")
+  rng <- test_sizes[["large"]]
+  idx <- p@w >= rng[1] & p@w <= rng[2]
+  initialN(p)[, idx] <- initialN(p)[, idx] * 5
+  
+  sim <- project(p, t_max = 100, t_save = 0.5)
+  animateSpectra(sim, resource = FALSE, log_x = FALSE, log_y = FALSE, power = 2)
+}
+
+varying_beta_sigma_test(sigma_new = 0.65)
+a <- varying_beta_sigma_test(beta_new = 30,sigma_new=0.5)
+```
+
+```{r}
+varying_beta_sigma_test(beta_new = 30,sigma_new=0.5)
+```
+:::
+
+------------------------------------------------------------------------
+
+## Mapping the Phase Diagram
+
+The main result of the day was a phase diagram of oscillation amplitude across a grid of $(\beta, \sigma)$ values. For each combination, a simulation was run and the relative amplitude computed over the final 10 time units, late enough that transient startup effects have died away, but still capturing any sustained oscillations.
+
+```{r}
+#| message: false
+#| warning: false
+#| output: false
+library(mizer)
+library(mizerExperimental)
+library(tidyverse)
+
+varying_beta_sigma <- function(beta_new, sigma_new) {
+  p <- newSingleSpeciesParams(lambda = 2.05, beta = beta_new, sigma = sigma_new)
+  r <- resource_rate(p)
+  r <- r * 0.001
+  p <- setResource(p, resource_rate = r, resource_dynamics = "resource_semichemostat")
+  idx <- p@w >= 10 & p@w <= 100
+  initialN(p)[, idx] <- initialN(p)[, idx] * 5
+  project(p, t_max = 100, t_save = 0.5)
+}
+
+amplitude_finder <- function(t_max, sims) {
+  times    <- as.numeric(dimnames(sims@n)[[1]])
+  time_idx <- times >= t_max - 10 & times <= t_max
+  n_sub    <- sims@n[time_idx, , , drop = FALSE]
+  list(
+    n_max = apply(n_sub, 3, max) * sims@params@w^2,
+    n_min = apply(n_sub, 3, min) * sims@params@w^2
+  )
+}
+
+max_amplitude <- function(sim) {
+  res    <- amplitude_finder(t_max = 100, sims = sim)
+  n_mean <- (res$n_max + res$n_min) / 2
+  max((res$n_max - res$n_min) / n_mean, na.rm = TRUE)
+}
+
+beta_values  <- c(10, 30, 50, 100, 200, 500)
+sigma_values <- c(0.3, 0.5, 0.8, 1.0, 1.3, 1.5)
+
+phase_grid <- expand.grid(beta = beta_values, sigma = sigma_values)
+phase_grid$amplitude <- mapply(function(b, s) {
+  sim <- varying_beta_sigma(beta_new = b, sigma_new = s)
+  max_amplitude(sim)
+}, phase_grid$beta, phase_grid$sigma)
+```
+
+```{r}
+#| fig-width: 7
+#| fig-height: 5
+ggplot(phase_grid, aes(x = beta, y = sigma, z = amplitude)) +
+  geom_contour_filled() +
+  geom_point(aes(colour = amplitude), size = 3, show.legend = FALSE) +
+  scale_x_log10() +
+  labs(x = expression(beta), y = expression(sigma),
+       fill = "Relative amplitude",
+       title = "Phase diagram: oscillation amplitude") +
+  theme_minimal()
+```
+
+------------------------------------------------------------------------
+
+## What the Phase Diagram Shows
+
+The result is striking. A few things stand out immediately:
+
+$\sigma$ is the dominant parameter. The contour lines run roughly horizontally, meaning the amplitude is much more sensitive to diet breadth than to predator-to-prey size ratio. Above $\sigma \approx 0.8$, the system is stable across *all* values of $\beta$ tested and the spectrum settles to steady state regardless of the perturbation.
+
+**Below** $\sigma \approx 0.5$, oscillations become large. In this regime the relative amplitude approaches 2.0, meaning the peak biomass is roughly three times the trough. These are not subtle fluctuations but sustained swings in the size spectrum.
+
+$\beta$ plays a secondary role. Smaller $\beta$ slightly amplifies the oscillations, but it doesn't drive them on its own.
+
+**The stability boundary sits around** $\sigma \approx 0.6$–$0.8$, with a slight dependence on $\beta$. This is the parameter regime worth probing more carefully as it's where the transition from stable to oscillatory dynamics occurs.
+
+One caveat: the contour plot interpolates between a 6×6 grid of simulation points. Some of the finer features (particularly the elbow around $\beta = 30$, $\sigma \approx 0.5$) could be interpolation artefacts. A denser grid would give more trustworthy contours,but would take a long time to render.
+
+------------------------------------------------------------------------
+
+## What's Next
+
+Today produced a clear map of the parameter space, but it also raised questions that need a stronger theoretical foundation to answer properly.
+
+**Read more papers:** The phase diagram raises specific questions like why does $\sigma$ dominate over $\beta$? What governs the shape of the stability boundary? Is the elbow real? These are questions the literature on size spectrum instability and bifurcation theory should be able to speak to. The next step is to go back to the papers, particularly Datta et al. and Rochet & Benoît, and read them with these specific questions in mind.
+
+**Build up knowledge of bifurcations and nonlinear dynamics:** The stability boundary found today is, in the language of dynamical systems, a bifurcation curve, the line in parameter space where the system transitions from a stable fixed point to a limit cycle. Understanding that transition properly (what type of bifurcation it is, whether it's subcritical or supercritical, what that implies for the system's response to perturbations) requires working through the relevant nonlinear dynamics. That groundwork will make the next round of simulations much more targeted.
+
+The pieces are starting to come together. The stability boundary exists, it's visible, and now it needs to be understood.

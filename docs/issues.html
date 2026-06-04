@@ -350,6 +350,27 @@ ox 100\)</span> by default. A fish of mass 100g–1000g feeds on resource in the
 <li><p>The fish in <code>sim_low_r</code> are still recovering from the 1% knockdown, but their recovery trajectory ha ppened to land at almost the same fish density as <code>sim_base_no_reduction</code> at <span class="math inline">\(t = 100\)</span> by coincidence o f timing.</p></li>
 </ol>
 <p>Either way, the flat fish line is not evidence that the resource rate <em>doesn’t matter</em> — it is evidence that the fish converge to approximately the same abundance regardless, which means the system is not i n the instability regime yet.</p>
+<p>Code is confusing - says the dip in resource should be at 10 grams rather than 1 gram, which the predator prey size preference parameter seems to indicate.</p>
+<p>p &lt;- newSingleSpeciesParams(lambda = 2.05)</p>
+<p>r &lt;- resource_rate(p) r &lt;- r<em>0.001 p &lt;- setResource(p,resource_rate = r,resource_dynamics = “resource_semichemostat”) rng &lt;- test_sizes[[“large”]] idx &lt;- p@w &gt;= rng[1] &amp; p@w &lt;= rng[2] initialN(p)[, idx] &lt;- initialN(p)[, idx]</em> 5</p>
+<p>sim &lt;- project(p, t_max = 20,t_save = 0.5)</p>
+<p>animateSpectra(sim,resource=TRUE,log_x=TRUE,log_y=FALSE,power=2)</p>
+<p>species_params(p) getResourceMort(sim) # Deviation from power law deviation_plot(sim, paste(“Deviation — bump at”, label, “range”))</p>
+<p>p &lt;- newSingleSpeciesParams(lambda = 2.05)</p>
+<p>r &lt;- resource_rate(p) r &lt;- r<em>0.001 p &lt;- setResource(p,resource_rate = r,resource_dynamics = “resource_semichemostat”) rng &lt;- test_sizes[[“large”]] idx &lt;- p@w &gt;= rng[1] &amp; p@w &lt;= rng[2] initialN(p)[, idx] &lt;- initialN(p)[, idx]</em> 5</p>
+<p>sim &lt;- project(p, t_max = 20,t_save = 0.5)</p>
+<p>animateSpectra(sim,resource=TRUE,log_x=TRUE,log_y=FALSE,power=2)</p>
+<p>species_params(p) getResourceMort(sim) # Deviation from power law deviation_plot(sim, paste(“Deviation — bump at”, label, “range”))</p>
+<p>p &lt;- newSingleSpeciesParams(lambda = 2.05)</p>
+<p>r &lt;- resource_rate(p) r &lt;- r<em>0.001 p &lt;- setResource(p,resource_rate = r,resource_dynamics = “resource_semichemostat”) rng &lt;- test_sizes[[“large”]] idx &lt;- p@w &gt;= rng[1] &amp; p@w &lt;= rng[2] initialN(p)[, idx] &lt;- initialN(p)[, idx]</em> 5</p>
+<p>sim &lt;- project(p, t_max = 20,t_save = 0.5)</p>
+<p>animateSpectra(sim,resource=TRUE,log_x=TRUE,log_y=FALSE,power=2)</p>
+<p>species_params(p) getResourceMort(sim) # Deviation from power law deviation_plot(sim, paste(“Deviation — bump at”, label, “range”))</p>
+<p>p &lt;- newSingleSpeciesParams(lambda = 2.05)</p>
+<p>r &lt;- resource_rate(p) r &lt;- r<em>0.001 p &lt;- setResource(p,resource_rate = r,resource_dynamics = “resource_semichemostat”) rng &lt;- test_sizes[[“large”]] idx &lt;- p@w &gt;= rng[1] &amp; p@w &lt;= rng[2] initialN(p)[, idx] &lt;- initialN(p)[, idx]</em> 5</p>
+<p>sim &lt;- project(p, t_max = 20,t_save = 0.5)</p>
+<p>animateSpectra(sim,resource=TRUE,log_x=TRUE,log_y=FALSE,power=2)</p>
+<p>species_params(p) getResourceMort(sim) # Deviation from power law deviation_plot(sim, paste(“Deviation — bump at”, label, “range”))</p>
 
 
 </section>
