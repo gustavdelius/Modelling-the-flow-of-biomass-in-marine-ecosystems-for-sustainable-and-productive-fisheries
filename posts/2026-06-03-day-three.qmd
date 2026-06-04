@@ -99,12 +99,18 @@ sim <- project(p, t_max = 20, t_save = 0.5)
 
 ```
 
+::: callout-note
+Deviation Plot:
+
+The reason why the deviation plot looks so small is due to the fact that this is being run when the population as almost gone back to the steady state.
+
 ```{r}
 #| fig-width: 10
 #| fig-height: 5
 # Deviation from power law
 deviation_plot(sim, "Deviation — bump at large range")
 ```
+:::
 
 ```{r}
 #| message: false
