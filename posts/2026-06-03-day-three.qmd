@@ -72,19 +72,19 @@ library(dplyr)
 library(mizerExperimental)
 library(tidyverse)
 library(glue)
-
+# Build params
+p <- newSingleSpeciesParams(lambda = 2.05)
 # Deviation from power law
 deviation_plot <- function(sim, title) {
   spec <- finalNResource(sim)
-  expected <- params@w_full^(-2.05)
+  expected <- p@w_full^(-2.05)
   deviation <- spec / expected
-  plot(params@w_full, deviation, type = "l", log = "x",
+  plot(p@w_full, deviation, type = "l", log = "x",
        main = title, xlab = "Size (g)", ylab = "Deviation from power law")
   abline(h = 1, lty = 2)
 }
 
-# Build params
-p <- newSingleSpeciesParams(lambda = 2.05)
+
 
 # Scale down resource rate as a power law (not a constant)
 r <- resource_rate(p)
