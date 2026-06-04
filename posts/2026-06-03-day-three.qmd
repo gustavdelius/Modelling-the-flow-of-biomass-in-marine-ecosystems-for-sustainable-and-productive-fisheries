@@ -26,10 +26,6 @@ Today it finally clicked and the fix was conceptually simple once I saw it.
 
 ### The Key Insight: Resource Rate Is a Power Law
 
-The resource replenishment rate in mizer isn't a single scalar, it's a power law:
-
-$$r(w) \propto w^{-\lambda}$$
-
 When I'd been "reducing the resource rate" in earlier experiments, I'd been setting it to a constant. That's not a small reduction but changing the *shape* of the function, not just its magnitude. You end up with a resource that replenishes at the same rate regardless of size, which is biologically wrong and dynamically different.
 
 The correct way to reduce the resource rate while keeping the physics intact is to scale the existing power law by multiplying the whole curve by a small scalar. This preserves the size-dependence while genuinely suppressing replenishment across the board:
@@ -85,8 +81,6 @@ deviation_plot <- function(sim, title) {
   abline(h = 1, lty = 2)
 }
 
-
-
 # Scale down resource rate as a power law (not a constant)
 r <- resource_rate(p)
 r <- r * 0.0001
@@ -101,7 +95,7 @@ idx <- p@w >= rng[1] & p@w <= rng[2]
 initialN(p)[, idx] <- initialN(p)[, idx] * 5
 
 # Run simulation
-sim <- project(p, t_max = 100, t_save = 0.5)
+sim <- project(p, t_max = 20, t_save = 0.5)
 
 ```
 
