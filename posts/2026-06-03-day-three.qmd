@@ -1,0 +1,127 @@
+---
+title: "Day 3: Contents Pages, Oscillations & the Power Law Penny Drop"
+author: "Samia"
+date: "2026-06-03"
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    theme: flatly
+    code-fold: true
+categories: [research, mizer, oscillations, size-spectrum, blog]
+description: "A blog restructure in the morning, then a breakthrough in the afternoon: oscillatory dynamics finally appearing in the single species model."
+---
+
+## Morning: Sorting Out the Blog
+
+The day started with a small but satisfying detour. Looking back at the first two posts, it was clear that the blog needed a contents page as without one, there's no easy way to navigate between days or get a sense of where the project is heading. A wall of individual posts with no map is fine when there are two of them, but it's not going to scale.
+
+So before any code, I spent the morning restructuring the blog files. Adding a proper contents page meant rethinking the layout: the individual `.qmd` files needed consistent YAML frontmatter so Quarto could list them properly, and the project itself needed to be treated as a website rather than a collection of standalone documents. It's one of those jobs that feels fiddly while you're doing it but pays off immediately the moment you render it and see a clean, navigable index page.
+
+It's also just good practice. A research blog that you can't navigate is barely better than no blog at all.
+
+------------------------------------------------------------------------
+
+## Afternoon: Hunting for Oscillations
+
+With the blog in better shape, I got back to the main task: trying to produce interesting dynamics in the single species mizer model.
+
+The question from Day 2 had been nagging at me. The previous attempts at perturbing the size spectrum, bumping up abundance in different size ranges, kept converging back to steady state without producing anything that looked like a genuine oscillation or instability. The spectrum would wobble briefly and then flatten out again. Convincing yourself you've found something when you've just produced a slightly delayed equilibrium is a trap worth avoiding.
+
+Today it finally clicked and the fix was conceptually simple once I saw it.
+
+### The Key Insight: Resource Rate Is a Power Law
+
+The resource replenishment rate in mizer isn't a single scalar, it's a power law:
+
+$$r(w) \propto w^{-\lambda}$$
+
+When I'd been "reducing the resource rate" in earlier experiments, I'd been setting it to a constant. That's not a small reduction but changing the *shape* of the function, not just its magnitude. You end up with a resource that replenishes at the same rate regardless of size, which is biologically wrong and dynamically different.
+
+The correct way to reduce the resource rate while keeping the physics intact is to scale the existing power law by multiplying the whole curve by a small scalar. This preserves the size-dependence while genuinely suppressing replenishment across the board:
+
+``` r
+p <- newSingleSpeciesParams(lambda = 2.05)
+
+r <- resource_rate(p)       # extract the power law
+r <- r * 0.0001             # scale it down uniformly
+p <- setResource(p,
+  resource_rate = r,
+  resource_dynamics = "resource_semichemostat"
+)
+```
+
+That single change, extracting the rate, scaling it, and putting it back, made all the difference.
+
+### Adding the Initial Perturbation
+
+With the resource replenishment suppressed, I then bumped the initial fish abundance in the large size range (10–100 g) by a factor of 5:
+
+``` r
+rng <- c(10, 100)
+idx <- p@w >= rng[1] & p@w <= rng[2]
+initialN(p)[, idx] <- initialN(p)[, idx] * 5
+```
+
+This seeds a localised excess of fish at large body sizes which is exactly the kind of perturbation that should reveal whether the system has an oscillatory or damped response.
+
+### The Full Experiment
+
+```{r}
+library(mizer)
+library(patchwork)
+library(reshape2)
+library(plotly)
+library(dplyr)
+library(mizerExperimental)
+library(tidyverse)
+library(glue)
+
+# Build params
+p <- newSingleSpeciesParams(lambda = 2.05)
+
+# Scale down resource rate as a power law (not a constant)
+r <- resource_rate(p)
+r <- r * 0.0001
+p <- setResource(p,
+                 resource_rate = r,
+                 resource_dynamics = "resource_semichemostat"
+)
+
+# Perturb the large size range
+rng <- c(10, 100)
+idx <- p@w >= rng[1] & p@w <= rng[2]
+initialN(p)[, idx] <- initialN(p)[, idx] * 5
+
+# Run simulation
+sim <- project(p, t_max = 100, t_save = 0.5)
+animateSpectra(sim, resource = FALSE, log_x = FALSE, log_y = FALSE, power = 2)
+```
+
+### The Result
+
+Something genuinely interesting showed up. In the early part of the simulation, the spectrum doesn't just relax but oscillates, with the abundance overshooting and undershooting before eventually settling. The fine time resolution (`t_save = 0.5`) was important here; a coarser save interval would have smoothed straight over it.
+
+That said, the oscillation is transient. By the end of the run the system does converge back to steady state so this isn't a self-sustaining instability, at least not under these parameters. What it *is* is a clear sign that the dynamics are richer than a pure monotonic decay: the system has enough inertia to ring before it settles.
+
+That's worth understanding better before drawing conclusions.
+
+------------------------------------------------------------------------
+
+## What This Means
+
+The Day 2 experiments weren't wrong, they were just missing a critical detail. A resource rate reduced to a constant rather than scaled as a power law is a different model, not a lower-resource version of the same model. That distinction matters because mizer's steady-state dynamics are calibrated around the power law structure: changing the shape breaks assumptions that the rest of the model depends on.
+
+The lesson generalises: when you want to weaken a power law, multiply it but don't replace it.
+
+As for the transient oscillation, the next step is to understand what's governing its decay. Is the system genuinely stable under these parameters, just with a slow ring-down? Or are there parameters we can change where the oscillation stops decaying and becomes self-sustaining? That's the boundary worth finding.
+
+------------------------------------------------------------------------
+
+## What's Next
+
+**Read the mizer documentation:** There's more going on in these simulations than a single animated spectrum reveals. Mizer has a range of built-in diagnostics covering growth rates, feeding levels, mortality, and spectra over time. Getting familiar with what's available and what each plot actually shows is the right foundation before pushing further into parameter space.
+
+**Vary** $\beta$ **and** $\sigma$ **:** Once the diagnostic toolkit is better understood, explore how the predator-to-prey size ratio and diet breadth affect the transient dynamics, using whichever plots make those effects most legible.Today felt like a genuine step forward.
+
+The power law insight unlocked dynamics that weren't visible before, and the questions are now much sharper than they were this morning.Today felt like a step forward. The mechanism is clearer, the dynamics are more interesting than before, and the right questions are now in focus.

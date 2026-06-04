@@ -155,6 +155,4 @@ Today was a day of friction. The Git problems in the morning weren't intellectua
 
 The Mizer work was more rewarding, even where it was frustrating. The steady-state problem felt like a dead end for a while, but the fix made me think harder about what the model is actually doing and the realisation that MIZER initialises near equilibrium by design is genuinely useful context for everything that follows. You can't just run the model and hope for dynamics, you have to consciously choose your initial conditions.
 
-The maturation result is worth sitting with. It suggests the project's most interesting regime is one where you've specifically engineered the model to suppress the maturation bottleneck, or where you're looking at a species where that bottleneck doesn't dominate. Either way, it narrows the search.
-
 On to the next parameter sweep.
