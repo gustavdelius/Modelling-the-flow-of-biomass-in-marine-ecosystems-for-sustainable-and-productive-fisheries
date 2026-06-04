@@ -49,5 +49,43 @@ animateSpectra(sim,resource=FALSE,log_x=TRUE,log_y=FALSE,power=1.5)
 deviation_plot(sim, paste("Deviation — bump at", label, "range"))
 
 
+library(mizer)
+library(patchwork)
+library(reshape2)
+library(plotly)
+library(dplyr)
+library(mizerExperimental)
+library(tidyverse)
+library(glue)
 
+# Deviation from power law
+deviation_plot <- function(sim, title) {
+  spec <- finalNResource(sim)
+  expected <- params@w_full^(-2.05)
+  deviation <- spec / expected
+  plot(params@w_full, deviation, type = "l", log = "x",
+       main = title, xlab = "Size (g)", ylab = "Deviation from power law")
+  abline(h = 1, lty = 2)
+}
+
+# Build params
+p <- newSingleSpeciesParams(lambda = 2.05)
+
+# Scale down resource rate as a power law (not a constant)
+r <- resource_rate(p)
+r <- r * 0.0001
+p <- setResource(p,
+                 resource_rate = r,
+                 resource_dynamics = "resource_semichemostat"
+)
+
+# Perturb the large size range
+rng <- c(10, 100)
+idx <- p@w >= rng[1] & p@w <= rng[2]
+initialN(p)[, idx] <- initialN(p)[, idx] * 5
+
+# Run simulation
+sim <- project(p, t_max = 100, t_save = 0.5)
+# Deviation from power law
+deviation_plot(sim, paste("Deviation — bump at", rng, "range"))
 
