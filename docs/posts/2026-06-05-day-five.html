@@ -1,0 +1,771 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.9.37">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="author" content="Sami Aden">
+<meta name="dcterms.date" content="2026-06-05">
+<meta name="description" content="Experimenting with flux visualisations in mizerExperimental, and working through two-dimensional flows in Strogatz.">
+
+<title>Day 5: Visualising the Flux – Modelling-the-flow-of-biomass</title>
+<style>
+/* Default styles provided by pandoc.
+** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+*/
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../">
+<script src="../site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="../site_libs/quarto-html/popper.min.js"></script>
+<script src="../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-7f8f88aac4f3542376d5c11b86a4c14d.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../site_libs/bootstrap/bootstrap-a0f9fd0d421825b736dc1bbcbcba2219.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "navbar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "end",
+  "type": "overlay",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+<link href="../site_libs/htmltools-fill-0.5.9/fill.css" rel="stylesheet">
+
+<script src="../site_libs/htmlwidgets-1.6.4/htmlwidgets.js"></script>
+
+<script src="../site_libs/plotly-binding-4.12.0/plotly.js"></script>
+
+<script src="../site_libs/typedarray-0.1/typedarray.min.js"></script>
+
+<script src="../site_libs/jquery-3.5.1/jquery.min.js"></script>
+
+<link href="../site_libs/crosstalk-1.2.2/css/crosstalk.min.css" rel="stylesheet">
+
+<script src="../site_libs/crosstalk-1.2.2/js/crosstalk.min.js"></script>
+
+<link href="../site_libs/plotly-htmlwidgets-css-2.25.2/plotly-htmlwidgets.css" rel="stylesheet">
+
+<script src="../site_libs/plotly-main-2.25.2/plotly-latest.min.js"></script>
+
+
+  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
+  <script defer="" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+
+<script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN" && texText && texText.data) {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
+</script>
+
+<link rel="stylesheet" href="../styles.css">
+</head>
+
+<body class="nav-fixed quarto-light">
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+    <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container mx-auto">
+    <a class="navbar-brand" href="../index.html">
+    <span class="navbar-title">Modelling-the-flow-of-biomass</span>
+    </a>
+  </div>
+            <div id="quarto-search" class="" title="Search"></div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" role="menu" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll me-auto">
+  <li class="nav-item">
+    <a class="nav-link" href="../index.html"> 
+<span class="menu-text">Home</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../about.html"> 
+<span class="menu-text">About</span></a>
+  </li>  
+</ul>
+          </div> <!-- /navcollapse -->
+            <div class="quarto-navbar-tools">
+</div>
+      </div> <!-- /container-fluid -->
+    </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
+<!-- sidebar -->
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">On this page</h2>
+   
+  <ul>
+  <li><a href="#morning-following-the-flow" id="toc-morning-following-the-flow" class="nav-link active" data-scroll-target="#morning-following-the-flow">Morning: Following the Flow</a></li>
+  <li><a href="#setting-up" id="toc-setting-up" class="nav-link" data-scroll-target="#setting-up">Setting Up</a></li>
+  <li><a href="#exploring-the-plots" id="toc-exploring-the-plots" class="nav-link" data-scroll-target="#exploring-the-plots">Exploring the Plots</a></li>
+  <li><a href="#what-the-flux-plot-shows" id="toc-what-the-flux-plot-shows" class="nav-link" data-scroll-target="#what-the-flux-plot-shows">What the Flux Plot Shows</a></li>
+  <li><a href="#afternoon-strogatz-chapter-5" id="toc-afternoon-strogatz-chapter-5" class="nav-link" data-scroll-target="#afternoon-strogatz-chapter-5">Afternoon: Strogatz Chapter 5</a></li>
+  <li><a href="#whats-next" id="toc-whats-next" class="nav-link" data-scroll-target="#whats-next">What’s Next</a></li>
+  </ul>
+</nav>
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title">Day 5: Visualising the Flux</h1>
+  <div class="quarto-categories">
+    <div class="quarto-category">research</div>
+    <div class="quarto-category">mizer</div>
+    <div class="quarto-category">flux</div>
+    <div class="quarto-category">nonlinear-dynamics</div>
+    <div class="quarto-category">strogatz</div>
+  </div>
+  </div>
+
+<div>
+  <div class="description">
+    Experimenting with flux visualisations in mizerExperimental, and working through two-dimensional flows in Strogatz.
+  </div>
+</div>
+
+
+<div class="quarto-title-meta">
+
+    <div>
+    <div class="quarto-title-meta-heading">Author</div>
+    <div class="quarto-title-meta-contents">
+             <p>Sami Aden </p>
+          </div>
+  </div>
+    
+    <div>
+    <div class="quarto-title-meta-heading">Published</div>
+    <div class="quarto-title-meta-contents">
+      <p class="date">June 5, 2026</p>
+    </div>
+  </div>
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<section id="morning-following-the-flow" class="level2">
+<h2 class="anchored" data-anchor-id="morning-following-the-flow">Morning: Following the Flow</h2>
+<p>Yesterday’s phase diagram gave a map of where the system oscillates. Today’s question was more concrete: when it does oscillate, <em>where</em> is the biomass actually moving? The answer required shifting from plotting biomass directly to plotting flux, the rate at which biomass flows through each size class.</p>
+<p>The <code>mizerExperimental</code> package provides <code>getFlux()</code> for exactly this, and most of the morning was spent getting to grips with what it returns and how best to display it.</p>
+<hr>
+</section>
+<section id="setting-up" class="level2">
+<h2 class="anchored" data-anchor-id="setting-up">Setting Up</h2>
+<p>The same single-species setup as previous days: <span class="math inline">\(\lambda = 2.05\)</span>, <span class="math inline">\(\beta = 30\)</span>, <span class="math inline">\(\sigma = 0.5\)</span>, with a resource rate scaled down by a factor of 1000 and a fivefold perturbation applied to the large size class (10–100 g) in the initial condition.</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(mizer)</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(patchwork)</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(reshape2)</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(plotly)</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(dplyr)</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(mizerExperimental)</span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(tidyverse)</span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(glue)</span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a>varying_beta_sigma_test <span class="ot">&lt;-</span> <span class="cf">function</span>(<span class="at">beta_new =</span> <span class="dv">100</span>, <span class="at">sigma_new =</span> <span class="fl">1.3</span>) {</span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a>  test_sizes <span class="ot">&lt;-</span> <span class="fu">list</span>(</span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a>    <span class="st">"small"</span>  <span class="ot">=</span> <span class="fu">c</span>(<span class="fl">0.1</span>, <span class="dv">1</span>),</span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a>    <span class="st">"medium"</span> <span class="ot">=</span> <span class="fu">c</span>(<span class="dv">1</span>, <span class="dv">10</span>),</span>
+<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a>    <span class="st">"large"</span>  <span class="ot">=</span> <span class="fu">c</span>(<span class="dv">10</span>, <span class="dv">100</span>)</span>
+<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a>  p <span class="ot">&lt;-</span> <span class="fu">newSingleSpeciesParams</span>(<span class="at">lambda =</span> <span class="fl">2.05</span>, <span class="at">beta =</span> beta_new, <span class="at">sigma =</span> sigma_new)</span>
+<span id="cb1-17"><a href="#cb1-17" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-18"><a href="#cb1-18" aria-hidden="true" tabindex="-1"></a>  r <span class="ot">&lt;-</span> <span class="fu">resource_rate</span>(p)</span>
+<span id="cb1-19"><a href="#cb1-19" aria-hidden="true" tabindex="-1"></a>  r <span class="ot">&lt;-</span> r <span class="sc">*</span> <span class="fl">0.001</span></span>
+<span id="cb1-20"><a href="#cb1-20" aria-hidden="true" tabindex="-1"></a>  p <span class="ot">&lt;-</span> <span class="fu">setResource</span>(p, <span class="at">resource_rate =</span> r, <span class="at">resource_dynamics =</span> <span class="st">"resource_semichemostat"</span>)</span>
+<span id="cb1-21"><a href="#cb1-21" aria-hidden="true" tabindex="-1"></a>  rng <span class="ot">&lt;-</span> test_sizes[[<span class="st">"large"</span>]]</span>
+<span id="cb1-22"><a href="#cb1-22" aria-hidden="true" tabindex="-1"></a>  idx <span class="ot">&lt;-</span> p<span class="sc">@</span>w <span class="sc">&gt;=</span> rng[<span class="dv">1</span>] <span class="sc">&amp;</span> p<span class="sc">@</span>w <span class="sc">&lt;=</span> rng[<span class="dv">2</span>]</span>
+<span id="cb1-23"><a href="#cb1-23" aria-hidden="true" tabindex="-1"></a>  <span class="fu">initialN</span>(p)[, idx] <span class="ot">&lt;-</span> <span class="fu">initialN</span>(p)[, idx] <span class="sc">*</span> <span class="dv">5</span></span>
+<span id="cb1-24"><a href="#cb1-24" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-25"><a href="#cb1-25" aria-hidden="true" tabindex="-1"></a>  <span class="fu">project</span>(p, <span class="at">t_max =</span> <span class="dv">100</span>, <span class="at">t_save =</span> <span class="fl">0.5</span>)</span>
+<span id="cb1-26"><a href="#cb1-26" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb1-27"><a href="#cb1-27" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-28"><a href="#cb1-28" aria-hidden="true" tabindex="-1"></a>sim <span class="ot">&lt;-</span> <span class="fu">varying_beta_sigma_test</span>(<span class="dv">30</span>, <span class="fl">0.5</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<hr>
+</section>
+<section id="exploring-the-plots" class="level2">
+<h2 class="anchored" data-anchor-id="exploring-the-plots">Exploring the Plots</h2>
+<p>The first plot was the energy growth rate across size classes over time:</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="fu">plotHover</span>(<span class="fu">getEGrowth</span>(sim))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output-display">
+<div class="plotly html-widget html-fill-item" id="htmlwidget-7455f75f4f5beca6f63e" style="width:100%;height:464px;"></div>
+<script type="application/json" data-for="htmlwidget-7455f75f4f5beca6f63e">{"x":{"data":[{"x":[-3,-2.9500000000000002,-2.8999999999999999,-2.8500000000000001,-2.7999999999999998,-2.75,-2.7000000000000002,-2.6499999999999999,-2.6000000000000001,-2.5499999999999998,-2.5,-2.4500000000000002,-2.3999999999999999,-2.3500000000000001,-2.2999999999999998,-2.25,-2.2000000000000002,-2.1499999999999999,-2.1000000000000001,-2.0499999999999998,-2,-1.95,-1.8999999999999999,-1.8499999999999999,-1.7999999999999998,-1.75,-1.7,-1.6499999999999999,-1.5999999999999999,-1.5499999999999998,-1.5,-1.45,-1.3999999999999999,-1.3499999999999999,-1.2999999999999998,-1.25,-1.2,-1.1499999999999999,-1.0999999999999999,-1.0499999999999998,-1,-0.94999999999999973,-0.89999999999999991,-0.85000000000000009,-0.79999999999999982,-0.75,-0.69999999999999973,-0.64999999999999991,-0.59999999999999964,-0.54999999999999982,-0.5,-0.44999999999999973,-0.39999999999999991,-0.34999999999999964,-0.29999999999999982,-0.25,-0.19999999999999976,-0.14999999999999994,-0.099999999999999645,-0.049999999999999822,0,0.050000000000000308,0.1000000000000001,0.15000000000000036,0.20000000000000015,0.25,0.30000000000000027,0.35000000000000003,0.40000000000000041,0.45000000000000018,0.5,0.55000000000000027,0.60000000000000009,0.65000000000000036,0.70000000000000018,0.75,0.80000000000000027,0.85000000000000009,0.90000000000000036,0.95000000000000018,1,1.0499999999999998,1.1000000000000005,1.1500000000000004,1.2000000000000002,1.25,1.2999999999999998,1.3500000000000005,1.4000000000000004,1.4500000000000002,1.5,1.5499999999999998,1.6000000000000005,1.6500000000000004,1.7000000000000002,1.75,1.8000000000000007,1.8500000000000005,1.9000000000000004,1.9500000000000002,2],"y":[0.032282440807720761,0.03593747323719633,0.039863235639480105,0.044074508166727248,0.048590615873682838,0.053434650686772667,0.058632614928077212,0.064212509488824274,0.070203360994458841,0.076634171568559381,0.083532771430605099,0.090924551706871803,0.098831049328780424,0.10726834732984694,0.11624524370354034,0.12576113301426009,0.13580354088641527,0.14634525686978173,0.15734103134356409,0.1687238433282178,0.18040081547817105,0.19224895775055759,0.204111068939966,0.2157923180248526,0.22705825821981487,0.23763527165127549,0.24721465127892775,0.25546161574224568,0.26203040859862498,0.2665861336300569,0.26883304025087607,0.2685476285522016,0.2656134094348408,0.26005285699220759,0.25205157387722005,0.2419704073270012,0.23034328894300748,0.2178614750568415,0.20534774105477105,0.19372595577418211,0.18399172898606464,0.17718853298397996,0.17439147710731417,0.17669863110612716,0.1852281696234197,0.20111898128980576,0.22553268769737367,0.25965592357486189,0.30470283190909186,0.36191867847988757,0.43258607425070017,0.51803544115259448,0.61966111335418939,0.73894394730433688,0.87748065395484631,1.0370193796427114,1.2195004204283286,1.4271003872543964,1.6622776470153524,1.9278164452300937,2.2268667897840357,2.5629770025518352,2.9401159286154184,3.3626822551865283,3.8354993393827028,4.3637954077650267,4.9531708781863468,5.6095566204609613,6.3391688340400307,7.1484674244881727,8.0441248840746855,9.0330114434769815,10.122199598140664,11.318987040463034,12.630932998177721,14.065895978131918,15.63205835592254,17.337915772011545,19.192202190106126,21.203697110956359,23.380773438217076,25.730217934766316,28.253673613309932,30.935877461981502,33.704711134615977,36.300317314683895,37.910171033735125,36.641138378971206,30.777540542851778,23.040404003723367,17.76551524903288,15.185643236697722,13.896362206996102,12.997035594868557,12.092945895010935,11.014545689099364,9.6697092164982337,7.9837132021342825,5.8760994822555119,3.2521047017781797,0.00012533001708447955],"text":["Species: Target species<br />w: 1.000000e-03<br />Growth rate:  0.03228244","Species: Target species<br />w: 1.122018e-03<br />Growth rate:  0.03593747","Species: Target species<br />w: 1.258925e-03<br />Growth rate:  0.03986324","Species: Target species<br />w: 1.412538e-03<br />Growth rate:  0.04407451","Species: Target species<br />w: 1.584893e-03<br />Growth rate:  0.04859062","Species: Target species<br />w: 1.778279e-03<br />Growth rate:  0.05343465","Species: Target species<br />w: 1.995262e-03<br />Growth rate:  0.05863261","Species: Target species<br />w: 2.238721e-03<br />Growth rate:  0.06421251","Species: Target species<br />w: 2.511886e-03<br />Growth rate:  0.07020336","Species: Target species<br />w: 2.818383e-03<br />Growth rate:  0.07663417","Species: Target species<br />w: 3.162278e-03<br />Growth rate:  0.08353277","Species: Target species<br />w: 3.548134e-03<br />Growth rate:  0.09092455","Species: Target species<br />w: 3.981072e-03<br />Growth rate:  0.09883105","Species: Target species<br />w: 4.466836e-03<br />Growth rate:  0.10726835","Species: Target species<br />w: 5.011872e-03<br />Growth rate:  0.11624524","Species: Target species<br />w: 5.623413e-03<br />Growth rate:  0.12576113","Species: Target species<br />w: 6.309573e-03<br />Growth rate:  0.13580354","Species: Target species<br />w: 7.079458e-03<br />Growth rate:  0.14634526","Species: Target species<br />w: 7.943282e-03<br />Growth rate:  0.15734103","Species: Target species<br />w: 8.912509e-03<br />Growth rate:  0.16872384","Species: Target species<br />w: 1.000000e-02<br />Growth rate:  0.18040082","Species: Target species<br />w: 1.122018e-02<br />Growth rate:  0.19224896","Species: Target species<br />w: 1.258925e-02<br />Growth rate:  0.20411107","Species: Target species<br />w: 1.412538e-02<br />Growth rate:  0.21579232","Species: Target species<br />w: 1.584893e-02<br />Growth rate:  0.22705826","Species: Target species<br />w: 1.778279e-02<br />Growth rate:  0.23763527","Species: Target species<br />w: 1.995262e-02<br />Growth rate:  0.24721465","Species: Target species<br />w: 2.238721e-02<br />Growth rate:  0.25546162","Species: Target species<br />w: 2.511886e-02<br />Growth rate:  0.26203041","Species: Target species<br />w: 2.818383e-02<br />Growth rate:  0.26658613","Species: Target species<br />w: 3.162278e-02<br />Growth rate:  0.26883304","Species: Target species<br />w: 3.548134e-02<br />Growth rate:  0.26854763","Species: Target species<br />w: 3.981072e-02<br />Growth rate:  0.26561341","Species: Target species<br />w: 4.466836e-02<br />Growth rate:  0.26005286","Species: Target species<br />w: 5.011872e-02<br />Growth rate:  0.25205157","Species: Target species<br />w: 5.623413e-02<br />Growth rate:  0.24197041","Species: Target species<br />w: 6.309573e-02<br />Growth rate:  0.23034329","Species: Target species<br />w: 7.079458e-02<br />Growth rate:  0.21786148","Species: Target species<br />w: 7.943282e-02<br />Growth rate:  0.20534774","Species: Target species<br />w: 8.912509e-02<br />Growth rate:  0.19372596","Species: Target species<br />w: 1.000000e-01<br />Growth rate:  0.18399173","Species: Target species<br />w: 1.122018e-01<br />Growth rate:  0.17718853","Species: Target species<br />w: 1.258925e-01<br />Growth rate:  0.17439148","Species: Target species<br />w: 1.412538e-01<br />Growth rate:  0.17669863","Species: Target species<br />w: 1.584893e-01<br />Growth rate:  0.18522817","Species: Target species<br />w: 1.778279e-01<br />Growth rate:  0.20111898","Species: Target species<br />w: 1.995262e-01<br />Growth rate:  0.22553269","Species: Target species<br />w: 2.238721e-01<br />Growth rate:  0.25965592","Species: Target species<br />w: 2.511886e-01<br />Growth rate:  0.30470283","Species: Target species<br />w: 2.818383e-01<br />Growth rate:  0.36191868","Species: Target species<br />w: 3.162278e-01<br />Growth rate:  0.43258607","Species: Target species<br />w: 3.548134e-01<br />Growth rate:  0.51803544","Species: Target species<br />w: 3.981072e-01<br />Growth rate:  0.61966111","Species: Target species<br />w: 4.466836e-01<br />Growth rate:  0.73894395","Species: Target species<br />w: 5.011872e-01<br />Growth rate:  0.87748065","Species: Target species<br />w: 5.623413e-01<br />Growth rate:  1.03701938","Species: Target species<br />w: 6.309573e-01<br />Growth rate:  1.21950042","Species: Target species<br />w: 7.079458e-01<br />Growth rate:  1.42710039","Species: Target species<br />w: 7.943282e-01<br />Growth rate:  1.66227765","Species: Target species<br />w: 8.912509e-01<br />Growth rate:  1.92781645","Species: Target species<br />w: 1.000000e+00<br />Growth rate:  2.22686679","Species: Target species<br />w: 1.122018e+00<br />Growth rate:  2.56297700","Species: Target species<br />w: 1.258925e+00<br />Growth rate:  2.94011593","Species: Target species<br />w: 1.412538e+00<br />Growth rate:  3.36268226","Species: Target species<br />w: 1.584893e+00<br />Growth rate:  3.83549934","Species: Target species<br />w: 1.778279e+00<br />Growth rate:  4.36379541","Species: Target species<br />w: 1.995262e+00<br />Growth rate:  4.95317088","Species: Target species<br />w: 2.238721e+00<br />Growth rate:  5.60955662","Species: Target species<br />w: 2.511886e+00<br />Growth rate:  6.33916883","Species: Target species<br />w: 2.818383e+00<br />Growth rate:  7.14846742","Species: Target species<br />w: 3.162278e+00<br />Growth rate:  8.04412488","Species: Target species<br />w: 3.548134e+00<br />Growth rate:  9.03301144","Species: Target species<br />w: 3.981072e+00<br />Growth rate: 10.12219960","Species: Target species<br />w: 4.466836e+00<br />Growth rate: 11.31898704","Species: Target species<br />w: 5.011872e+00<br />Growth rate: 12.63093300","Species: Target species<br />w: 5.623413e+00<br />Growth rate: 14.06589598","Species: Target species<br />w: 6.309573e+00<br />Growth rate: 15.63205836","Species: Target species<br />w: 7.079458e+00<br />Growth rate: 17.33791577","Species: Target species<br />w: 7.943282e+00<br />Growth rate: 19.19220219","Species: Target species<br />w: 8.912509e+00<br />Growth rate: 21.20369711","Species: Target species<br />w: 1.000000e+01<br />Growth rate: 23.38077344","Species: Target species<br />w: 1.122018e+01<br />Growth rate: 25.73021793","Species: Target species<br />w: 1.258925e+01<br />Growth rate: 28.25367361","Species: Target species<br />w: 1.412538e+01<br />Growth rate: 30.93587746","Species: Target species<br />w: 1.584893e+01<br />Growth rate: 33.70471113","Species: Target species<br />w: 1.778279e+01<br />Growth rate: 36.30031731","Species: Target species<br />w: 1.995262e+01<br />Growth rate: 37.91017103","Species: Target species<br />w: 2.238721e+01<br />Growth rate: 36.64113838","Species: Target species<br />w: 2.511886e+01<br />Growth rate: 30.77754054","Species: Target species<br />w: 2.818383e+01<br />Growth rate: 23.04040400","Species: Target species<br />w: 3.162278e+01<br />Growth rate: 17.76551525","Species: Target species<br />w: 3.548134e+01<br />Growth rate: 15.18564324","Species: Target species<br />w: 3.981072e+01<br />Growth rate: 13.89636221","Species: Target species<br />w: 4.466836e+01<br />Growth rate: 12.99703559","Species: Target species<br />w: 5.011872e+01<br />Growth rate: 12.09294590","Species: Target species<br />w: 5.623413e+01<br />Growth rate: 11.01454569","Species: Target species<br />w: 6.309573e+01<br />Growth rate:  9.66970922","Species: Target species<br />w: 7.079458e+01<br />Growth rate:  7.98371320","Species: Target species<br />w: 7.943282e+01<br />Growth rate:  5.87609948","Species: Target species<br />w: 8.912509e+01<br />Growth rate:  3.25210470","Species: Target species<br />w: 1.000000e+02<br />Growth rate:  0.00012533"],"type":"scatter","mode":"lines","line":{"width":3.0236220472440949,"color":"rgba(129,95,0,1)","dash":"solid"},"hoveron":"points","name":"Target species","legendgroup":"Target species","showlegend":true,"xaxis":"x","yaxis":"y","hoverinfo":"text","frame":null}],"layout":{"margin":{"t":23.305936073059364,"r":7.3059360730593621,"b":37.260273972602747,"l":37.260273972602747},"plot_bgcolor":"rgba(235,235,235,1)","paper_bgcolor":"rgba(255,255,255,1)","font":{"color":"rgba(0,0,0,1)","family":"","size":14.611872146118724},"xaxis":{"domain":[0,1],"automargin":true,"type":"linear","autorange":false,"range":[-3.25,2.25],"tickmode":"array","ticktext":["1e-03","1e-02","1e-01","1e+00","1e+01","1e+02"],"tickvals":[-3,-2,-1,0,1,2],"categoryorder":"array","categoryarray":["1e-03","1e-02","1e-01","1e+00","1e+01","1e+02"],"nticks":null,"ticks":"outside","tickcolor":"rgba(51,51,51,1)","ticklen":3.6529680365296811,"tickwidth":0.66417600664176002,"showticklabels":true,"tickfont":{"color":"rgba(77,77,77,1)","family":"","size":11.68949771689498},"tickangle":-0,"showline":false,"linecolor":null,"linewidth":0,"showgrid":true,"gridcolor":"rgba(255,255,255,1)","gridwidth":0.66417600664176002,"zeroline":false,"anchor":"y","title":{"text":"Size [g]","font":{"color":"rgba(0,0,0,1)","family":"","size":14.611872146118724}},"hoverformat":".2f"},"yaxis":{"domain":[0,1],"automargin":true,"type":"linear","autorange":false,"range":[-1.8953769551688175,39.805673318921023],"tickmode":"array","ticktext":["0","10","20","30"],"tickvals":[0,10,20,30],"categoryorder":"array","categoryarray":["0","10","20","30"],"nticks":null,"ticks":"outside","tickcolor":"rgba(51,51,51,1)","ticklen":3.6529680365296811,"tickwidth":0.66417600664176002,"showticklabels":true,"tickfont":{"color":"rgba(77,77,77,1)","family":"","size":11.68949771689498},"tickangle":-0,"showline":false,"linecolor":null,"linewidth":0,"showgrid":true,"gridcolor":"rgba(255,255,255,1)","gridwidth":0.66417600664176002,"zeroline":false,"anchor":"x","title":{"text":"Growth rate [g/year]","font":{"color":"rgba(0,0,0,1)","family":"","size":14.611872146118724}},"hoverformat":".2f"},"shapes":[],"showlegend":true,"legend":{"bgcolor":"rgba(255,255,255,1)","bordercolor":"transparent","borderwidth":1.8897637795275593,"font":{"color":"rgba(0,0,0,1)","family":"","size":11.68949771689498},"title":{"text":"Legend","font":{"color":"rgba(0,0,0,1)","family":"","size":14.611872146118724}}},"hovermode":"closest","barmode":"relative"},"config":{"doubleClick":"reset","modeBarButtonsToAdd":["hoverclosest","hovercompare"],"showSendToCloud":false},"source":"A","attrs":{"5cb4753e6801":{"x":{},"y":{},"colour":{},"linetype":{},"linewidth":{},"type":"scatter"}},"cur_data":"5cb4753e6801","visdat":{"5cb4753e6801":["function (y) ","x"]},"highlight":{"on":"plotly_click","persistent":false,"dynamic":false,"selectize":false,"opacityDim":0.20000000000000001,"selected":{"opacity":1},"debounce":0},"shinyEvents":["plotly_hover","plotly_click","plotly_selected","plotly_relayout","plotly_brushed","plotly_brushing","plotly_clickannotation","plotly_doubleclick","plotly_deselect","plotly_afterplot","plotly_sunburstclick"],"base_url":"https://plot.ly"},"evals":[],"jsHooks":[]}</script>
+</div>
+</div>
+<p>This gives a sense of which sizes are gaining energy and how that changes over the simulation. But what was really of interest was the flux itself.</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>flux <span class="ot">&lt;-</span> <span class="fu">getFlux</span>(sim)</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="fu">plotHover</span>(flux)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output-display">
+<div class="plotly html-widget html-fill-item" id="htmlwidget-6e512c880f6a47693bbc" style="width:100%;height:464px;"></div>
+<script type="application/json" data-for="htmlwidget-6e512c880f6a47693bbc">{"x":{"data":[{"x":[-3,-2.9500000000000002,-2.8999999999999999,-2.8500000000000001,-2.7999999999999998,-2.75,-2.7000000000000002,-2.6499999999999999,-2.6000000000000001,-2.5499999999999998,-2.5,-2.4500000000000002,-2.3999999999999999,-2.3500000000000001,-2.2999999999999998,-2.25,-2.2000000000000002,-2.1499999999999999,-2.1000000000000001,-2.0499999999999998,-2,-1.95,-1.8999999999999999,-1.8499999999999999,-1.7999999999999998,-1.75,-1.7,-1.6499999999999999,-1.5999999999999999,-1.5499999999999998,-1.5,-1.45,-1.3999999999999999,-1.3499999999999999,-1.2999999999999998,-1.25,-1.2,-1.1499999999999999,-1.0999999999999999,-1.0499999999999998,-1,-0.94999999999999973,-0.89999999999999991,-0.85000000000000009,-0.79999999999999982,-0.75,-0.69999999999999973,-0.64999999999999991,-0.59999999999999964,-0.54999999999999982,-0.5,-0.44999999999999973,-0.39999999999999991,-0.34999999999999964,-0.29999999999999982,-0.25,-0.19999999999999976,-0.14999999999999994,-0.099999999999999645,-0.049999999999999822,0,0.050000000000000308,0.1000000000000001,0.15000000000000036,0.20000000000000015,0.25,0.30000000000000027,0.35000000000000003,0.40000000000000041,0.45000000000000018,0.5,0.55000000000000027,0.60000000000000009,0.65000000000000036,0.70000000000000018,0.75,0.80000000000000027,0.85000000000000009,0.90000000000000036,0.95000000000000018,1,1.0499999999999998,1.1000000000000005,1.1500000000000004,1.2000000000000002,1.25,1.2999999999999998,1.3500000000000005,1.4000000000000004,1.4500000000000002,1.5,1.5499999999999998,1.6000000000000005,1.6500000000000004,1.7000000000000002,1.75,1.8000000000000007,1.8500000000000005,1.9000000000000004,1.9500000000000002,2],"y":[13.032852463361669,11.903320010035252,10.708712361770008,9.6500274250138727,8.707791284919244,7.865958822748194,7.1112867324177129,6.4327928982930267,5.8213054799463588,5.2690959756032676,4.7695862081308595,4.31711793724015,3.9067741551765147,3.5342421245260405,3.1957094040136114,2.8877853184079951,2.6074415301190279,2.3519665555095544,2.1189302106239873,1.9061550191827519,1.7116925168153398,1.5338031013126996,1.3709385954104272,1.2217270156528952,1.0849592030600508,0.95957700050935413,0.84466259193894511,0.73942848571906317,0.64320747078941676,0.55544175174568822,0.47567044042868462,0.40351470837069864,0.33866022262097745,0.2808369738339736,0.22979715575106074,0.18529220471465646,0.14705031863065543,0.11475576791244012,0.08803135134498638,0.066425838373440488,0.049409321295650475,0.036380438629506726,0.026688870511540896,0.019672829117586124,0.014704952339571132,0.011234655495021879,0.0088151042334948769,0.0071094044897806333,0.005879135665958931,0.0049636251218068391,0.004258238896289521,0.0036962711645407305,0.0032354628822594067,0.00284873825956728,0.0025183827113522904,0.0022325560105508303,0.0019831103235159976,0.0017641783426576509,0.0015713157719013948,0.0014010151688448403,0.0012504196618387852,0.0011171364309991575,0.00099911106024610781,0.00089454603200872854,0.00080184981595619311,0.00071960481708061431,0.0006465460476085933,0.00058154582352725425,0.00052360196547469211,0.00047182807985468394,0.00042544501022943545,0.00038377282993093506,0.0003462229513331116,0.00031229010388813524,0.00028154408713570333,0.00025362133263692277,0.00022821639719554791,0.0002050735678751737,0.00018397877540271394,0.00016475199950107116,0.00014724030486864103,0.00013131156159444418,0.00011684873440225367,0.00010374422776149018,9.1892728368821278e-05,8.1178139132909229e-05,7.1442791780826042e-05,6.2411824161367091e-05,5.3544602321109981e-05,4.3986193165399212e-05,3.3401075163394254e-05,2.319120327613288e-05,1.5034432479152249e-05,9.2504773604141921e-06,5.3833077971292106e-06,2.9124169250070686e-06,1.429436888865234e-06,6.166922749732563e-07,2.2289546371445177e-07,6.1407616659126337e-08,9.9442293296970031e-09],"text":["Species: Target species<br />w: 1.000000e-03<br />Flux: 1.303285e+01","Species: Target species<br />w: 1.122018e-03<br />Flux: 1.190332e+01","Species: Target species<br />w: 1.258925e-03<br />Flux: 1.070871e+01","Species: Target species<br />w: 1.412538e-03<br />Flux: 9.650027e+00","Species: Target species<br />w: 1.584893e-03<br />Flux: 8.707791e+00","Species: Target species<br />w: 1.778279e-03<br />Flux: 7.865959e+00","Species: Target species<br />w: 1.995262e-03<br />Flux: 7.111287e+00","Species: Target species<br />w: 2.238721e-03<br />Flux: 6.432793e+00","Species: Target species<br />w: 2.511886e-03<br />Flux: 5.821305e+00","Species: Target species<br />w: 2.818383e-03<br />Flux: 5.269096e+00","Species: Target species<br />w: 3.162278e-03<br />Flux: 4.769586e+00","Species: Target species<br />w: 3.548134e-03<br />Flux: 4.317118e+00","Species: Target species<br />w: 3.981072e-03<br />Flux: 3.906774e+00","Species: Target species<br />w: 4.466836e-03<br />Flux: 3.534242e+00","Species: Target species<br />w: 5.011872e-03<br />Flux: 3.195709e+00","Species: Target species<br />w: 5.623413e-03<br />Flux: 2.887785e+00","Species: Target species<br />w: 6.309573e-03<br />Flux: 2.607442e+00","Species: Target species<br />w: 7.079458e-03<br />Flux: 2.351967e+00","Species: Target species<br />w: 7.943282e-03<br />Flux: 2.118930e+00","Species: Target species<br />w: 8.912509e-03<br />Flux: 1.906155e+00","Species: Target species<br />w: 1.000000e-02<br />Flux: 1.711693e+00","Species: Target species<br />w: 1.122018e-02<br />Flux: 1.533803e+00","Species: Target species<br />w: 1.258925e-02<br />Flux: 1.370939e+00","Species: Target species<br />w: 1.412538e-02<br />Flux: 1.221727e+00","Species: Target species<br />w: 1.584893e-02<br />Flux: 1.084959e+00","Species: Target species<br />w: 1.778279e-02<br />Flux: 9.595770e-01","Species: Target species<br />w: 1.995262e-02<br />Flux: 8.446626e-01","Species: Target species<br />w: 2.238721e-02<br />Flux: 7.394285e-01","Species: Target species<br />w: 2.511886e-02<br />Flux: 6.432075e-01","Species: Target species<br />w: 2.818383e-02<br />Flux: 5.554418e-01","Species: Target species<br />w: 3.162278e-02<br />Flux: 4.756704e-01","Species: Target species<br />w: 3.548134e-02<br />Flux: 4.035147e-01","Species: Target species<br />w: 3.981072e-02<br />Flux: 3.386602e-01","Species: Target species<br />w: 4.466836e-02<br />Flux: 2.808370e-01","Species: Target species<br />w: 5.011872e-02<br />Flux: 2.297972e-01","Species: Target species<br />w: 5.623413e-02<br />Flux: 1.852922e-01","Species: Target species<br />w: 6.309573e-02<br />Flux: 1.470503e-01","Species: Target species<br />w: 7.079458e-02<br />Flux: 1.147558e-01","Species: Target species<br />w: 7.943282e-02<br />Flux: 8.803135e-02","Species: Target species<br />w: 8.912509e-02<br />Flux: 6.642584e-02","Species: Target species<br />w: 1.000000e-01<br />Flux: 4.940932e-02","Species: Target species<br />w: 1.122018e-01<br />Flux: 3.638044e-02","Species: Target species<br />w: 1.258925e-01<br />Flux: 2.668887e-02","Species: Target species<br />w: 1.412538e-01<br />Flux: 1.967283e-02","Species: Target species<br />w: 1.584893e-01<br />Flux: 1.470495e-02","Species: Target species<br />w: 1.778279e-01<br />Flux: 1.123466e-02","Species: Target species<br />w: 1.995262e-01<br />Flux: 8.815104e-03","Species: Target species<br />w: 2.238721e-01<br />Flux: 7.109404e-03","Species: Target species<br />w: 2.511886e-01<br />Flux: 5.879136e-03","Species: Target species<br />w: 2.818383e-01<br />Flux: 4.963625e-03","Species: Target species<br />w: 3.162278e-01<br />Flux: 4.258239e-03","Species: Target species<br />w: 3.548134e-01<br />Flux: 3.696271e-03","Species: Target species<br />w: 3.981072e-01<br />Flux: 3.235463e-03","Species: Target species<br />w: 4.466836e-01<br />Flux: 2.848738e-03","Species: Target species<br />w: 5.011872e-01<br />Flux: 2.518383e-03","Species: Target species<br />w: 5.623413e-01<br />Flux: 2.232556e-03","Species: Target species<br />w: 6.309573e-01<br />Flux: 1.983110e-03","Species: Target species<br />w: 7.079458e-01<br />Flux: 1.764178e-03","Species: Target species<br />w: 7.943282e-01<br />Flux: 1.571316e-03","Species: Target species<br />w: 8.912509e-01<br />Flux: 1.401015e-03","Species: Target species<br />w: 1.000000e+00<br />Flux: 1.250420e-03","Species: Target species<br />w: 1.122018e+00<br />Flux: 1.117136e-03","Species: Target species<br />w: 1.258925e+00<br />Flux: 9.991111e-04","Species: Target species<br />w: 1.412538e+00<br />Flux: 8.945460e-04","Species: Target species<br />w: 1.584893e+00<br />Flux: 8.018498e-04","Species: Target species<br />w: 1.778279e+00<br />Flux: 7.196048e-04","Species: Target species<br />w: 1.995262e+00<br />Flux: 6.465460e-04","Species: Target species<br />w: 2.238721e+00<br />Flux: 5.815458e-04","Species: Target species<br />w: 2.511886e+00<br />Flux: 5.236020e-04","Species: Target species<br />w: 2.818383e+00<br />Flux: 4.718281e-04","Species: Target species<br />w: 3.162278e+00<br />Flux: 4.254450e-04","Species: Target species<br />w: 3.548134e+00<br />Flux: 3.837728e-04","Species: Target species<br />w: 3.981072e+00<br />Flux: 3.462230e-04","Species: Target species<br />w: 4.466836e+00<br />Flux: 3.122901e-04","Species: Target species<br />w: 5.011872e+00<br />Flux: 2.815441e-04","Species: Target species<br />w: 5.623413e+00<br />Flux: 2.536213e-04","Species: Target species<br />w: 6.309573e+00<br />Flux: 2.282164e-04","Species: Target species<br />w: 7.079458e+00<br />Flux: 2.050736e-04","Species: Target species<br />w: 7.943282e+00<br />Flux: 1.839788e-04","Species: Target species<br />w: 8.912509e+00<br />Flux: 1.647520e-04","Species: Target species<br />w: 1.000000e+01<br />Flux: 1.472403e-04","Species: Target species<br />w: 1.122018e+01<br />Flux: 1.313116e-04","Species: Target species<br />w: 1.258925e+01<br />Flux: 1.168487e-04","Species: Target species<br />w: 1.412538e+01<br />Flux: 1.037442e-04","Species: Target species<br />w: 1.584893e+01<br />Flux: 9.189273e-05","Species: Target species<br />w: 1.778279e+01<br />Flux: 8.117814e-05","Species: Target species<br />w: 1.995262e+01<br />Flux: 7.144279e-05","Species: Target species<br />w: 2.238721e+01<br />Flux: 6.241182e-05","Species: Target species<br />w: 2.511886e+01<br />Flux: 5.354460e-05","Species: Target species<br />w: 2.818383e+01<br />Flux: 4.398619e-05","Species: Target species<br />w: 3.162278e+01<br />Flux: 3.340108e-05","Species: Target species<br />w: 3.548134e+01<br />Flux: 2.319120e-05","Species: Target species<br />w: 3.981072e+01<br />Flux: 1.503443e-05","Species: Target species<br />w: 4.466836e+01<br />Flux: 9.250477e-06","Species: Target species<br />w: 5.011872e+01<br />Flux: 5.383308e-06","Species: Target species<br />w: 5.623413e+01<br />Flux: 2.912417e-06","Species: Target species<br />w: 6.309573e+01<br />Flux: 1.429437e-06","Species: Target species<br />w: 7.079458e+01<br />Flux: 6.166923e-07","Species: Target species<br />w: 7.943282e+01<br />Flux: 2.228955e-07","Species: Target species<br />w: 8.912509e+01<br />Flux: 6.140762e-08","Species: Target species<br />w: 1.000000e+02<br />Flux: 9.944229e-09"],"type":"scatter","mode":"lines","line":{"width":3.0236220472440949,"color":"rgba(129,95,0,1)","dash":"solid"},"hoveron":"points","name":"Target species","legendgroup":"Target species","showlegend":true,"xaxis":"x","yaxis":"y","hoverinfo":"text","frame":null}],"layout":{"margin":{"t":23.305936073059364,"r":7.3059360730593621,"b":37.260273972602747,"l":37.260273972602747},"plot_bgcolor":"rgba(235,235,235,1)","paper_bgcolor":"rgba(255,255,255,1)","font":{"color":"rgba(0,0,0,1)","family":"","size":14.611872146118724},"xaxis":{"domain":[0,1],"automargin":true,"type":"linear","autorange":false,"range":[-3.25,2.25],"tickmode":"array","ticktext":["1e-03","1e-02","1e-01","1e+00","1e+01","1e+02"],"tickvals":[-3,-2,-1,0,1,2],"categoryorder":"array","categoryarray":["1e-03","1e-02","1e-01","1e+00","1e+01","1e+02"],"nticks":null,"ticks":"outside","tickcolor":"rgba(51,51,51,1)","ticklen":3.6529680365296811,"tickwidth":0.66417600664176002,"showticklabels":true,"tickfont":{"color":"rgba(77,77,77,1)","family":"","size":11.68949771689498},"tickangle":-0,"showline":false,"linecolor":null,"linewidth":0,"showgrid":true,"gridcolor":"rgba(255,255,255,1)","gridwidth":0.66417600664176002,"zeroline":false,"anchor":"y","title":{"text":"Size [g]","font":{"color":"rgba(0,0,0,1)","family":"","size":14.611872146118724}},"hoverformat":".2f"},"yaxis":{"domain":[0,1],"automargin":true,"type":"linear","autorange":false,"range":[-0.6516426127266427,13.684495086032541],"tickmode":"array","ticktext":["0","5","10"],"tickvals":[0,5,10],"categoryorder":"array","categoryarray":["0","5","10"],"nticks":null,"ticks":"outside","tickcolor":"rgba(51,51,51,1)","ticklen":3.6529680365296811,"tickwidth":0.66417600664176002,"showticklabels":true,"tickfont":{"color":"rgba(77,77,77,1)","family":"","size":11.68949771689498},"tickangle":-0,"showline":false,"linecolor":null,"linewidth":0,"showgrid":true,"gridcolor":"rgba(255,255,255,1)","gridwidth":0.66417600664176002,"zeroline":false,"anchor":"x","title":{"text":"Flux [1/year]","font":{"color":"rgba(0,0,0,1)","family":"","size":14.611872146118724}},"hoverformat":".2f"},"shapes":[],"showlegend":true,"legend":{"bgcolor":"rgba(255,255,255,1)","bordercolor":"transparent","borderwidth":1.8897637795275593,"font":{"color":"rgba(0,0,0,1)","family":"","size":11.68949771689498},"title":{"text":"Legend","font":{"color":"rgba(0,0,0,1)","family":"","size":14.611872146118724}}},"hovermode":"closest","barmode":"relative"},"config":{"doubleClick":"reset","modeBarButtonsToAdd":["hoverclosest","hovercompare"],"showSendToCloud":false},"source":"A","attrs":{"5cb466f07736":{"x":{},"y":{},"colour":{},"linetype":{},"linewidth":{},"type":"scatter"}},"cur_data":"5cb466f07736","visdat":{"5cb466f07736":["function (y) ","x"]},"highlight":{"on":"plotly_click","persistent":false,"dynamic":false,"selectize":false,"opacityDim":0.20000000000000001,"selected":{"opacity":1},"debounce":0},"shinyEvents":["plotly_hover","plotly_click","plotly_selected","plotly_relayout","plotly_brushed","plotly_brushing","plotly_clickannotation","plotly_doubleclick","plotly_deselect","plotly_afterplot","plotly_sunburstclick"],"base_url":"https://plot.ly"},"evals":[],"jsHooks":[]}</script>
+</div>
+</div>
+<p>Raw flux is dominated by the smallest size classes, where numbers are enormous. To get a clearer picture of where the <em>biomass</em> is flowing rather than just the <em>individuals</em>, the flux can be weighted by body mass:</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>biomass_flux <span class="ot">&lt;-</span> flux</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>biomass_flux[] <span class="ot">&lt;-</span> flux <span class="sc">*</span> <span class="fu">w</span>(<span class="fu">getParams</span>(sim))</span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a><span class="fu">plotHover</span>(biomass_flux)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output-display">
+<div class="plotly html-widget html-fill-item" id="htmlwidget-ab28f94d5fdbe103103c" style="width:100%;height:464px;"></div>
+<script type="application/json" data-for="htmlwidget-ab28f94d5fdbe103103c">{"x":{"data":[{"x":[-3,-2.9500000000000002,-2.8999999999999999,-2.8500000000000001,-2.7999999999999998,-2.75,-2.7000000000000002,-2.6499999999999999,-2.6000000000000001,-2.5499999999999998,-2.5,-2.4500000000000002,-2.3999999999999999,-2.3500000000000001,-2.2999999999999998,-2.25,-2.2000000000000002,-2.1499999999999999,-2.1000000000000001,-2.0499999999999998,-2,-1.95,-1.8999999999999999,-1.8499999999999999,-1.7999999999999998,-1.75,-1.7,-1.6499999999999999,-1.5999999999999999,-1.5499999999999998,-1.5,-1.45,-1.3999999999999999,-1.3499999999999999,-1.2999999999999998,-1.25,-1.2,-1.1499999999999999,-1.0999999999999999,-1.0499999999999998,-1,-0.94999999999999973,-0.89999999999999991,-0.85000000000000009,-0.79999999999999982,-0.75,-0.69999999999999973,-0.64999999999999991,-0.59999999999999964,-0.54999999999999982,-0.5,-0.44999999999999973,-0.39999999999999991,-0.34999999999999964,-0.29999999999999982,-0.25,-0.19999999999999976,-0.14999999999999994,-0.099999999999999645,-0.049999999999999822,0,0.050000000000000308,0.1000000000000001,0.15000000000000036,0.20000000000000015,0.25,0.30000000000000027,0.35000000000000003,0.40000000000000041,0.45000000000000018,0.5,0.55000000000000027,0.60000000000000009,0.65000000000000036,0.70000000000000018,0.75,0.80000000000000027,0.85000000000000009,0.90000000000000036,0.95000000000000018,1,1.0499999999999998,1.1000000000000005,1.1500000000000004,1.2000000000000002,1.25,1.2999999999999998,1.3500000000000005,1.4000000000000004,1.4500000000000002,1.5,1.5499999999999998,1.6000000000000005,1.6500000000000004,1.7000000000000002,1.75,1.8000000000000007,1.8500000000000005,1.9000000000000004,1.9500000000000002,2],"y":[1161.5541984529789,945.51431709295252,758.11877726973921,608.87556782477998,489.67508906424604,394.23181421992047,317.64951024518314,256.09409794960715,206.54771271037524,166.62344492933323,134.4252035819037,108.44109969780168,87.4617788480614,70.517401230423559,56.828642336251626,45.768312924339824,36.83109056701732,29.609504644209782,23.774787996980589,19.061550191827518,15.255475614081844,12.183431098803458,9.7055019927032333,7.7085763347606271,6.1011739602625408,4.8092774233763897,3.7729692072283143,2.9437178227627334,2.2821862269114908,1.7564610430701808,1.3406214502112506,1.0135831208709041,0.75816579917384208,0.56034343054082913,0.40864355055761875,0.29366835386837015,0.20771409601453986,0.1444689523749246,0.098772800766214752,0.066425838373440488,0.044036103957300156,0.028898009595071161,0.01889427336861951,0.012412716018444771,0.0082692023854953542,0.0056306659083054508,0.0039375624242026569,0.0028303049057468981,0.0020859960514028834,0.0015696360836140318,0.0012001347822548777,0.00092846133853899838,0.00072432991475673825,0.00056839800945246313,0.00044783881221957739,0.00035383628229101544,0.00028012177870953222,0.00022209689465086351,0.00017630452936091007,0.00014010151688448403,0.00011144376966746986,8.8737300918174521e-05,7.073164632327986e-05,5.6442038887152138e-05,4.5091328810844315e-05,3.6065674757749256e-05,2.8880151103681418e-05,2.3151756235163868e-05,1.8578098797943711e-05,1.492051396364609e-05,1.1990669550222723e-05,9.639937642855498e-06,7.7509663980695451e-06,6.2310067562571275e-06,5.0066405317162564e-06,4.0196272355917468e-06,3.2236422933725055e-06,2.5817232588535221e-06,2.0642758120172119e-06,1.6475199950107117e-06,1.3122805984527506e-06,1.0430448092020358e-06,8.272256893069729e-07,6.5458182453538165e-07,5.1675078646279748e-07,4.0685446983032605e-07,3.1912322865952677e-07,2.4846594725964256e-07,1.8998341824716995e-07,1.3909655600279298e-07,9.4137020126391475e-08,5.8253668839698688e-08,3.3657901797456553e-08,1.8457128872707226e-08,9.5730254135368659e-09,4.615869758052234e-09,2.0191332731908862e-09,7.7636957622098863e-10,2.5009282366780849e-10,6.1407616659126339e-11,9.9442293296970039e-07],"text":["Species: Target species<br />w: 1.000000e-03<br />Flux: 1.161554e+03","Species: Target species<br />w: 1.122018e-03<br />Flux: 9.455143e+02","Species: Target species<br />w: 1.258925e-03<br />Flux: 7.581188e+02","Species: Target species<br />w: 1.412538e-03<br />Flux: 6.088756e+02","Species: Target species<br />w: 1.584893e-03<br />Flux: 4.896751e+02","Species: Target species<br />w: 1.778279e-03<br />Flux: 3.942318e+02","Species: Target species<br />w: 1.995262e-03<br />Flux: 3.176495e+02","Species: Target species<br />w: 2.238721e-03<br />Flux: 2.560941e+02","Species: Target species<br />w: 2.511886e-03<br />Flux: 2.065477e+02","Species: Target species<br />w: 2.818383e-03<br />Flux: 1.666234e+02","Species: Target species<br />w: 3.162278e-03<br />Flux: 1.344252e+02","Species: Target species<br />w: 3.548134e-03<br />Flux: 1.084411e+02","Species: Target species<br />w: 3.981072e-03<br />Flux: 8.746178e+01","Species: Target species<br />w: 4.466836e-03<br />Flux: 7.051740e+01","Species: Target species<br />w: 5.011872e-03<br />Flux: 5.682864e+01","Species: Target species<br />w: 5.623413e-03<br />Flux: 4.576831e+01","Species: Target species<br />w: 6.309573e-03<br />Flux: 3.683109e+01","Species: Target species<br />w: 7.079458e-03<br />Flux: 2.960950e+01","Species: Target species<br />w: 7.943282e-03<br />Flux: 2.377479e+01","Species: Target species<br />w: 8.912509e-03<br />Flux: 1.906155e+01","Species: Target species<br />w: 1.000000e-02<br />Flux: 1.525548e+01","Species: Target species<br />w: 1.122018e-02<br />Flux: 1.218343e+01","Species: Target species<br />w: 1.258925e-02<br />Flux: 9.705502e+00","Species: Target species<br />w: 1.412538e-02<br />Flux: 7.708576e+00","Species: Target species<br />w: 1.584893e-02<br />Flux: 6.101174e+00","Species: Target species<br />w: 1.778279e-02<br />Flux: 4.809277e+00","Species: Target species<br />w: 1.995262e-02<br />Flux: 3.772969e+00","Species: Target species<br />w: 2.238721e-02<br />Flux: 2.943718e+00","Species: Target species<br />w: 2.511886e-02<br />Flux: 2.282186e+00","Species: Target species<br />w: 2.818383e-02<br />Flux: 1.756461e+00","Species: Target species<br />w: 3.162278e-02<br />Flux: 1.340621e+00","Species: Target species<br />w: 3.548134e-02<br />Flux: 1.013583e+00","Species: Target species<br />w: 3.981072e-02<br />Flux: 7.581658e-01","Species: Target species<br />w: 4.466836e-02<br />Flux: 5.603434e-01","Species: Target species<br />w: 5.011872e-02<br />Flux: 4.086436e-01","Species: Target species<br />w: 5.623413e-02<br />Flux: 2.936684e-01","Species: Target species<br />w: 6.309573e-02<br />Flux: 2.077141e-01","Species: Target species<br />w: 7.079458e-02<br />Flux: 1.444690e-01","Species: Target species<br />w: 7.943282e-02<br />Flux: 9.877280e-02","Species: Target species<br />w: 8.912509e-02<br />Flux: 6.642584e-02","Species: Target species<br />w: 1.000000e-01<br />Flux: 4.403610e-02","Species: Target species<br />w: 1.122018e-01<br />Flux: 2.889801e-02","Species: Target species<br />w: 1.258925e-01<br />Flux: 1.889427e-02","Species: Target species<br />w: 1.412538e-01<br />Flux: 1.241272e-02","Species: Target species<br />w: 1.584893e-01<br />Flux: 8.269202e-03","Species: Target species<br />w: 1.778279e-01<br />Flux: 5.630666e-03","Species: Target species<br />w: 1.995262e-01<br />Flux: 3.937562e-03","Species: Target species<br />w: 2.238721e-01<br />Flux: 2.830305e-03","Species: Target species<br />w: 2.511886e-01<br />Flux: 2.085996e-03","Species: Target species<br />w: 2.818383e-01<br />Flux: 1.569636e-03","Species: Target species<br />w: 3.162278e-01<br />Flux: 1.200135e-03","Species: Target species<br />w: 3.548134e-01<br />Flux: 9.284613e-04","Species: Target species<br />w: 3.981072e-01<br />Flux: 7.243299e-04","Species: Target species<br />w: 4.466836e-01<br />Flux: 5.683980e-04","Species: Target species<br />w: 5.011872e-01<br />Flux: 4.478388e-04","Species: Target species<br />w: 5.623413e-01<br />Flux: 3.538363e-04","Species: Target species<br />w: 6.309573e-01<br />Flux: 2.801218e-04","Species: Target species<br />w: 7.079458e-01<br />Flux: 2.220969e-04","Species: Target species<br />w: 7.943282e-01<br />Flux: 1.763045e-04","Species: Target species<br />w: 8.912509e-01<br />Flux: 1.401015e-04","Species: Target species<br />w: 1.000000e+00<br />Flux: 1.114438e-04","Species: Target species<br />w: 1.122018e+00<br />Flux: 8.873730e-05","Species: Target species<br />w: 1.258925e+00<br />Flux: 7.073165e-05","Species: Target species<br />w: 1.412538e+00<br />Flux: 5.644204e-05","Species: Target species<br />w: 1.584893e+00<br />Flux: 4.509133e-05","Species: Target species<br />w: 1.778279e+00<br />Flux: 3.606567e-05","Species: Target species<br />w: 1.995262e+00<br />Flux: 2.888015e-05","Species: Target species<br />w: 2.238721e+00<br />Flux: 2.315176e-05","Species: Target species<br />w: 2.511886e+00<br />Flux: 1.857810e-05","Species: Target species<br />w: 2.818383e+00<br />Flux: 1.492051e-05","Species: Target species<br />w: 3.162278e+00<br />Flux: 1.199067e-05","Species: Target species<br />w: 3.548134e+00<br />Flux: 9.639938e-06","Species: Target species<br />w: 3.981072e+00<br />Flux: 7.750966e-06","Species: Target species<br />w: 4.466836e+00<br />Flux: 6.231007e-06","Species: Target species<br />w: 5.011872e+00<br />Flux: 5.006641e-06","Species: Target species<br />w: 5.623413e+00<br />Flux: 4.019627e-06","Species: Target species<br />w: 6.309573e+00<br />Flux: 3.223642e-06","Species: Target species<br />w: 7.079458e+00<br />Flux: 2.581723e-06","Species: Target species<br />w: 7.943282e+00<br />Flux: 2.064276e-06","Species: Target species<br />w: 8.912509e+00<br />Flux: 1.647520e-06","Species: Target species<br />w: 1.000000e+01<br />Flux: 1.312281e-06","Species: Target species<br />w: 1.122018e+01<br />Flux: 1.043045e-06","Species: Target species<br />w: 1.258925e+01<br />Flux: 8.272257e-07","Species: Target species<br />w: 1.412538e+01<br />Flux: 6.545818e-07","Species: Target species<br />w: 1.584893e+01<br />Flux: 5.167508e-07","Species: Target species<br />w: 1.778279e+01<br />Flux: 4.068545e-07","Species: Target species<br />w: 1.995262e+01<br />Flux: 3.191232e-07","Species: Target species<br />w: 2.238721e+01<br />Flux: 2.484659e-07","Species: Target species<br />w: 2.511886e+01<br />Flux: 1.899834e-07","Species: Target species<br />w: 2.818383e+01<br />Flux: 1.390966e-07","Species: Target species<br />w: 3.162278e+01<br />Flux: 9.413702e-08","Species: Target species<br />w: 3.548134e+01<br />Flux: 5.825367e-08","Species: Target species<br />w: 3.981072e+01<br />Flux: 3.365790e-08","Species: Target species<br />w: 4.466836e+01<br />Flux: 1.845713e-08","Species: Target species<br />w: 5.011872e+01<br />Flux: 9.573025e-09","Species: Target species<br />w: 5.623413e+01<br />Flux: 4.615870e-09","Species: Target species<br />w: 6.309573e+01<br />Flux: 2.019133e-09","Species: Target species<br />w: 7.079458e+01<br />Flux: 7.763696e-10","Species: Target species<br />w: 7.943282e+01<br />Flux: 2.500928e-10","Species: Target species<br />w: 8.912509e+01<br />Flux: 6.140762e-11","Species: Target species<br />w: 1.000000e+02<br />Flux: 9.944229e-07"],"type":"scatter","mode":"lines","line":{"width":3.0236220472440949,"color":"rgba(129,95,0,1)","dash":"solid"},"hoveron":"points","name":"Target species","legendgroup":"Target species","showlegend":true,"xaxis":"x","yaxis":"y","hoverinfo":"text","frame":null}],"layout":{"margin":{"t":23.305936073059364,"r":7.3059360730593621,"b":37.260273972602747,"l":48.949771689497723},"plot_bgcolor":"rgba(235,235,235,1)","paper_bgcolor":"rgba(255,255,255,1)","font":{"color":"rgba(0,0,0,1)","family":"","size":14.611872146118724},"xaxis":{"domain":[0,1],"automargin":true,"type":"linear","autorange":false,"range":[-3.25,2.25],"tickmode":"array","ticktext":["1e-03","1e-02","1e-01","1e+00","1e+01","1e+02"],"tickvals":[-3,-2,-1,0,1,2],"categoryorder":"array","categoryarray":["1e-03","1e-02","1e-01","1e+00","1e+01","1e+02"],"nticks":null,"ticks":"outside","tickcolor":"rgba(51,51,51,1)","ticklen":3.6529680365296811,"tickwidth":0.66417600664176002,"showticklabels":true,"tickfont":{"color":"rgba(77,77,77,1)","family":"","size":11.68949771689498},"tickangle":-0,"showline":false,"linecolor":null,"linewidth":0,"showgrid":true,"gridcolor":"rgba(255,255,255,1)","gridwidth":0.66417600664176002,"zeroline":false,"anchor":"y","title":{"text":"Size [g]","font":{"color":"rgba(0,0,0,1)","family":"","size":14.611872146118724}},"hoverformat":".2f"},"yaxis":{"domain":[0,1],"automargin":true,"type":"linear","autorange":false,"range":[-58.077709922584475,1219.6319083756248],"tickmode":"array","ticktext":["0","300","600","900","1200"],"tickvals":[0,300.00000000000006,600.00000000000011,900,1200],"categoryorder":"array","categoryarray":["0","300","600","900","1200"],"nticks":null,"ticks":"outside","tickcolor":"rgba(51,51,51,1)","ticklen":3.6529680365296811,"tickwidth":0.66417600664176002,"showticklabels":true,"tickfont":{"color":"rgba(77,77,77,1)","family":"","size":11.68949771689498},"tickangle":-0,"showline":false,"linecolor":null,"linewidth":0,"showgrid":true,"gridcolor":"rgba(255,255,255,1)","gridwidth":0.66417600664176002,"zeroline":false,"anchor":"x","title":{"text":"Flux [1/year]","font":{"color":"rgba(0,0,0,1)","family":"","size":14.611872146118724}},"hoverformat":".2f"},"shapes":[],"showlegend":true,"legend":{"bgcolor":"rgba(255,255,255,1)","bordercolor":"transparent","borderwidth":1.8897637795275593,"font":{"color":"rgba(0,0,0,1)","family":"","size":11.68949771689498},"title":{"text":"Legend","font":{"color":"rgba(0,0,0,1)","family":"","size":14.611872146118724}}},"hovermode":"closest","barmode":"relative"},"config":{"doubleClick":"reset","modeBarButtonsToAdd":["hoverclosest","hovercompare"],"showSendToCloud":false},"source":"A","attrs":{"5cb45e345e38":{"x":{},"y":{},"colour":{},"linetype":{},"linewidth":{},"type":"scatter"}},"cur_data":"5cb45e345e38","visdat":{"5cb45e345e38":["function (y) ","x"]},"highlight":{"on":"plotly_click","persistent":false,"dynamic":false,"selectize":false,"opacityDim":0.20000000000000001,"selected":{"opacity":1},"debounce":0},"shinyEvents":["plotly_hover","plotly_click","plotly_selected","plotly_relayout","plotly_brushed","plotly_brushing","plotly_clickannotation","plotly_doubleclick","plotly_deselect","plotly_afterplot","plotly_sunburstclick"],"base_url":"https://plot.ly"},"evals":[],"jsHooks":[]}</script>
+</div>
+</div>
+<p>Finally, plotting both flux and biomass flux together on log-log axes lets you see the relationship between the two across the full size range:</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="fu">plot2</span>(biomass_flux, flux, <span class="at">log =</span> <span class="st">"xy"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="2026-06-05-day-five_files/figure-html/unnamed-chunk-5-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+<hr>
+</section>
+<section id="what-the-flux-plot-shows" class="level2">
+<h2 class="anchored" data-anchor-id="what-the-flux-plot-shows">What the Flux Plot Shows</h2>
+<p>The picture that emerged was stark. Flux is very high at the smallest sizes, around <span class="math inline">\(10^{-3}\)</span> g, and drops sharply across several orders of magnitude, reaching essentially zero by 0.1 g. Very little biomass is successfully transiting into the larger size classes.</p>
+<p>This is almost certainly a consequence of the extremely low resource rate. With so little food available, the growth rates at intermediate and large sizes are negligible, and the perturbation applied to the large size class has almost no pathway through which it can be replenished. The oscillations seen in previous days are playing out almost entirely in the small-to-medium size range.</p>
+<p>It raises a question for later: what does the flux look like under a more realistic resource rate? Is the sharp cutoff a property of the model or an artefact of the deliberately depleted resource?</p>
+<hr>
+</section>
+<section id="afternoon-strogatz-chapter-5" class="level2">
+<h2 class="anchored" data-anchor-id="afternoon-strogatz-chapter-5">Afternoon: Strogatz Chapter 5</h2>
+<p>The afternoon shifted to theory. Chapter 5 of Nonlinear Dynamics and Chaos by Strogatz moves from one-dimensional flows to nonlinear flows in two dimensions, and the step up in richness is immediate.</p>
+<p>In one dimension, a trajectory has nowhere to go but left or right. In two dimensions, the phase plane opens up and fixed points acquire character: stable and unstable nodes, saddle points, spirals, centres. Trajectories can approach a fixed point along a preferred direction, orbit around it indefinitely, or be repelled.</p>
+<p>The analytical core of the chapter is linearisation. Near a fixed point, a nonlinear system can be approximated by a linear one, and the Jacobian evaluated at that point tells you everything about local behaviour. The eigenvalues of the Jacobian determine whether trajectories spiral in or out, approach along a curve, or diverge and a clean diagram classifying fixed points by the trace and determinant of the Jacobian puts the whole picture in one place.</p>
+<p>What resonates most clearly with the simulation work is the limit of linearisation. It is precise and useful near a fixed point, but says nothing about the global structure of the phase plane: whether distant trajectories eventually converge, whether limit cycles exist, or whether the system can be pushed from one basin of attraction into another. That gap between local and global is exactly what made the flux plots this morning interesting. The model’s local behaviour near steady state is one thing, but following where the biomass actually goes is another.</p>
+<p>The next chapter will presumably start closing that gap. For now, the foundations are solid.</p>
+<hr>
+</section>
+<section id="whats-next" class="level2">
+<h2 class="anchored" data-anchor-id="whats-next">What’s Next</h2>
+<p>Two threads to follow up. On the simulation side: rerun the flux analysis under a less extreme resource rate and check whether the cutoff at 0.1 g shifts or disappears. On the theory side: continue with Strogatz and work through the tools for global analysis which are likely to be directly relevant to understanding why the oscillatory regime exists where it does in parameter space.</p>
+
+
+</section>
+
+</main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp('/' + window.location.host + '/');
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+</div> <!-- /content -->
+
+
+
+
+</body></html>
