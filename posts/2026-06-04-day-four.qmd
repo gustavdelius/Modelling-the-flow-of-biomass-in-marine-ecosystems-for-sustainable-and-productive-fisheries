@@ -16,10 +16,10 @@ Some days in research feel like you're pushing against a wall. Today was not one
 
 The starting point was confirming that the oscillatory behaviour found yesterday wasn't a one-off. By systematically varying $\sigma$ (diet breadth) across a range of values while keeping $\beta$ fixed, it was possible to see clearly that oscillation amplitude increases as $\sigma$ decreases: smaller diet breadth means tighter predator-prey coupling, which amplifies perturbations rather than absorbing them.
 
-The key to making this comparison meaningful was measuring **relative amplitude**, the peak-to-peak oscillation as a fraction of the mean biomass, rather than absolute amplitude. Absolute amplitude is confounded by the steady-state biomass level, which itself changes with $\sigma$ and $\beta$. Relative amplitude strips that out and gives a like-for-like comparison across parameter combinations.
+The key to making this comparison meaningful was measuring relative amplitude, the peak-to-peak oscillation as a fraction of the mean biomass, rather than absolute amplitude. Absolute amplitude is confounded by the steady-state biomass level, which itself changes with $\sigma$ and $\beta$. Relative amplitude strips that out and gives a like-for-like comparison across parameter combinations.
 
 ::: callout-note
-### An example of the oscillations(  $\beta$ = 30, $\sigma$ = 0.5) {.callout-note}
+### An example of the oscillations( $\beta$ = 30, $\sigma$ = 0.5) {.callout-note}
 
 ```{r}
 #| message: false
@@ -34,8 +34,7 @@ library(mizerExperimental)
 library(tidyverse) 
 library(glue)
 
-############# Iterating on previous work - gonna vary sigma and beta and (maybe) kappa ##########################
-########################### Varying Beta #########################################
+
 # Deviation from power law
 deviation_plot <- function(sim, title) {
   spec <- finalNResource(sim)
@@ -72,12 +71,11 @@ varying_beta_sigma_test <- function(beta_new = 100, sigma_new = 1.3) {
   sim <- project(p, t_max = 100, t_save = 0.5)
   animateSpectra(sim, resource = FALSE, log_x = FALSE, log_y = FALSE, power = 2)
 }
-
-varying_beta_sigma_test(sigma_new = 0.65)
-a <- varying_beta_sigma_test(beta_new = 30,sigma_new=0.5)
 ```
 
 ```{r}
+#| message: false
+#| warning: false
 varying_beta_sigma_test(beta_new = 30,sigma_new=0.5)
 ```
 :::
@@ -122,8 +120,8 @@ max_amplitude <- function(sim) {
   max((res$n_max - res$n_min) / n_mean, na.rm = TRUE)
 }
 
-beta_values  <- c(10, 30, 50, 100, 200, 500)
-sigma_values <- c(0.3, 0.5, 0.8, 1.0, 1.3, 1.5)
+beta_values  <- c(10, 20, 30, 50, 100, 200, 500)
+sigma_values <- c(0.3, 0.5,0.6,0.7, 0.8, 1.0, 1.3, 1.5)
 
 phase_grid <- expand.grid(beta = beta_values, sigma = sigma_values)
 phase_grid$amplitude <- mapply(function(b, s) {
@@ -159,7 +157,7 @@ $\beta$ plays a secondary role. Smaller $\beta$ slightly amplifies the oscillati
 
 **The stability boundary sits around** $\sigma \approx 0.6$–$0.8$, with a slight dependence on $\beta$. This is the parameter regime worth probing more carefully as it's where the transition from stable to oscillatory dynamics occurs.
 
-One caveat: the contour plot interpolates between a 6×6 grid of simulation points. Some of the finer features (particularly the elbow around $\beta = 30$, $\sigma \approx 0.5$) could be interpolation artefacts. A denser grid would give more trustworthy contours,but would take a long time to render.
+One caveat: the contour plot interpolates between a grid of simulation points. Some of the finer features could be interpolation artefacts. A denser grid would give more trustworthy contours,but would take a long time to render.
 
 ------------------------------------------------------------------------
 

@@ -131,8 +131,8 @@ amplitude_against_size_various_sigmas(amplitudes, sigma_values)
 
 ########################Plotting sigma against beta in a phase diagram plot #######
 
-beta_values  <- c(10, 30, 50, 100)
-sigma_values <- c(0.3, 0.5, 0.8, 1.0, 1.3, 1.5)
+beta_values  <- c(10, 15, 30, 50, 100)
+sigma_values <- c(0.3, 0.5,0.6,0.7,0.8, 1.0, 1.3, 1.5)
 
 varying_beta_sigma <- function(beta_new, sigma_new) {
   p <- newSingleSpeciesParams(lambda = 2.05, beta = beta_new, sigma = sigma_new)
@@ -140,7 +140,7 @@ varying_beta_sigma <- function(beta_new, sigma_new) {
   r <- r * 0.001
   p <- setResource(p, resource_rate = r, resource_dynamics = "resource_semichemostat")
   idx <- p@w >= 10 & p@w <= 100
-  initialN(p)[, idx] <- initialN(p)[, idx] * 5
+  initialN(p)[, idx] <- initialN(p)[, idx] * 2.5
   project(p, t_max = 100, t_save = 0.5)
 }
 
