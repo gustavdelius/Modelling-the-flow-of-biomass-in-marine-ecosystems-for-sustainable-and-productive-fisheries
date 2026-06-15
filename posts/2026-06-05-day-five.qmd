@@ -10,7 +10,7 @@ description: "Experimenting with flux visualisations in mizerExperimental, and w
 
 Yesterday's phase diagram gave a map of where the system oscillates. Today's question was more concrete: when it does oscillate, *where* is the biomass actually moving? The answer required shifting from plotting biomass directly to plotting flux, the rate at which biomass flows through each size class.
 
-The `mizerExperimental` package provides `getFlux()` for exactly this, and most of the morning was spent getting to grips with what it returns and how best to display it.
+Mizer provides `getFlux()` for exactly this, and most of the morning was spent getting to grips with what it returns and how best to display it.
 
 ------------------------------------------------------------------------
 
@@ -23,13 +23,6 @@ The same single-species setup as previous days: $\lambda = 2.05$, $\beta = 30$, 
 #| warning: false
 #| output: false
 library(mizer)
-library(patchwork)
-library(reshape2)
-library(plotly)
-library(dplyr)
-library(mizerExperimental)
-library(tidyverse)
-library(glue)
 
 varying_beta_sigma_test <- function(beta_new = 100, sigma_new = 1.3) {
   test_sizes <- list(
@@ -79,7 +72,7 @@ Raw flux is dominated by the smallest size classes, where numbers are enormous. 
 #| message: false
 #| warning: false
 biomass_flux <- flux
-biomass_flux[] <- flux * w(getParams(sim))
+biomass_flux[] <- sweep(flux, 3, w(getParams(sim)), "*")
 plotHover(biomass_flux)
 ```
 
