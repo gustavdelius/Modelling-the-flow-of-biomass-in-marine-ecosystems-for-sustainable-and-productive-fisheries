@@ -341,6 +341,72 @@ plot_ly(bm) %>%
                       range = c(-7, 2)),
          xaxis = list(title_text = "time (year)"))
 
-animateSpectra(sim,log="xy",power=2)
-w_full(params)
-w(params)
+gc  <- getGrowthCurves(sim, species = "Anchovy", max_age = 30)
+age <- as.numeric(colnames(gc))
+w_of_age <- gc["Anchovy", ]
+age_at <- function(w_target) approx(x = w_of_age, y = age, xout = w_target, rule = 2)$y
+
+gen_time <- age_at(p$w_mat) - age[1]   # age[1] is 0 by construction
+gen_time
+
+times <- as.numeric(dimnames(sim@n)[[1]])
+pbm   <- as.vector(sim@n_pp %*% (params@w_full * params@dw_full))
+post  <- times >= 50
+
+t_peak   <- times[post][which.max(pbm[post])]
+t_trough <- times[post][which.min(pbm[post])]
+
+gen_time_at <- function(t_target) {
+  idx <- which.min(abs(times - t_target))
+  params_t <- params
+  params_t@initial_n[]    <- sim@n[idx, , ]
+  params_t@initial_n_pp[] <- sim@n_pp[idx, ]
+  
+  gc  <- getGrowthCurves(params_t, species = "Anchovy", max_age = 15)
+  age <- as.numeric(colnames(gc))
+  w_of_age <- gc["Anchovy", ]
+  approx(x = w_of_age, y = age, xout = p$w_mat, rule = 2)$y - age[1]
+}
+
+gen_time_peak   <- gen_time_at(t_peak)     # food-rich -> fast growth
+gen_time_trough <- gen_time_at(t_trough)   # food-poor -> slow growth
+
+c(fast = gen_time_peak, slow = gen_time_trough, observed = 3.5)
+
+psi <- params@maturity["Anchovy", ]
+w_grid <- params@w
+
+# size at which maturity ogive reaches ~95%
+w_95 <- approx(x = psi, y = w_grid, xout = 0.95)$y
+w_95
+
+# age at which the growth curve reaches that size (using the same end-state snapshot)
+gc  <- getGrowthCurves(sim, species = "Anchovy", max_age = 15)
+age <- as.numeric(colnames(gc))
+w_of_age <- gc["Anchovy", ]
+age_at <- function(w_target) approx(x = w_of_age, y = age, xout = w_target, rule = 2)$y - age[1]
+
+age_at(w_95)   # compare to 3.5
+
+# try psi = 0.99 instead of 0.95
+w_99 <- approx(x = psi, y = w_grid, xout = 0.99, ties = "ordered")$y
+age_at(w_99)
+
+params_final <- params
+last <- dim(sim@n)[1]
+params_final@initial_n[]    <- sim@n[last, , ]
+params_final@initial_n_pp[] <- sim@n_pp[last, ]
+
+r  <- resource_rate(params_final)
+mu <- getResourceMort(params_final)
+
+relevant <- params@w_full < min(params@w)   # the Plankton sizes Anchovy actually eat
+range(1 / (r[relevant] + mu[relevant]))
+
+
+mu_rel <- mu[relevant]
+r_rel  <- r[relevant]
+relax  <- 1 / (r_rel + mu_rel)
+
+# grazing-weighted average relaxation time
+sum(mu_rel * relax) / sum(mu_rel)   # compare to 0.38
