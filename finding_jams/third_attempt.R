@@ -43,11 +43,11 @@ varying_beta_sigma_test <- function(beta_new = 100, sigma_new = 1.3) {
   initialN(p)[, idx] <- initialN(p)[, idx] * 5
   
   sim <- project(p, t_max = 100, t_save = 0.5)
-  animateSpectra(sim, resource = FALSE, log_x = FALSE, log_y = FALSE, power = 2)
+  animateSpectra(sim, resource = FALSE, log_x = TRUE, log_y = TRUE, power = 2)
 }
 
 varying_beta_sigma_test(sigma_new = 0.65)
-a <- varying_beta_sigma_test(beta_new = 30,sigma_new=0.5)
+varying_beta_sigma_test(beta_new = 30,sigma_new=0.5)
 
 test_sizes <- list(
   "small"  = c(0.1, 1),
