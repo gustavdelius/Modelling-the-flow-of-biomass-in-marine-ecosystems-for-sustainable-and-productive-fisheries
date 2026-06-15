@@ -292,7 +292,7 @@ sim@n[last, , idx] <- sim@n[last, , idx] / 10^3
 
 # Continue for the rest of the run
 sim <- project(sim, t_max = 90, dt = 0.1, t_save = 0.2,
-               progress_bar = FALSE, method = "tr_bdf2")#can use tr_bdf2
+               progress_bar = FALSE, method = "predictor-corrector")#can use tr_bdf2,but needs much finer dt
 
 
 nf <- melt(sim@n)
