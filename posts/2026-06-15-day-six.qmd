@@ -220,8 +220,8 @@ It's not a precise derivation, but it's the right order of magnitude and points 
 
 ## What's Next
 
-- **Verify the period more carefully**: the peak-finding approach is sensitive to how much of the transient you include. Worth repeating with just the settled part of the time series (say, `t > 100`) and comparing to the ACF result.
+- **Verify the period more carefully**: The peak-finding approach is sensitive to how much of the transient you include. Worth repeating with just the settled part of the time series (say, `t > 100`) and comparing to the ACF result.
 - **Link the period to parameters explicitly**: If the period is set by maturation time, varying `w_mat` or growth rate parameters should shift the period predictably. This is a testable prediction and would make the mechanism much more concrete.
-- **Animate getEGrowth()** — plotting the energy available for somatic growth at each size class as a frame-by-frame animation over the oscillation cycle should make the feedback mechanism visible directly: resource depletion should s how up as a suppression of growth rates in the small size classes, propagating upward through the spectrum as the affe cted cohort matures. If the mechanism is what we think it is, the pattern in EGrowth should lag the Plankton dip by roughly one generation.
+- **Animate getEGrowth()**: Plotting the energy available for somatic growth at each size class as a frame-by-frame animation over the oscillation cycle should make the feedback mechanism visible directly: resource depletion should s how up as a suppression of growth rates in the small size classes, propagating upward through the spectrum as the affected cohort matures. If the mechanism is what we think it is, the pattern in EGrowth should lag the Plankton dip by roughly one generation.
 
 Today involved more backtracking than I'd have liked, but ruling out the discretisation artefacts was necessary work. The oscillations in the RPubs example are the real thing, and they're now a concrete starting point rather than a vague hope.
