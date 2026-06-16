@@ -1,0 +1,233 @@
+---
+title: "Day 6: Real Oscillations (Eventually)"
+author: "Samia"
+date: "2026-06-15"
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    theme: flatly
+    code-fold: true
+categories: [research, mizer, oscillations, size-spectrum, nonlinear-dynamics, blog]
+description: "A morning of textbook work, then the uncomfortable discovery that yesterday's oscillations were numerical artefacts — followed by tracking down a reference that showed what real ones look like."
+---
+
+## Morning: Nonlinear Dynamics
+
+The day started away from the code. Day 5 had left a few conceptual gaps, specifically around what it actually means for a system to oscillate versus ring transiently and so I spent the morning working through the nonlinear dynamics textbook (Strogatz) rather than jumping back into R straight away.
+
+The focus was on two areas. First, phase portraits in 2D, the geometry of how trajectories move through the $(x, \dot{x})$ plane, what nullclines are and how they carve up the phase plane, and how to read off qualitative behaviour (stable nodes, spirals, saddle points) from the portrait without solving the equations explicitly. Being comfortable reading a phase portrait is basically a prerequisite for understanding any of the oscillation dynamics in the mizer model.
+
+Second, the existence and uniqueness theorem which is the result that guarantees a unique solution through every initial condition, given the function **f** is continuously differentiable . This matters for simulations more than it might seem: if you're running a numerical integrator and getting different trajectories depending on step size, it's worth knowing whether that's a numerical error or a sign that the theorem's conditions actually break down somewhere in parameter space.
+
+------------------------------------------------------------------------
+
+## The Uncomfortable Check
+
+My supervisor pointed out something I'd missed: the oscillations from Day 5 could be integration artefacts. The obvious test is to switch to a more accurate integration method and see if the feature survives.
+
+Mizer supports a **predictor-corrector** integration method alongside the default. The predictor-corrector is second-order and has better error properties than the default scheme, if oscillations are real dynamics rather than integration artefacts, they should persist regardless of which method you use. Swapping in `method = "predictor-corrector"` is a one-line change:
+
+``` r
+#| message: false
+#| warning: false
+#| output: false
+
+sim <- project(params, t_max = 100, dt = 0.1, t_save = 0.2,
+               progress_bar = FALSE, method = "predictor-corrector")
+```
+
+The oscillations **disappeared**, the biomass converged smoothly to equilibrium instead. That's a clear sign: what I'd been looking at was a **discretisation error**, not a genuine feature of the model's dynamics. The default integrator was producing numerical ringing that mimicked real oscillations.
+
+Not a great feeling, but better to find out now. The dynamics aren't as interesting as I thought, or at least, not under these parameter settings.
+
+------------------------------------------------------------------------
+
+## A Pointer from the Literature
+
+With the original oscillations ruled out, the question became: is there a parameter regime where mizer *does* produce genuine cycles? I was almost certain the answer should be yes, the biological mechanisms for a Hopf bifurcation are clearly present in a size-structured consumer-resource model but I didn't know where in parameter space to look.
+
+At this point I was reminded of a piece of code I'd come across earlier in the project: a worked example on RPubs showing plankton-anchovy oscillations in mizer.
+
+<https://rpubs.com/gustav/plankton-anchovy>
+
+Reading through it, the setup was different from what I'd been doing, a two-species model (anchovy feeding on plankton) with specific parameter choices that had been tuned to produce interesting dynamics. The code was written for an older version of mizer, so several of the functions had changed names or signatures.
+
+I worked through it and translated the setup to current mizer, `newSingleSpeciesParams()` in place of the old direct constructor, `setResource()` for the resource dynamics, and `resource_semichemostat` as the dynamics type. The key parameters from the original that produced oscillations were a low resource replenishment rate combined with a large predator-prey size ratio exactly the instability regime from Datta, Delius & Law (2011).
+
+```{r}
+#| message: false
+#| warning: false
+#| output: false
+library(mizer)
+library(reshape2)
+library(plotly)
+library(dplyr)
+p <- list(
+  dt     = 0.001,
+  dx     = 0.1,
+  w_min  = 0.0003,
+  w_max  = 66.5,
+  w_mat  = 10,
+  alpha  = 0.1,      # assimilation efficiency
+  gamma  = 750,
+  lambda = 2,
+  a0     = 100
+)
+
+kappa <- p$a0 * exp(-6.9 * (p$lambda - 1))
+no_w  <- round(log(p$w_max / p$w_min) / p$dx)
+
+params <- newSingleSpeciesParams(
+  species_name = "Anchovy",
+  w_min  = p$w_min,
+  w_max  = p$w_max,
+  w_mat  = p$w_mat,
+  no_w   = no_w,
+  lambda = p$lambda,
+  kappa  = kappa,
+  alpha  = p$alpha,
+  gamma  = p$gamma,
+  ks     = 0
+)
+
+r <- resource_rate(params)
+r <- r * 0.001
+params <- setResource(params, resource_rate = r,
+                      resource_dynamics = "resource_semichemostat")
+```
+
+The r \* 0.001 scaling is the critical detail, suppressing plankton replenishment to roughly a thousandth of its default value is what puts the system in the oscillatory regime.
+
+------------------------------------------------------------------------
+
+## The Oscillations That Survive
+
+Running the adapted model with the predictor-corrector method, and introducing a perturbation mid-run by crashing the large size class to a thousandth of its current abundance:
+
+```{r}
+#| output: false
+#| message: false
+#| warning: false
+test_sizes <- list(
+  "small"  = c(0.1, 1),
+  "medium" = c(1, 10),
+  "large"  = c(10, 100)
+)
+
+params@initial_n_pp[] <- params@cc_pp * 0.1
+T1 <- 10
+
+sim <- project(params, t_max = T1, dt = 0.1, t_save = 0.2,
+               progress_bar = FALSE, method = "predictor-corrector")
+
+rng <- test_sizes[["large"]]
+idx <- params@w >= rng[1] & params@w <= rng[2]
+last <- dim(sim@n)[1]
+sim@n[last, , idx] <- sim@n[last, , idx] / 10^3
+
+sim <- project(sim, t_max = 90, dt = 0.1, t_save = 0.2,
+               progress_bar = FALSE, method = "predictor-corrector")
+# can also use tr_bdf2, but needs much finer dt
+```
+
+The animated size spectrum gives the first read on whether anything interesting is happening:
+
+```{r}
+nf        <- melt(sim@n)
+names(nf) <- c("time", "sp", "w", "value")
+
+n_ppf        <- melt(sim@n_pp)
+names(n_ppf) <- c("time", "w", "value")
+n_ppf$sp     <- "Plankton"
+
+nf <- rbind(nf, n_ppf)
+
+nf_plot <- nf %>%
+  filter(w > 10^-5, time >= 50) %>%
+  mutate(b = value * w^2)
+
+plot_ly(nf_plot) %>%
+  add_lines(
+    x = ~w, y = ~b,
+    color = ~sp,
+    frame = ~time,
+    line = list(simplify = FALSE)
+  ) %>%
+  layout(
+    xaxis = list(type = "log", exponentformat = "power",
+                 title_text = "body mass (g)"),
+    yaxis = list(type = "log", exponentformat = "power",
+                 title_text = "biomass (g/m^3)",
+                 range = c(-8, 0))
+  )
+```
+
+The oscillations were still there. Switching to a more accurate method didn't make them disappear, the exact opposite of what happened with the old parameter set. If the oscillations survive a change in integration method, they're real. These are genuine limit cycle dynamics, not the numerical noise previously.
+
+------------------------------------------------------------------------
+
+## What Period?
+
+With a credible oscillation in hand, the next question was what sets its period. The first tool was a biomass time series broken down by component, total Anchovy, "small Anchovy" (0.01–0.4 g), and Plankton, which makes the phase relationships visible:
+
+```{r}
+abm  <- melt(getBiomass(sim))
+abmr <- melt(getBiomass(sim, min_w = 0.01, max_w = 0.4))
+abmr$sp <- "small Anchovy"
+
+pbm <- sim@n_pp %*% (params@w_full * params@dw_full)
+pbm <- melt(pbm)
+names(pbm)[names(pbm) == "Var1"] <- "time"
+pbm$Var2 <- NULL
+pbm$sp <- "Plankton"
+
+bm <- rbind(pbm, abm, abmr)
+
+bm_plot <- bm %>% filter(time >= 10)
+
+plot_ly(bm_plot) %>%
+  add_lines(x = ~time, y = ~value, color = ~sp) %>%
+  layout(
+    yaxis = list(type = "log", exponentformat = "power",
+                 title_text = "biomass (g/m^3)",
+                 range = c(-7, 2)),
+    xaxis = list(title_text = "time (year)")
+  )
+```
+
+The three-component plot is more informative than total Anchovy alone, "small Anchovy" tracks the recruitment pulse, which leads the adult biomass signal by part of a generation. Eyeballing the period from this plot, the oscillations looked to be somewhere around 3–3.5 years.
+
+Settling on that range, the natural question is: what in the biology sets this timescale?
+
+### Two Generations
+
+The obvious candidate is generation time, the time for a recruit to grow from minimum size to maturity. If the consumer-resource feedback loop runs on a delay equal to the time fish take to grow up and start reproducing, the oscillation period should be some multiple of that delay.
+
+```{r}
+#| message: false
+#| warning: false
+gc <- getGrowthCurves(sim, species = "Anchovy", max_age = 20)
+age <- as.numeric(colnames(gc))
+w_of_age <- gc["Anchovy", ]
+
+age_at_mat <- approx(x = w_of_age, y = age, xout = p$w_mat, rule = 2)$y
+age_at_mat
+# [1] ~1.6 years
+```
+
+A single generation is around 1.6 years. **Two generations is roughly 3.2 years** which is very close to the observed oscillation period.
+
+This makes biological sense as a mechanism. A pulse of recruits grows up, reaches maturity, and exerts grazing pressure on the resource. The resource dips in response. The reduced food slows growth for the *next* cohort, delaying its own maturation. By the time that cohort reaches full reproductive output, the resource has had time to recover and the cycle repeats. The characteristic delay in this feedback is two maturation transit times, not one, because it takes one generation for the signal (resource depletion) to translate into the response (delayed next cohort), and another generation for that response to feed back into the resource again.
+
+It's not a precise derivation, but it's the right order of magnitude and the right mechanism.
+
+------------------------------------------------------------------------
+
+## What's Next
+
+- **Verify the period more carefully**: the peak-finding approach is sensitive to how much of the transient you include. Worth repeating with just the settled part of the time series (say, `t > 100`) and comparing to the ACF result.
+- **Link the period to parameters explicitly**: If the period is set by maturation time, varying `w_mat` or growth rate parameters should shift the period predictably. This is a testable prediction and would make the mechanism much more concrete.
+- **Connect back to the original project question**: the plankton-anchovy model from RPubs is a two-species example, but the project is ultimately about single-species dynamics and whether fishing can relieve size-spectrum jams. Now that there's a confirmed limit cycle in hand, the next step is understanding whether the same dynamics can be produced in a single-species setup and if so, under what parameters.
+
+Today involved more backtracking than I'd have liked, but ruling out the discretisation artefacts was necessary work. The oscillations in the RPubs example are the real thing, and they're now a concrete starting point rather than a vague hope.
