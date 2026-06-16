@@ -2,12 +2,6 @@
 title: "Day 6: Real Oscillations (Eventually)"
 author: "Samia"
 date: "2026-06-15"
-format:
-  html:
-    toc: true
-    toc-depth: 3
-    theme: flatly
-    code-fold: true
 categories: [research, mizer, oscillations, size-spectrum, nonlinear-dynamics, blog]
 description: "A morning of textbook work, then the uncomfortable discovery that yesterday's oscillations were numerical artefacts — followed by tracking down a reference that showed what real ones look like."
 ---
@@ -26,7 +20,7 @@ Second, the existence and uniqueness theorem which is the result that guarantees
 
 My supervisor pointed out something I'd missed: the oscillations from Day 5 could be integration artefacts. The obvious test is to switch to a more accurate integration method and see if the feature survives.
 
-Mizer supports a **predictor-corrector** integration method alongside the default. The predictor-corrector is second-order and has better error properties than the default scheme, if oscillations are real dynamics rather than integration artefacts, they should persist regardless of which method you use. Swapping in `method = "predictor-corrector"` is a one-line change:
+Mizer supports a predictor-corrector integration method alongside the default. The predictor-corrector is second-order and has better error properties than the default scheme, if oscillations are real dynamics rather than integration artefacts, they should persist regardless of which method you use. Swapping in `method = "predictor-corrector"` is a one-line change:
 
 ``` r
 #| message: false
@@ -37,7 +31,7 @@ sim <- project(params, t_max = 100, dt = 0.1, t_save = 0.2,
                progress_bar = FALSE, method = "predictor-corrector")
 ```
 
-The oscillations **disappeared**, the biomass converged smoothly to equilibrium instead. That's a clear sign: what I'd been looking at was a **discretisation error**, not a genuine feature of the model's dynamics. The default integrator was producing numerical ringing that mimicked real oscillations.
+The oscillations disappeared, the biomass converged smoothly to equilibrium instead. That's a clear sign: what I'd been looking at was a discretisation error, not a genuine feature of the model's dynamics. The default integrator was producing numerical ringing that mimicked real oscillations.
 
 Not a great feeling, but better to find out now. The dynamics aren't as interesting as I thought, or at least, not under these parameter settings.
 
@@ -196,13 +190,13 @@ plot_ly(bm_plot) %>%
   )
 ```
 
-The three-component plot is more informative than total Anchovy alone, "small Anchovy" tracks the recruitm ent pulse, which leads the adult biomass signal by part of a generation. Eyeballing the period from this plot, the oscillations looked to be somewhere in the range of 7–9 years.
+The three-component plot is more informative than total Anchovy alone, "small Anchovy" tracks the recruitment pulse, which leads the adult biomass signal by part of a generation. Eyeballing the period from this plot, the oscillations looked to be somewhere in the range of 7–9 years.
 
 Settling on that range, the natural question is: what in the biology sets this timescale?
 
 ### Three Generations
 
-The obvious candidate is generation time, the time for a recruit to grow from minimum size to maturity. If the consumer-resource feedback loop runs on a delay set by how long fish take to grow up and start reprod ucing, the oscillation period should be some multiple of that delay.
+The obvious candidate is generation time, the time for a recruit to grow from minimum size to maturity. If the consumer-resource feedback loop runs on a delay set by how long fish take to grow up and start reproducing, the oscillation period should be some multiple of that delay.
 
 ```{r}
 #| message: false
@@ -216,9 +210,9 @@ age_at_mat
 # [1] ~2.636306
 ```
 
-A single generation is around 2.64 years. **Three generations is roughly 7.9 years** — right in the middle of the observed 7–9 year range.
+A single generation is around 2.64 years. Three generations is roughly 7.9 years, right in the middle of the observed 7–9 year range.
 
-This makes biological sense as a mechanism, though the three-generation lag rather than two is worth sitti ng with. A pulse of recruits grows up and reaches maturity — that's one generation. They exert grazing pre ssure on the resource, which dips in response, slowing growth for the next cohort — that's a second genera tion passing. By the time *that* cohort reaches maturity and starts reproducing in earnest, the resource h as recovered and a new pulse of fast-growing juveniles is produced — and it's the maturation of this third generation that closes the loop and restarts the cycle. Three transits, not two.
+This makes biological sense as a mechanism, though the three-generation lag rather than two is worth sitting with. A pulse of recruits grows up and reaches maturity; that's one generation. They exert grazing pressure on the resource, which dips in response, slowing growth for the next cohort that's a second generation passing. By the time *that* cohort reaches maturity and starts reproducing in earnest, the resource has recovered and a new pulse of fast-growing juveniles is produced and it's the maturation of this third generation that closes the loop and restarts the cycle. Three transits, not two.
 
 It's not a precise derivation, but it's the right order of magnitude and points at the right mechanism.
 
