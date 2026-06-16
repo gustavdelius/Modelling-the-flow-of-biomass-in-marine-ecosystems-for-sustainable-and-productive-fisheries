@@ -196,13 +196,13 @@ plot_ly(bm_plot) %>%
   )
 ```
 
-The three-component plot is more informative than total Anchovy alone, "small Anchovy" tracks the recruitment pulse, which leads the adult biomass signal by part of a generation. Eyeballing the period from this plot, the oscillations looked to be somewhere around 3–3.5 years.
+The three-component plot is more informative than total Anchovy alone, "small Anchovy" tracks the recruitm ent pulse, which leads the adult biomass signal by part of a generation. Eyeballing the period from this plot, the oscillations looked to be somewhere in the range of 7–9 years.
 
 Settling on that range, the natural question is: what in the biology sets this timescale?
 
-### Two Generations
+### Three Generations
 
-The obvious candidate is generation time, the time for a recruit to grow from minimum size to maturity. If the consumer-resource feedback loop runs on a delay equal to the time fish take to grow up and start reproducing, the oscillation period should be some multiple of that delay.
+The obvious candidate is generation time, the time for a recruit to grow from minimum size to maturity. If the consumer-resource feedback loop runs on a delay set by how long fish take to grow up and start reprod ucing, the oscillation period should be some multiple of that delay.
 
 ```{r}
 #| message: false
@@ -213,14 +213,14 @@ w_of_age <- gc["Anchovy", ]
 
 age_at_mat <- approx(x = w_of_age, y = age, xout = p$w_mat, rule = 2)$y
 age_at_mat
-# [1] ~1.6 years
+# [1] ~2.636306
 ```
 
-A single generation is around 1.6 years. **Two generations is roughly 3.2 years** which is very close to the observed oscillation period.
+A single generation is around 2.64 years. **Three generations is roughly 7.9 years** — right in the middle of the observed 7–9 year range.
 
-This makes biological sense as a mechanism. A pulse of recruits grows up, reaches maturity, and exerts grazing pressure on the resource. The resource dips in response. The reduced food slows growth for the *next* cohort, delaying its own maturation. By the time that cohort reaches full reproductive output, the resource has had time to recover and the cycle repeats. The characteristic delay in this feedback is two maturation transit times, not one, because it takes one generation for the signal (resource depletion) to translate into the response (delayed next cohort), and another generation for that response to feed back into the resource again.
+This makes biological sense as a mechanism, though the three-generation lag rather than two is worth sitti ng with. A pulse of recruits grows up and reaches maturity — that's one generation. They exert grazing pre ssure on the resource, which dips in response, slowing growth for the next cohort — that's a second genera tion passing. By the time *that* cohort reaches maturity and starts reproducing in earnest, the resource h as recovered and a new pulse of fast-growing juveniles is produced — and it's the maturation of this third generation that closes the loop and restarts the cycle. Three transits, not two.
 
-It's not a precise derivation, but it's the right order of magnitude and the right mechanism.
+It's not a precise derivation, but it's the right order of magnitude and points at the right mechanism.
 
 ------------------------------------------------------------------------
 
