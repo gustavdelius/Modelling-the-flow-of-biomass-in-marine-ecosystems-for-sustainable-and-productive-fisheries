@@ -6,7 +6,7 @@ library(dplyr)
 library(mizerExperimental)
 library(tidyverse) 
 library(glue)
-
+library(ggplot2)
 ################## Code from yesterday that I'll experiment on #################
 
 p <- list(
@@ -59,7 +59,14 @@ idx <- params@w >= rng[1] & params@w <= rng[2]
 
 # Divide that size range, at the current end of sim, by 10^3
 last <- dim(sim@n)[1]
-sim@n[last, , idx] <- sim@n[last, , idx] / 10^3
+sim@n[last, , idx] <- sim@n[last, , idx] /10^3
+
+beta <- params@species_params$beta
+
+prey_rng <- rng / beta  # preferred prey sizes for the large fish range
+pp_idx   <- params@w_full >= prey_rng[1] & params@w_full <= prey_rng[2]
+
+sim@n_pp[last, pp_idx] <-  sim@n_pp[last, pp_idx] / 10^3
 
 # Continue for the rest of the run
 sim <- project(sim, t_max = 90, dt = 0.1, t_save = 0.2,
@@ -67,31 +74,31 @@ sim <- project(sim, t_max = 90, dt = 0.1, t_save = 0.2,
 
 
 nice_animation <- function(sim){
-  nf <- melt(sim@n)
-  n_ppf <- melt(sim@n_pp)
-  n_ppf$sp <- "Plankton"
-  nf <- rbind(nf, n_ppf)
-  
-  plot_ly(nf) %>%
-    # show only part of plankton spectrum
-    filter(w > 10^-5) %>%
-    # start at time 50
-    filter(time >= 50) %>%
-    # calculate biomass density with respect to log size
-    mutate(b = value * w^2) %>%
-    # Plot lines
-    add_lines(
-      x = ~w, y = ~b,
-      color = ~sp,
-      frame = ~time,
-      line = list(simplify = FALSE)
-    ) %>%
-    # Use logarithmic axes
-    layout(xaxis = list(type = "log", exponentformat = "power",
-                        title_text = "body mass (g)"),
-           yaxis = list(type = "log", exponentformat = "power",
-                        title_text = "biomass (g/m^3)",
-                        range = c(-8, 0)))
+   nf <- melt(sim@n)
+   n_ppf <- melt(sim@n_pp)
+   n_ppf$sp <- "Plankton"
+   nf <- rbind(nf, n_ppf)
+   
+   plot_ly(nf) %>%
+     # show only part of plankton spectrum
+     filter(w > 10^-5) %>%
+     # start at time 50
+     filter(time >= 50) %>%
+     # calculate biomass density with respect to log size
+     mutate(b = value * w^2) %>%
+     # Plot lines
+     add_lines(
+       x = ~w, y = ~b,
+       color = ~sp,
+       frame = ~time,
+       line = list(simplify = FALSE)
+     ) %>%
+     # Use logarithmic axes
+     layout(xaxis = list(type = "log", exponentformat = "power",
+                         title_text = "body mass (g)"),
+            yaxis = list(type = "log", exponentformat = "power",
+                         title_text = "biomass (g/m^3)",
+                         range = c(-8, 0)))
 }
 
 nice_biomass_plot <- function(sim){
@@ -114,15 +121,9 @@ nice_biomass_plot <- function(sim){
            xaxis = list(title_text = "time (year)"))
 }
 
-
-
-################ 
-
-
-
-
 ################################ First edit #################################
 #Will make it go on for along time to better see where the attractor  is
+
 sim_300 <- project(sim, t_max = 200, dt = 0.1, t_save = 0.2,
                           progress_bar = FALSE, method = "predictor-corrector")#can use tr_bdf2,but needs much finer dt
 
@@ -134,14 +135,30 @@ sim_300 <- project(sim, t_max = 200, dt = 0.1, t_save = 0.2,
 sim_600 <-  project(sim_300, t_max = 300, dt = 0.1, t_save = 0.2,
                     progress_bar = FALSE, method = "predictor-corrector")#can use tr_bdf2,but needs much finer dt
 
+plotHover(getBiomass(sim_600),tlim=c(500,550))
 
+t_trough <- 507.2
+t_peak <- 570.2
+
+getFeedingLevel(getParams(sim_600,t=t_peak))
+getFeedingLevel(getParams(sim_600,t=t_trough))
+
+
+#saveSim(sim_600,"Gustav.rds")
 #nice_animation(sim_600) # Highkey useless,takes sooooo long for no benefit
-nice_biomass_plot(sim_600)
+#nice_biomass_plot(sim_600)
 ################ 
 
 ############## Test 2 ###########################
 #Animating EGrowth
-animate(getEGrowth(sim_600,time_range=c(550,600)))
-plotHover(getFlux(sim_600))
-plot(getEGrowth(sim_600,t=572),log="y")
-plotHover(getBiomass(sim_600),tlim=c(550,600))
+# animate(getEGrowth(sim_600,time_range=c(550,600)))
+# plotHover(getFlux(sim_600))
+t_peak
+t_trough
+plot2(getEGrowth(sim_600,t=t_peak),getEGrowth(sim_600,t=t_trough),log="xy")
+plotSpectra2(getParams(sim_600,t_trough),getParams(sim_600,t_peak),log="xy")
+a<-plotSpectra(getParams(sim_600,t_peak),power=2)
+b<-plotSpectra(getParams(sim_600,t_trough),power=2)
+
+
+
