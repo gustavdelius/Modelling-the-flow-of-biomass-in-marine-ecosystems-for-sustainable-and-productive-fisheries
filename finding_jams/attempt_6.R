@@ -59,14 +59,14 @@ idx <- params@w >= rng[1] & params@w <= rng[2]
 
 # Divide that size range, at the current end of sim, by 10^3
 last <- dim(sim@n)[1]
-sim@n[last, , idx] <- sim@n[last, , idx] /10^3
+sim@n[last, , idx] <- sim@n[last, , idx] /10
 
 beta <- params@species_params$beta
 
 prey_rng <- rng / beta  # preferred prey sizes for the large fish range
 pp_idx   <- params@w_full >= prey_rng[1] & params@w_full <= prey_rng[2]
 
-sim@n_pp[last, pp_idx] <-  sim@n_pp[last, pp_idx] / 10^3
+#sim@n_pp[last, pp_idx] <-  sim@n_pp[last, pp_idx] / 10^3
 
 # Continue for the rest of the run
 sim <- project(sim, t_max = 90, dt = 0.1, t_save = 0.2,
@@ -135,6 +135,10 @@ sim_300 <- project(sim, t_max = 200, dt = 0.1, t_save = 0.2,
 sim_600 <-  project(sim_300, t_max = 300, dt = 0.1, t_save = 0.2,
                     progress_bar = FALSE, method = "predictor-corrector")#can use tr_bdf2,but needs much finer dt
 
+plot2(getEGrowth(sim_600,t=t_peak),getEGrowth(sim_600,t=t_trough),log="xy")
+
+
+
 plotHover(getBiomass(sim_600),tlim=c(500,550))
 
 t_trough <- 507.2
@@ -160,5 +164,5 @@ plotSpectra2(getParams(sim_600,t_trough),getParams(sim_600,t_peak),log="xy")
 a<-plotSpectra(getParams(sim_600,t_peak),power=2)
 b<-plotSpectra(getParams(sim_600,t_trough),power=2)
 
-
-
+animate(getFeedingLevel(sim_600,time_range=c(550,600)))
+animate(getEGrowth(sim_600,time_range=c(t_trough-1,t_peak+1)),log="xy")
