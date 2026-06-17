@@ -299,6 +299,9 @@ p_phs <- ggplot(df_phase, aes(x = w, y = phase)) +
 
 p_amp + p_phs
 
+animateSpectra(sim_600,tlim=c(550,600))
 
+plotHover(getBiomass(sim_600),tlim=c(550,600))
 #Results show that the oscillations we are seeing are not those we care about
 #This is a reproduction feedback loop, not a cohort wave, which we'd expect in a traffic jam phenomenon
+species_params(params)
