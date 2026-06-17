@@ -2,14 +2,8 @@
 title: "Day 7: What's Driving the Oscillation?"
 author: "Samia"
 date: "2026-06-16"
-format:
-  html:
-    toc: true
-    toc-depth: 3
-    theme: flatly
-    code-fold: true
 categories: [research, mizer, oscillations, feeding-level, bifurcation, blog]
-description: "Chasing the mechanism behind the oscillation — from a dead end with EGrowth animations to a clear result about food limitation in the juvenile size classes."
+description: "Chasing the mechanism behind the oscillation going from a dead end with EGrowth animations to a clear result about food limitation in the juvenile size classes."
 ---
 
 ## The Question
@@ -28,7 +22,19 @@ The way to distinguish them is to check whether growth rates actually change dur
 Parameters, model construction, and the initial perturbation that starts the limit-cycle transient:
 
 ```{r}
-#| eval: false
+#| message: false
+#| warning: false
+#| output: false
+library(mizer)
+library(patchwork)
+library(reshape2)
+library(plotly)
+library(dplyr)
+library(mizerExperimental)
+library(tidyverse) 
+library(glue)
+library(ggplot2)
+
 p <- list(
   dt     = 0.001,
   dx     = 0.1,
@@ -83,7 +89,10 @@ sim_600 <-  project(sim_300, t_max = 300, dt = 0.1, t_save = 0.2,
 The first attempt was to animate `getEGrowth()` across the oscillation — if growth rates are cycling, the curve should visibly rise and fall with the plankton. The mizer `animate()` function handles this directly once you have a long-enough simulation object:
 
 ```{r}
-#| eval: false
+#| message: false
+#| warning: false
+t_trough <- 507.2
+t_peak   <- 570.2
 animate(getEGrowth(sim_600, time_range = c(t_trough - 1, t_peak + 1)), log = "xy")
 ```
 
@@ -98,7 +107,8 @@ The time points chosen (557 and 559, two years apart) were too close together to
 The right comparison is between the actual biomass peak and trough. `plotHover()` on the settled portion of the biomass time series makes it easy to read off the exact times interactively:
 
 ```{r}
-#| eval: false
+#| message: false
+#| warning: false
 plotHover(getBiomass(sim_600), tlim = c(500, 580))
 
 t_trough <- 507.2
@@ -108,14 +118,12 @@ t_peak   <- 570.2
 Then overlaying EGrowth, the size spectrum, and individual spectra at those two times:
 
 ```{r}
-#| eval: false
+#| message: false
+#| warning: false
+
 plot2(getEGrowth(sim_600, t = t_peak),
       getEGrowth(sim_600, t = t_trough),
       log = "xy")
-
-plotSpectra2(getParams(sim_600, t_trough),
-             getParams(sim_600, t_peak),
-             log = "xy")
 
 ```
 
@@ -128,7 +136,8 @@ Still essentially identical. The curves sat on top of each other across the full
 `getEGrowth` tells you energy available for growth, but it folds in the maturity and metabolic costs. A cleaner measure of whether fish are food-limited is the feeding level $f(w)$ , the fraction of maximum intake rate actually achieved, running from 0 (no food) to 1 (fully saturated).
 
 ```{r}
-#| eval: false
+#| message: false
+#| warning: false
 getFeedingLevel(getParams(sim_600, t_peak))
 # Feeding level (1 species x 123 sizes)
 #   Anchovy: min=0.896 mean=0.949 max=0.995
@@ -149,7 +158,8 @@ The earlier EGrowth animation showed no difference because the effect is concent
 With the static peak/trough comparison confirming food limitation, the next step was to animate `getFeedingLevel()` which allows us to watch the feeding level evolve at each size class over time rather than just seeing summary statistics:
 
 ```{r}
-#| eval: false
+#| message: false
+#| warning: false
 animate(getFeedingLevel(sim_600, time_range = c(550, 600)))
 ```
 
@@ -186,7 +196,9 @@ The three-generation period from Day 6 is consistent with this: it takes roughly
 With the mechanism clearer, the perturbation code was extended to also crash the plankton in the prey size range of the large fish, the part of the resource spectrum they feed on most heavily:
 
 ```{r}
-#| eval: false
+#| message: false
+#| warning: false
+#| output: false
 beta <- params@species_params$beta
 
 prey_rng <- c(10, 100) / beta
