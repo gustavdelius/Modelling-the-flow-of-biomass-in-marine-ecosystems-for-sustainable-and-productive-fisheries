@@ -127,7 +127,9 @@ plot2(getEGrowth(sim_600, t = t_peak),
 
 ```
 
-Still essentially identical. The curves sat on top of each other across the full size range. If growth rates don't change, the mechanism has to be somewhere else.
+The `plot2` result is instructive. Across the bulk of the size range, from roughly 0.01 g up to the matur ation size at 10 g and beyond, the two curves sit exactly on top of each other. There is no detectable difference in EGrowth for medium or large fish between peak and trough. The only split appears at the very smallest sizes, below about 0.01 g, where the trough curve (dashed, Second) drops below the peak curve (solid, First). Even there the gap is modest in absolute terms, though clearly visible on the log-log scale.
+
+This is meaningful in two ways. First, it confirms that the oscillation in growth rate is entirely a juvenile phenomenon; fish above roughly 0.01 g are not food-limited at any phase of the cycle. Second, it expl ains why the initial animation showed almost nothing: the signal is real but confined to a very narrow, very low-biomass part of the size spectrum where the log-log axis compresses it. EGrowth is not the wrong diagnostic, it is just insufficiently sensitive at these size scales. The feeding level comparison, which is dimensionless and directly measures the fraction of maximum intake achieved, is better suited to detecting this kind of subtle, size-localised food limitation.
 
 ------------------------------------------------------------------------
 
