@@ -1,0 +1,943 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.9.37">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="author" content="Samia">
+<meta name="dcterms.date" content="2026-06-17">
+<meta name="description" content="Decomposing the oscillation signal with FFT, confirming the generation-time scaling law, investigating the phase structure across size classes, and beginning to use fishing to see whether that alleviates the bottleneck.">
+
+<title>Day 8: FFT, Scaling Laws, and Hunting the Traffic Jam – Modelling-the-flow-of-biomass</title>
+<style>
+/* Default styles provided by pandoc.
+** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+*/
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../">
+<script src="../site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="../site_libs/quarto-html/popper.min.js"></script>
+<script src="../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-7f8f88aac4f3542376d5c11b86a4c14d.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../site_libs/bootstrap/bootstrap-9a9447a135e5b1c05e5522b7712596fa.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "navbar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "end",
+  "type": "overlay",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+<link href="../site_libs/htmltools-fill-0.5.9/fill.css" rel="stylesheet">
+
+<script src="../site_libs/htmlwidgets-1.6.4/htmlwidgets.js"></script>
+
+<script src="../site_libs/plotly-binding-4.12.0/plotly.js"></script>
+
+<script src="../site_libs/typedarray-0.1/typedarray.min.js"></script>
+
+<script src="../site_libs/jquery-3.5.1/jquery.min.js"></script>
+
+<link href="../site_libs/crosstalk-1.2.2/css/crosstalk.min.css" rel="stylesheet">
+
+<script src="../site_libs/crosstalk-1.2.2/js/crosstalk.min.js"></script>
+
+<link href="../site_libs/plotly-htmlwidgets-css-2.25.2/plotly-htmlwidgets.css" rel="stylesheet">
+
+<script src="../site_libs/plotly-main-2.25.2/plotly-latest.min.js"></script>
+
+
+
+<link rel="stylesheet" href="../styles.css">
+</head>
+
+<body class="nav-fixed quarto-light">
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+    <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container mx-auto">
+    <a class="navbar-brand" href="../index.html">
+    <span class="navbar-title">Modelling-the-flow-of-biomass</span>
+    </a>
+  </div>
+            <div id="quarto-search" class="" title="Search"></div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" role="menu" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll me-auto">
+  <li class="nav-item">
+    <a class="nav-link" href="../index.html"> 
+<span class="menu-text">Home</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../about.html"> 
+<span class="menu-text">About</span></a>
+  </li>  
+</ul>
+          </div> <!-- /navcollapse -->
+            <div class="quarto-navbar-tools">
+</div>
+      </div> <!-- /container-fluid -->
+    </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
+<!-- sidebar -->
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">On this page</h2>
+   
+  <ul>
+  <li><a href="#where-day-7-left-us" id="toc-where-day-7-left-us" class="nav-link active" data-scroll-target="#where-day-7-left-us">Where Day 7 Left Us</a></li>
+  <li><a href="#fft-decomposing-the-signal" id="toc-fft-decomposing-the-signal" class="nav-link" data-scroll-target="#fft-decomposing-the-signal">FFT: Decomposing the Signal</a></li>
+  <li><a href="#period-vs-w_mat-the-scaling-law" id="toc-period-vs-w_mat-the-scaling-law" class="nav-link" data-scroll-target="#period-vs-w_mat-the-scaling-law">Period vs <code>w_mat</code>: The Scaling Law</a></li>
+  <li><a href="#cohort-tracking-phase-analysis" id="toc-cohort-tracking-phase-analysis" class="nav-link" data-scroll-target="#cohort-tracking-phase-analysis">Cohort Tracking: Phase Analysis</a>
+  <ul class="collapse">
+  <li><a href="#space-time-heatmap" id="toc-space-time-heatmap" class="nav-link" data-scroll-target="#space-time-heatmap">Space-time heatmap</a></li>
+  </ul></li>
+  <li><a href="#lambda-what-it-controls-and-why-2.05-is-interesting" id="toc-lambda-what-it-controls-and-why-2.05-is-interesting" class="nav-link" data-scroll-target="#lambda-what-it-controls-and-why-2.05-is-interesting">Lambda: What It Controls and Why 2.05 Is Interesting</a></li>
+  <li><a href="#whats-next" id="toc-whats-next" class="nav-link" data-scroll-target="#whats-next">What’s Next</a></li>
+  </ul>
+</nav>
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title">Day 8: FFT, Scaling Laws, and Hunting the Traffic Jam</h1>
+  <div class="quarto-categories">
+    <div class="quarto-category">research</div>
+    <div class="quarto-category">mizer</div>
+    <div class="quarto-category">fft</div>
+    <div class="quarto-category">cohort-wave</div>
+    <div class="quarto-category">traffic-jam</div>
+    <div class="quarto-category">lambda</div>
+    <div class="quarto-category">seasonal</div>
+    <div class="quarto-category">blog</div>
+  </div>
+  </div>
+
+<div>
+  <div class="description">
+    Decomposing the oscillation signal with FFT, confirming the generation-time scaling law, investigating the phase structure across size classes, and beginning to use fishing to see whether that alleviates the bottleneck.
+  </div>
+</div>
+
+
+<div class="quarto-title-meta">
+
+    <div>
+    <div class="quarto-title-meta-heading">Author</div>
+    <div class="quarto-title-meta-contents">
+             <p>Samia </p>
+          </div>
+  </div>
+    
+    <div>
+    <div class="quarto-title-meta-heading">Published</div>
+    <div class="quarto-title-meta-contents">
+      <p class="date">June 17, 2026</p>
+    </div>
+  </div>
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<section id="where-day-7-left-us" class="level2">
+<h2 class="anchored" data-anchor-id="where-day-7-left-us">Where Day 7 Left Us</h2>
+<p>Day 7 confirmed the oscillation mechanism: a food-limitation cycle concentrated in juvenile size classes, with feeding level at the smallest fish dropping to 0.244 at the plankton trough. The feeding level animation revealed an asymmetric waveform - long plateau, sharp crash, fast recovery - and raised the question of whether the signal was composed of multiple frequencies or a single nonlinear oscillation.</p>
+<p>Three analyses were queued: FFT on the projection, a <code>w_mat</code> sweep to test whether the period scales with generation time, and cohort tracking to distinguish a standing wave from a travelling cohort wave. Today covered all three, and then opened a new thread on the traffic jam.</p>
+<hr>
+</section>
+<section id="fft-decomposing-the-signal" class="level2">
+<h2 class="anchored" data-anchor-id="fft-decomposing-the-signal">FFT: Decomposing the Signal</h2>
+<p>The power spectrum was computed for both the Anchovy biomass time series and the feeding level at the smallest size class, using the settled portion of <code>sim_600</code> (t &gt; 300):</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(mizer)</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(patchwork)</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(reshape2)</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(plotly)</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(dplyr)</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(mizerExperimental)</span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(tidyverse) </span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(glue)</span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(ggplot2)</span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a>p <span class="ot">&lt;-</span> <span class="fu">list</span>(</span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a>  <span class="at">dt     =</span> <span class="fl">0.001</span>,</span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a>  <span class="at">dx     =</span> <span class="fl">0.1</span>,</span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a>  <span class="at">w_min  =</span> <span class="fl">0.0003</span>,</span>
+<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a>  <span class="at">w_max  =</span> <span class="fl">66.5</span>,</span>
+<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a>  <span class="at">w_mat  =</span> <span class="dv">10</span>,</span>
+<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a>  <span class="at">alpha  =</span> <span class="fl">0.1</span>,</span>
+<span id="cb1-17"><a href="#cb1-17" aria-hidden="true" tabindex="-1"></a>  <span class="at">gamma  =</span> <span class="dv">750</span>,</span>
+<span id="cb1-18"><a href="#cb1-18" aria-hidden="true" tabindex="-1"></a>  <span class="at">lambda =</span> <span class="dv">2</span>,</span>
+<span id="cb1-19"><a href="#cb1-19" aria-hidden="true" tabindex="-1"></a>  <span class="at">a0     =</span> <span class="dv">100</span></span>
+<span id="cb1-20"><a href="#cb1-20" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb1-21"><a href="#cb1-21" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-22"><a href="#cb1-22" aria-hidden="true" tabindex="-1"></a>kappa <span class="ot">&lt;-</span> p<span class="sc">$</span>a0 <span class="sc">*</span> <span class="fu">exp</span>(<span class="sc">-</span><span class="fl">6.9</span> <span class="sc">*</span> (p<span class="sc">$</span>lambda <span class="sc">-</span> <span class="dv">1</span>))</span>
+<span id="cb1-23"><a href="#cb1-23" aria-hidden="true" tabindex="-1"></a>no_w  <span class="ot">&lt;-</span> <span class="fu">round</span>(<span class="fu">log</span>(p<span class="sc">$</span>w_max <span class="sc">/</span> p<span class="sc">$</span>w_min) <span class="sc">/</span> p<span class="sc">$</span>dx)</span>
+<span id="cb1-24"><a href="#cb1-24" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-25"><a href="#cb1-25" aria-hidden="true" tabindex="-1"></a>params <span class="ot">&lt;-</span> <span class="fu">newSingleSpeciesParams</span>(</span>
+<span id="cb1-26"><a href="#cb1-26" aria-hidden="true" tabindex="-1"></a>  <span class="at">species_name =</span> <span class="st">"Anchovy"</span>,</span>
+<span id="cb1-27"><a href="#cb1-27" aria-hidden="true" tabindex="-1"></a>  <span class="at">w_min  =</span> p<span class="sc">$</span>w_min,  <span class="at">w_max  =</span> p<span class="sc">$</span>w_max,  <span class="at">w_mat  =</span> p<span class="sc">$</span>w_mat,</span>
+<span id="cb1-28"><a href="#cb1-28" aria-hidden="true" tabindex="-1"></a>  <span class="at">no_w   =</span> no_w,     <span class="at">lambda =</span> p<span class="sc">$</span>lambda,  <span class="at">kappa  =</span> kappa,</span>
+<span id="cb1-29"><a href="#cb1-29" aria-hidden="true" tabindex="-1"></a>  <span class="at">alpha  =</span> p<span class="sc">$</span>alpha,  <span class="at">gamma  =</span> p<span class="sc">$</span>gamma,   <span class="at">ks     =</span> <span class="dv">0</span></span>
+<span id="cb1-30"><a href="#cb1-30" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb1-31"><a href="#cb1-31" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-32"><a href="#cb1-32" aria-hidden="true" tabindex="-1"></a>r <span class="ot">&lt;-</span> <span class="fu">resource_rate</span>(params) <span class="sc">*</span> <span class="fl">0.001</span></span>
+<span id="cb1-33"><a href="#cb1-33" aria-hidden="true" tabindex="-1"></a>params <span class="ot">&lt;-</span> <span class="fu">setResource</span>(params, <span class="at">resource_rate =</span> r,</span>
+<span id="cb1-34"><a href="#cb1-34" aria-hidden="true" tabindex="-1"></a>                      <span class="at">resource_dynamics =</span> <span class="st">"resource_semichemostat"</span>)</span>
+<span id="cb1-35"><a href="#cb1-35" aria-hidden="true" tabindex="-1"></a>params<span class="sc">@</span>initial_n_pp[] <span class="ot">&lt;-</span> params<span class="sc">@</span>cc_pp <span class="sc">*</span> <span class="fl">0.1</span></span>
+<span id="cb1-36"><a href="#cb1-36" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-37"><a href="#cb1-37" aria-hidden="true" tabindex="-1"></a><span class="co"># Spin up, then crash the large size class (10–100 g) by 10^3</span></span>
+<span id="cb1-38"><a href="#cb1-38" aria-hidden="true" tabindex="-1"></a>sim <span class="ot">&lt;-</span> <span class="fu">project</span>(params, <span class="at">t_max =</span> <span class="dv">10</span>, <span class="at">dt =</span> <span class="fl">0.1</span>, <span class="at">t_save =</span> <span class="fl">0.2</span>,</span>
+<span id="cb1-39"><a href="#cb1-39" aria-hidden="true" tabindex="-1"></a>               <span class="at">progress_bar =</span> <span class="cn">FALSE</span>, <span class="at">method =</span> <span class="st">"predictor-corrector"</span>)</span>
+<span id="cb1-40"><a href="#cb1-40" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-41"><a href="#cb1-41" aria-hidden="true" tabindex="-1"></a>rng  <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="dv">10</span>, <span class="dv">100</span>)</span>
+<span id="cb1-42"><a href="#cb1-42" aria-hidden="true" tabindex="-1"></a>idx  <span class="ot">&lt;-</span> params<span class="sc">@</span>w <span class="sc">&gt;=</span> rng[<span class="dv">1</span>] <span class="sc">&amp;</span> params<span class="sc">@</span>w <span class="sc">&lt;=</span> rng[<span class="dv">2</span>]</span>
+<span id="cb1-43"><a href="#cb1-43" aria-hidden="true" tabindex="-1"></a>last <span class="ot">&lt;-</span> <span class="fu">dim</span>(sim<span class="sc">@</span>n)[<span class="dv">1</span>]</span>
+<span id="cb1-44"><a href="#cb1-44" aria-hidden="true" tabindex="-1"></a>sim<span class="sc">@</span>n[last, , idx] <span class="ot">&lt;-</span> sim<span class="sc">@</span>n[last, , idx] <span class="sc">/</span> <span class="dv">10</span><span class="sc">^</span><span class="dv">3</span></span>
+<span id="cb1-45"><a href="#cb1-45" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-46"><a href="#cb1-46" aria-hidden="true" tabindex="-1"></a>sim <span class="ot">&lt;-</span> <span class="fu">project</span>(sim, <span class="at">t_max =</span> <span class="dv">90</span>, <span class="at">dt =</span> <span class="fl">0.1</span>, <span class="at">t_save =</span> <span class="fl">0.2</span>,</span>
+<span id="cb1-47"><a href="#cb1-47" aria-hidden="true" tabindex="-1"></a>               <span class="at">progress_bar =</span> <span class="cn">FALSE</span>, <span class="at">method =</span> <span class="st">"predictor-corrector"</span>)</span>
+<span id="cb1-48"><a href="#cb1-48" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-49"><a href="#cb1-49" aria-hidden="true" tabindex="-1"></a>sim_300 <span class="ot">&lt;-</span> <span class="fu">project</span>(sim, <span class="at">t_max =</span> <span class="dv">200</span>, <span class="at">dt =</span> <span class="fl">0.1</span>, <span class="at">t_save =</span> <span class="fl">0.2</span>,</span>
+<span id="cb1-50"><a href="#cb1-50" aria-hidden="true" tabindex="-1"></a>                   <span class="at">progress_bar =</span> <span class="cn">FALSE</span>, <span class="at">method =</span> <span class="st">"predictor-corrector"</span>)<span class="co">#can use tr_bdf2,but needs much finer dt</span></span>
+<span id="cb1-51"><a href="#cb1-51" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-52"><a href="#cb1-52" aria-hidden="true" tabindex="-1"></a>sim_600 <span class="ot">&lt;-</span>  <span class="fu">project</span>(sim_300, <span class="at">t_max =</span> <span class="dv">300</span>, <span class="at">dt =</span> <span class="fl">0.1</span>, <span class="at">t_save =</span> <span class="fl">0.2</span>,</span>
+<span id="cb1-53"><a href="#cb1-53" aria-hidden="true" tabindex="-1"></a>                    <span class="at">progress_bar =</span> <span class="cn">FALSE</span>, <span class="at">method =</span> <span class="st">"predictor-corrector"</span>)<span class="co">#can use tr_bdf2,but needs much finer dt</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+</div>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>power_spectrum <span class="ot">&lt;-</span> <span class="cf">function</span>(signal, dt) {</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>  signal <span class="ot">&lt;-</span> signal <span class="sc">-</span> <span class="fu">mean</span>(signal)</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>  n      <span class="ot">&lt;-</span> <span class="fu">length</span>(signal)</span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>  freqs  <span class="ot">&lt;-</span> (<span class="dv">1</span><span class="sc">:</span>(n <span class="sc">-</span> <span class="dv">1</span>)) <span class="sc">/</span> (n <span class="sc">*</span> dt)</span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>  power  <span class="ot">&lt;-</span> <span class="fu">Mod</span>(<span class="fu">fft</span>(signal))<span class="sc">^</span><span class="dv">2</span></span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>  half   <span class="ot">&lt;-</span> <span class="fu">seq_len</span>(<span class="fu">floor</span>((n <span class="sc">-</span> <span class="dv">1</span>) <span class="sc">/</span> <span class="dv">2</span>))</span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">data.frame</span>(<span class="at">freq =</span> freqs[half], <span class="at">period =</span> <span class="dv">1</span> <span class="sc">/</span> freqs[half], <span class="at">power =</span> power[half <span class="sc">+</span> <span class="dv">1</span>])</span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a>dt    <span class="ot">&lt;-</span> <span class="fl">0.2</span></span>
+<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a>bm    <span class="ot">&lt;-</span> <span class="fu">getBiomass</span>(sim_600)[, <span class="st">"Anchovy"</span>]</span>
+<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a>times <span class="ot">&lt;-</span> <span class="fu">as.numeric</span>(<span class="fu">names</span>(bm))</span>
+<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-14"><a href="#cb2-14" aria-hidden="true" tabindex="-1"></a>ps_bm <span class="ot">&lt;-</span> <span class="fu">power_spectrum</span>(bm[times <span class="sc">&gt;</span> <span class="dv">300</span>], dt)</span>
+<span id="cb2-15"><a href="#cb2-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-16"><a href="#cb2-16" aria-hidden="true" tabindex="-1"></a><span class="fu">plot_ly</span>(ps_bm <span class="sc">|&gt;</span> <span class="fu">filter</span>(period <span class="sc">&gt;</span> <span class="dv">1</span>, period <span class="sc">&lt;</span> <span class="dv">50</span>)) <span class="sc">|&gt;</span></span>
+<span id="cb2-17"><a href="#cb2-17" aria-hidden="true" tabindex="-1"></a>  <span class="fu">add_lines</span>(<span class="at">x =</span> <span class="sc">~</span>period, <span class="at">y =</span> <span class="sc">~</span>power) <span class="sc">|&gt;</span></span>
+<span id="cb2-18"><a href="#cb2-18" aria-hidden="true" tabindex="-1"></a>  <span class="fu">layout</span>(<span class="at">xaxis =</span> <span class="fu">list</span>(<span class="at">title =</span> <span class="st">"Period (years)"</span>),</span>
+<span id="cb2-19"><a href="#cb2-19" aria-hidden="true" tabindex="-1"></a>         <span class="at">yaxis =</span> <span class="fu">list</span>(<span class="at">title =</span> <span class="st">"Power"</span>, <span class="at">type =</span> <span class="st">"log"</span>),</span>
+<span id="cb2-20"><a href="#cb2-20" aria-hidden="true" tabindex="-1"></a>         <span class="at">title =</span> <span class="st">"Power spectrum — Anchovy biomass"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output-display">
+<div class="plotly html-widget html-fill-item" id="htmlwidget-b2bbe6b321bb703f062c" style="width:100%;height:464px;"></div>
+<script type="application/json" data-for="htmlwidget-b2bbe6b321bb703f062c">{"x":{"visdat":{"81c14b741ee":["function () ","plotlyVisDat"]},"cur_data":"81c14b741ee","attrs":{"81c14b741ee":{"alpha_stroke":1,"sizes":[10,100],"spans":[1,20],"x":{},"y":{},"type":"scatter","mode":"lines","inherit":true}},"layout":{"margin":{"b":40,"l":60,"t":25,"r":10},"xaxis":{"domain":[0,1],"automargin":true,"title":"Period (years)"},"yaxis":{"domain":[0,1],"automargin":true,"title":"Power","type":"log"},"title":"Power spectrum — Anchovy biomass","hovermode":"closest","showlegend":false},"source":"A","config":{"modeBarButtonsToAdd":["hoverclosest","hovercompare"],"showSendToCloud":false},"data":[{"x":[1.0033444816053512,1.0067114093959733,1.0101010101010102,1.0135135135135136,1.0169491525423728,1.0204081632653061,1.0238907849829351,1.0273972602739725,1.0309278350515465,1.0344827586206897,1.0380622837370241,1.0416666666666667,1.0452961672473868,1.048951048951049,1.0526315789473684,1.056338028169014,1.0600706713780919,1.0638297872340425,1.0676156583629894,1.0714285714285714,1.075268817204301,1.079136690647482,1.0830324909747293,1.0869565217391304,1.0909090909090911,1.0948905109489051,1.0989010989010988,1.1029411764705883,1.1070110701107012,1.1111111111111112,1.1152416356877324,1.119402985074627,1.1235955056179776,1.1278195488721805,1.1320754716981132,1.1363636363636365,1.1406844106463878,1.1450381679389314,1.1494252873563218,1.1538461538461537,1.1583011583011584,1.1627906976744187,1.1673151750972763,1.171875,1.1764705882352942,1.1811023622047243,1.1857707509881423,1.1904761904761905,1.1952191235059761,1.2,1.2048192771084338,1.2096774193548387,1.214574898785425,1.2195121951219512,1.2244897959183674,1.2295081967213115,1.2345679012345678,1.2396694214876034,1.2448132780082988,1.25,1.2552301255230125,1.2605042016806722,1.2658227848101264,1.2711864406779663,1.2765957446808511,1.2820512820512819,1.2875536480686696,1.2931034482758621,1.2987012987012987,1.3043478260869565,1.3100436681222707,1.3157894736842106,1.3215859030837003,1.3274336283185841,1.3333333333333333,1.3392857142857142,1.3452914798206279,1.3513513513513513,1.3574660633484164,1.3636363636363638,1.3698630136986301,1.3761467889908257,1.3824884792626728,1.3888888888888888,1.3953488372093024,1.4018691588785046,1.4084507042253522,1.4150943396226414,1.4218009478672986,1.4285714285714286,1.4354066985645932,1.4423076923076923,1.4492753623188408,1.4563106796116505,1.4634146341463414,1.4705882352941175,1.4778325123152709,1.4851485148514851,1.4925373134328357,1.5,1.5075376884422111,1.5151515151515151,1.5228426395939088,1.5306122448979591,1.5384615384615383,1.5463917525773196,1.5544041450777202,1.5625,1.5706806282722512,1.5789473684210527,1.5873015873015872,1.5957446808510638,1.6042780748663104,1.6129032258064517,1.6216216216216215,1.6304347826086958,1.639344262295082,1.6483516483516483,1.6574585635359114,1.6666666666666667,1.6759776536312849,1.6853932584269662,1.6949152542372883,1.7045454545454546,1.7142857142857142,1.7241379310344829,1.7341040462427746,1.7441860465116279,1.7543859649122808,1.7647058823529411,1.7751479289940828,1.7857142857142856,1.7964071856287427,1.8072289156626506,1.8181818181818181,1.8292682926829269,1.8404907975460123,1.8518518518518516,1.8633540372670809,1.875,1.8867924528301885,1.89873417721519,1.910828025477707,1.9230769230769229,1.9354838709677418,1.9480519480519483,1.9607843137254901,1.9736842105263157,1.9867549668874174,2,2.0134228187919465,2.0270270270270272,2.0408163265306123,2.054794520547945,2.0689655172413794,2.0833333333333335,2.0979020979020979,2.112676056338028,2.1276595744680851,2.1428571428571428,2.1582733812949639,2.1739130434782608,2.1897810218978102,2.2058823529411766,2.2222222222222223,2.238805970149254,2.255639097744361,2.2727272727272729,2.2900763358778629,2.3076923076923075,2.3255813953488373,2.34375,2.3622047244094486,2.3809523809523809,2.3999999999999999,2.4193548387096775,2.4390243902439024,2.459016393442623,2.4793388429752068,2.5,2.5210084033613445,2.5423728813559325,2.5641025641025639,2.5862068965517242,2.6086956521739131,2.6315789473684212,2.6548672566371683,2.6785714285714284,2.7027027027027026,2.7272727272727275,2.7522935779816513,2.7777777777777777,2.8037383177570092,2.8301886792452828,2.8571428571428572,2.8846153846153846,2.912621359223301,2.9411764705882351,2.9702970297029703,3,3.0303030303030303,3.0612244897959182,3.0927835051546393,3.125,3.1578947368421053,3.1914893617021276,3.2258064516129035,3.2608695652173916,3.2967032967032965,3.3333333333333335,3.3707865168539324,3.4090909090909092,3.4482758620689657,3.4883720930232558,3.5294117647058822,3.5714285714285712,3.6144578313253013,3.6585365853658538,3.7037037037037033,3.75,3.79746835443038,3.8461538461538458,3.8961038961038965,3.9473684210526314,4,4.0540540540540544,4.10958904109589,4.166666666666667,4.225352112676056,4.2857142857142856,4.3478260869565215,4.4117647058823533,4.477611940298508,4.5454545454545459,4.615384615384615,4.6875,4.7619047619047619,4.838709677419355,4.918032786885246,5,5.0847457627118651,5.1724137931034484,5.2631578947368425,5.3571428571428568,5.454545454545455,5.5555555555555554,5.6603773584905657,5.7692307692307692,5.8823529411764701,6,6.1224489795918364,6.25,6.3829787234042552,6.5217391304347831,6.666666666666667,6.8181818181818183,6.9767441860465116,7.1428571428571423,7.3170731707317076,7.5,7.6923076923076916,7.8947368421052628,8.1081081081081088,8.3333333333333339,8.5714285714285712,8.8235294117647065,9.0909090909090917,9.375,9.67741935483871,10,10.344827586206897,10.714285714285714,11.111111111111111,11.538461538461538,12,12.5,13.043478260869566,13.636363636363637,14.285714285714285,15,15.789473684210526,16.666666666666668,17.647058823529413,18.75,20,21.428571428571427,23.076923076923077,25,27.272727272727273,30,33.333333333333336,37.5,42.857142857142854],"y":[0.018562155803623224,0.018614393637475506,0.018648988167070842,0.018658367468955626,0.018631195914156868,0.018550815304260126,0.018397653514221027,0.018197807106956641,0.018757703087781897,0.087666440726808528,0.037276043437487569,0.028254838203946239,0.025558536355659908,0.024470291244748602,0.023966370890544292,0.023731618076983922,0.023642535303920589,0.023642125596595686,0.023700925834989922,0.023802429726422526,0.023936894807640968,0.02409839955292007,0.024283347044868391,0.02448946568588109,0.024716606151406691,0.024963415490358336,0.025231124777551552,0.025520845345187473,0.025834355757554415,0.026173950072613347,0.026542267556231586,0.026954216740548136,0.027399197339744236,0.027902491669543682,0.028467481731736945,0.029113626154840491,0.029866401577816969,0.030763667359939111,0.031864539884416024,0.033266732238016308,0.035144117506498505,0.037838440108086041,0.042124788436270488,0.050206455886247302,0.071656058397303865,0.32481692542989382,0.0085255502475562826,0.003652585314091556,0.01013340551042052,0.014262809117559585,0.016987035619949326,0.01893259495440824,0.020416832496231201,0.021609548832580153,0.022608421805008726,0.023473361385554375,0.024243148603740248,0.024944079978846095,0.025594731980624365,0.026208709137423243,0.026796455526842986,0.027366143440050849,0.027924605286031117,0.0284776410505365,0.029030571123204656,0.02958850447453501,0.030156914973376719,0.030744579644571054,0.031348864780118363,0.031987666908212052,0.032666516368832783,0.033399315158029991,0.034204635586805955,0.035109335169792338,0.036154342062938508,0.037405823217398639,0.038978788827555809,0.041093211145347565,0.04423022582947711,0.049684830598204145,0.06254763540411018,0.14349259735888756,0.0087433217659705388,0.011410675310246284,0.020042162742347748,0.024492992075774659,0.027268290362884928,0.029239786796783025,0.030769931652775171,0.032034621861165277,0.033129399516839485,0.034110708023708948,0.035014192686757255,0.035863614911702105,0.036675582041761447,0.037462140571284532,0.038232238637324056,0.038994346329582485,0.039753608664645952,0.040515390703935353,0.041284779799536736,0.042066801107349401,0.042867160263187092,0.043692974206713503,0.044527860513035908,0.045419036107241906,0.046351869087950373,0.047342237546299903,0.048407667159218216,0.049572854251874576,0.05087497888893347,0.05237342219208857,0.05417004494373099,0.05645639857446242,0.059642064662341759,0.064791886435117033,0.075822817034219725,0.12748201689203606,0.16073140732889737,0.021077845300021124,0.036127177117024185,0.04234174873458358,0.045991167372686555,0.048586681817221665,0.050651828475110489,0.052416325092741869,0.053997425625053067,0.055461501744812271,0.056849068503980096,0.058186279314714408,0.059490758563059125,0.060774660736414035,0.06204702466055198,0.063314184401332574,0.064580345871929373,0.065848259755731775,0.067120037466524549,0.068396669767543355,0.069678399181395623,0.0709641223287657,0.072231792465020789,0.073522618110291982,0.074797416950151449,0.076059948742909708,0.077305870435524934,0.078533716374317525,0.079751726895055206,0.080994722863884858,0.082369370765896177,0.084183739064374277,0.087371145318554166,0.095152961950083256,0.12179378249264039,0.26996294574063118,109.13779399719125,0.63718738737909331,0.32325898935612862,0.24046514098504029,0.20823171551183114,0.19346290071696257,0.18656620281542724,0.18391310380627049,0.18388107987887534,0.18566253425028678,0.18883015632369096,0.19315520051106921,0.19852374932009681,0.20489565411890781,0.21228396605959143,0.22074772789020047,0.23038261468450832,0.24133232939820662,0.25378933253360381,0.26800795018628554,0.28432233227096171,0.30317199109315501,0.3251376851229128,0.35104370280057595,0.38196788561783701,0.4194778791088038,0.46585229339254242,0.52453395918655854,0.60095360308007217,0.70414217307572091,0.85014982642601766,1.0700748910419491,1.4316441561335795,2.1093533121517329,3.6898431341878819,9.4531467525001354,154.65902031146325,22.887919391146674,3.313383221826141,0.99237231248087776,0.37479309538621786,0.15131434446619108,0.058481267330941028,0.01867604219376998,0.0033859448309036971,0.0005244806387578884,0.0044419437066889073,0.012316852325149695,0.022684750061311067,0.034781416007876605,0.048228602121124925,0.062881096039415468,0.078733516356472452,0.09590031234537999,0.11458500544693652,0.13508588393813661,0.1578094129613119,0.18329793193686894,0.21227946947434623,0.2457346190847369,0.2850202618105912,0.33204750219749563,0.38960699836900609,0.46190589283304806,0.55556562178081625,0.68156014858583791,0.85928801220833939,1.1260025552467354,1.5616406256512385,2.3669368587918909,4.1849406700534111,10.226382358560773,77.98803403238702,88.582218386568329,8.0523737778711535,2.3621293767975615,0.96763902710212091,0.45609787318072625,0.22798199310986367,0.11534830781537801,0.057488765594762015,0.028599498395388254,0.016430986577088993,0.014706460029725163,0.020050442016464616,0.030616570739281167,0.045428406898451172,0.064052164995427541,0.086413222238205897,0.11274051171645884,0.14351844383093681,0.17951093436338178,0.22181083823506742,0.27193403335306132,0.33197616018624737,0.40483248323221444,0.49462935417652981,0.60729057967983002,0.751637352313544,0.94120954744345187,1.1976612287680071,1.5573831409969554,2.085425589294057,2.9076193887811659,4.2942427606390083,6.917355244741267,12.862382716033908,31.639462012428837,173.00234556418101,1841.7985955334436,67.033573400586462,19.873964570875209,9.2969669300377156,5.3254168012033016,3.4190306621660249,2.3608255133424119,1.7139797267641745,1.2904536194198395,0.99850044207936195,0.78904106299200061,0.63389907754998687,0.51596602436174133,0.42436964694385365,0.35192995539375221,0.29376782434662257,0.24644962517883787,0.20752597330651962,0.1752013760456787,0.148138602770789,0.12532572353980506,0.10598555378151631,0.089519926599987351,0.075448882491099184,0.063402460704981012,0.053079335592045099,0.044238863268321729,0.036686525842268267,0.030264555337896501,0.024844651639079042],"type":"scatter","mode":"lines","marker":{"color":"rgba(31,119,180,1)","line":{"color":"rgba(31,119,180,1)"}},"error_y":{"color":"rgba(31,119,180,1)"},"error_x":{"color":"rgba(31,119,180,1)"},"line":{"color":"rgba(31,119,180,1)"},"xaxis":"x","yaxis":"y","frame":null}],"highlight":{"on":"plotly_click","persistent":false,"dynamic":false,"selectize":false,"opacityDim":0.20000000000000001,"selected":{"opacity":1},"debounce":0},"shinyEvents":["plotly_hover","plotly_click","plotly_selected","plotly_relayout","plotly_brushed","plotly_brushing","plotly_clickannotation","plotly_doubleclick","plotly_deselect","plotly_afterplot","plotly_sunburstclick"],"base_url":"https://plot.ly"},"evals":[],"jsHooks":[]}</script>
+</div>
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>fl       <span class="ot">&lt;-</span> <span class="fu">getFeedingLevel</span>(sim_600)</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>fl_times <span class="ot">&lt;-</span> <span class="fu">as.numeric</span>(<span class="fu">dimnames</span>(fl)[[<span class="dv">1</span>]])</span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>fl_small <span class="ot">&lt;-</span> fl[, <span class="st">"Anchovy"</span>, <span class="dv">1</span>]</span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>ps_fl <span class="ot">&lt;-</span> <span class="fu">power_spectrum</span>(fl_small[fl_times <span class="sc">&gt;</span> <span class="dv">300</span>], dt)</span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a><span class="fu">plot_ly</span>(ps_fl <span class="sc">|&gt;</span> <span class="fu">filter</span>(period <span class="sc">&gt;</span> <span class="dv">1</span>, period <span class="sc">&lt;</span> <span class="dv">50</span>)) <span class="sc">|&gt;</span></span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">add_lines</span>(<span class="at">x =</span> <span class="sc">~</span>period, <span class="at">y =</span> <span class="sc">~</span>power) <span class="sc">|&gt;</span></span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">layout</span>(<span class="at">xaxis =</span> <span class="fu">list</span>(<span class="at">title =</span> <span class="st">"Period (years)"</span>),</span>
+<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a>         <span class="at">yaxis =</span> <span class="fu">list</span>(<span class="at">title =</span> <span class="st">"Power"</span>, <span class="at">type =</span> <span class="st">"log"</span>),</span>
+<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a>         <span class="at">title =</span> <span class="st">"Power spectrum — feeding level (smallest size class)"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output-display">
+<div class="plotly html-widget html-fill-item" id="htmlwidget-2613ebe261f102b697e6" style="width:100%;height:464px;"></div>
+<script type="application/json" data-for="htmlwidget-2613ebe261f102b697e6">{"x":{"visdat":{"81c4d314c22":["function () ","plotlyVisDat"]},"cur_data":"81c4d314c22","attrs":{"81c4d314c22":{"alpha_stroke":1,"sizes":[10,100],"spans":[1,20],"x":{},"y":{},"type":"scatter","mode":"lines","inherit":true}},"layout":{"margin":{"b":40,"l":60,"t":25,"r":10},"xaxis":{"domain":[0,1],"automargin":true,"title":"Period (years)"},"yaxis":{"domain":[0,1],"automargin":true,"title":"Power","type":"log"},"title":"Power spectrum — feeding level (smallest size class)","hovermode":"closest","showlegend":false},"source":"A","config":{"modeBarButtonsToAdd":["hoverclosest","hovercompare"],"showSendToCloud":false},"data":[{"x":[1.0033444816053512,1.0067114093959733,1.0101010101010102,1.0135135135135136,1.0169491525423728,1.0204081632653061,1.0238907849829351,1.0273972602739725,1.0309278350515465,1.0344827586206897,1.0380622837370241,1.0416666666666667,1.0452961672473868,1.048951048951049,1.0526315789473684,1.056338028169014,1.0600706713780919,1.0638297872340425,1.0676156583629894,1.0714285714285714,1.075268817204301,1.079136690647482,1.0830324909747293,1.0869565217391304,1.0909090909090911,1.0948905109489051,1.0989010989010988,1.1029411764705883,1.1070110701107012,1.1111111111111112,1.1152416356877324,1.119402985074627,1.1235955056179776,1.1278195488721805,1.1320754716981132,1.1363636363636365,1.1406844106463878,1.1450381679389314,1.1494252873563218,1.1538461538461537,1.1583011583011584,1.1627906976744187,1.1673151750972763,1.171875,1.1764705882352942,1.1811023622047243,1.1857707509881423,1.1904761904761905,1.1952191235059761,1.2,1.2048192771084338,1.2096774193548387,1.214574898785425,1.2195121951219512,1.2244897959183674,1.2295081967213115,1.2345679012345678,1.2396694214876034,1.2448132780082988,1.25,1.2552301255230125,1.2605042016806722,1.2658227848101264,1.2711864406779663,1.2765957446808511,1.2820512820512819,1.2875536480686696,1.2931034482758621,1.2987012987012987,1.3043478260869565,1.3100436681222707,1.3157894736842106,1.3215859030837003,1.3274336283185841,1.3333333333333333,1.3392857142857142,1.3452914798206279,1.3513513513513513,1.3574660633484164,1.3636363636363638,1.3698630136986301,1.3761467889908257,1.3824884792626728,1.3888888888888888,1.3953488372093024,1.4018691588785046,1.4084507042253522,1.4150943396226414,1.4218009478672986,1.4285714285714286,1.4354066985645932,1.4423076923076923,1.4492753623188408,1.4563106796116505,1.4634146341463414,1.4705882352941175,1.4778325123152709,1.4851485148514851,1.4925373134328357,1.5,1.5075376884422111,1.5151515151515151,1.5228426395939088,1.5306122448979591,1.5384615384615383,1.5463917525773196,1.5544041450777202,1.5625,1.5706806282722512,1.5789473684210527,1.5873015873015872,1.5957446808510638,1.6042780748663104,1.6129032258064517,1.6216216216216215,1.6304347826086958,1.639344262295082,1.6483516483516483,1.6574585635359114,1.6666666666666667,1.6759776536312849,1.6853932584269662,1.6949152542372883,1.7045454545454546,1.7142857142857142,1.7241379310344829,1.7341040462427746,1.7441860465116279,1.7543859649122808,1.7647058823529411,1.7751479289940828,1.7857142857142856,1.7964071856287427,1.8072289156626506,1.8181818181818181,1.8292682926829269,1.8404907975460123,1.8518518518518516,1.8633540372670809,1.875,1.8867924528301885,1.89873417721519,1.910828025477707,1.9230769230769229,1.9354838709677418,1.9480519480519483,1.9607843137254901,1.9736842105263157,1.9867549668874174,2,2.0134228187919465,2.0270270270270272,2.0408163265306123,2.054794520547945,2.0689655172413794,2.0833333333333335,2.0979020979020979,2.112676056338028,2.1276595744680851,2.1428571428571428,2.1582733812949639,2.1739130434782608,2.1897810218978102,2.2058823529411766,2.2222222222222223,2.238805970149254,2.255639097744361,2.2727272727272729,2.2900763358778629,2.3076923076923075,2.3255813953488373,2.34375,2.3622047244094486,2.3809523809523809,2.3999999999999999,2.4193548387096775,2.4390243902439024,2.459016393442623,2.4793388429752068,2.5,2.5210084033613445,2.5423728813559325,2.5641025641025639,2.5862068965517242,2.6086956521739131,2.6315789473684212,2.6548672566371683,2.6785714285714284,2.7027027027027026,2.7272727272727275,2.7522935779816513,2.7777777777777777,2.8037383177570092,2.8301886792452828,2.8571428571428572,2.8846153846153846,2.912621359223301,2.9411764705882351,2.9702970297029703,3,3.0303030303030303,3.0612244897959182,3.0927835051546393,3.125,3.1578947368421053,3.1914893617021276,3.2258064516129035,3.2608695652173916,3.2967032967032965,3.3333333333333335,3.3707865168539324,3.4090909090909092,3.4482758620689657,3.4883720930232558,3.5294117647058822,3.5714285714285712,3.6144578313253013,3.6585365853658538,3.7037037037037033,3.75,3.79746835443038,3.8461538461538458,3.8961038961038965,3.9473684210526314,4,4.0540540540540544,4.10958904109589,4.166666666666667,4.225352112676056,4.2857142857142856,4.3478260869565215,4.4117647058823533,4.477611940298508,4.5454545454545459,4.615384615384615,4.6875,4.7619047619047619,4.838709677419355,4.918032786885246,5,5.0847457627118651,5.1724137931034484,5.2631578947368425,5.3571428571428568,5.454545454545455,5.5555555555555554,5.6603773584905657,5.7692307692307692,5.8823529411764701,6,6.1224489795918364,6.25,6.3829787234042552,6.5217391304347831,6.666666666666667,6.8181818181818183,6.9767441860465116,7.1428571428571423,7.3170731707317076,7.5,7.6923076923076916,7.8947368421052628,8.1081081081081088,8.3333333333333339,8.5714285714285712,8.8235294117647065,9.0909090909090917,9.375,9.67741935483871,10,10.344827586206897,10.714285714285714,11.111111111111111,11.538461538461538,12,12.5,13.043478260869566,13.636363636363637,14.285714285714285,15,15.789473684210526,16.666666666666668,17.647058823529413,18.75,20,21.428571428571427,23.076923076923077,25,27.272727272727273,30,33.333333333333336,37.5,42.857142857142854],"y":[0.40029833787805613,0.40568121466750373,0.41206317897674899,0.41999625300197552,0.43051441305970695,0.44579054185322792,0.47122034978546801,0.5242578592440289,0.6953677955738814,35.989760559527504,0.36421027416140273,0.33397056239639389,0.34828348083605037,0.36007843613955465,0.36889584166788203,0.37575843491988997,0.38134010265382723,0.38604508656684849,0.39012095959504173,0.39372627797327303,0.3969650047321801,0.39990699337051938,0.4025973775219609,0.40501081397987593,0.40743717738124341,0.40949097187590572,0.41140450308569226,0.41315715880449061,0.41474177786543348,0.41620844238639193,0.41796287737170812,0.42161315658989273,0.41980995107806041,0.42015842943676507,0.42034827844213929,0.42017241034074598,0.41953065640687992,0.41828791189831871,0.41624486166573205,0.41309069103793394,0.40830739119249682,0.40096011088242606,0.3891653333161792,0.36848768643705976,0.32602688928320345,0.35313327242428905,0.8965584524106649,0.63289772073496653,0.55965979593304915,0.52717581816448211,0.50890366569724821,0.49688753359583332,0.48801228724279805,0.48081623330749962,0.47451377669679101,0.46863355940837775,0.46286254536984023,0.45697207849601895,0.45077728911502402,0.44408520242769522,0.43695331024270118,0.42886316518752182,0.41993724788004372,0.40994645066220059,0.39870538258258081,0.38604556641351112,0.3718709827257789,0.35586081324705343,0.33598058767625999,0.31423442959268316,0.28941646835470786,0.26089105925572281,0.22817041852794182,0.19088431222359795,0.14912122856329602,0.10433553106270665,0.061914928213547056,0.039193203542346886,0.09463831634945144,0.46431896287344721,2.5699660122150219,37.232969632874237,122.64963348020697,16.425394289589995,7.3432288935518928,4.7048465468221137,3.5394014672209728,2.9033609863443974,2.5097031808555199,2.2450418131970808,2.0564245115771573,1.9160627050252115,1.8080565905565296,1.7226806078888088,1.6536546700982153,1.596687100136003,1.549130480654078,1.5082290542289993,1.4729327098292209,1.4417466100888043,1.4136917374173257,1.3879720289295583,1.3638492053408608,1.3397416753999187,1.3169686984710445,1.2926722901952814,1.268376388628019,1.2424483962039159,1.2143216532009089,1.1834746001129313,1.1496824521637869,1.1136411505819748,1.0787304969766522,1.0564803684816617,1.086108320348923,1.3226848166425227,2.6412145978428985,18.287739717837621,522.2557717899607,21.126579582198218,8.4613787453999869,5.5387513215880277,4.3655655206732993,3.7613157038156357,3.4045153894362232,3.1757159526559398,3.0212610544511702,2.9137520558859666,2.8378379522001591,2.784297411245845,2.747277955929889,2.7228548450118297,2.7087165068420327,2.7024303926622371,2.703241320473047,2.7097726257657047,2.7214071060881264,2.737619818675646,2.757865200596485,2.7810480868347516,2.811284235072669,2.841429913386587,2.8774510614451705,2.9170945461883329,2.9607917363770069,3.0089938710137862,3.0623998342711012,3.1221614195017273,3.1902844562900885,3.2705614368452842,3.3710415996849634,3.511968178000779,3.759701304047721,4.4605890951923763,67.461890340307775,4.0735956665405615,3.6348772362156963,3.6377658898203871,3.7107690836285099,3.8036559295589312,3.906155789286875,4.0158957127133466,4.1325995960734057,4.2566975760451653,4.3889317029594617,4.5302436328902171,4.6817512179474177,4.8447449584664035,5.0210910139945337,5.2121389726767777,5.4206036428398789,5.648740533829459,5.9001094569817329,6.1788645864051706,6.4901401511109951,6.8403809914934888,7.2421638621021405,7.6997510797403796,8.2368860546127127,8.8728987536703876,9.6412524214247188,10.591506045448932,11.801207488903321,13.398416121866864,15.60921389824202,18.868782786812211,24.118696801878809,33.769067977567545,55.870732280113181,135.17928278873842,2090.2654919638271,284.43063651181478,41.345102071397271,13.751923995153371,6.9306662111505775,4.800147852160233,4.1855029755860693,4.1734838997081418,4.4393475917141947,4.8519593888115615,5.3548485879582977,5.9240060174700524,6.5511087891850792,7.2363080541028797,7.9850484613837667,8.8086970536915032,9.7168704445067053,10.729199790838935,11.867859666748684,13.16122212435385,14.646183373037973,16.371693056826423,18.40650290192843,20.821451231474018,23.760173912558958,27.388127448803047,31.964325995783053,37.883038512727893,45.772368309587499,56.686459988637225,72.512890563894871,96.92512559992339,137.91541806247474,215.84815189463575,396.98566437885046,1017.9455083989573,8237.4854513964474,9976.6274742114638,984.80140272817368,319.79149548770499,148.3700029690759,81.581446815007567,49.439212033760604,31.860194755297648,21.398329556974804,14.799209453140582,10.467021439755685,7.5500853132730619,5.5638138227873482,4.2188356105647111,3.336079373839782,2.8037277778226861,2.549741493511239,2.5324112986445795,2.7288604812002006,3.1331059309524121,3.7539801791378946,4.6157763822239177,5.7605241966645542,7.2504211614052227,9.1905429011001356,11.726045825557618,15.082010082766464,19.610029087617431,25.879245914101947,34.855898214429288,48.282833712308289,69.559851279118732,106.0492088818427,176.20546548650958,337.76067621989597,856.21201064974241,4824.1375941828001,52756.645546205866,1977.6741653532413,604.39091721401792,291.50635873069285,172.25276320238203,114.17152628746365,81.468634920686611,61.196254313867442,47.738470108849533,38.334808506531672,31.497721731937851,26.366989047553574,22.41653290171503,19.309726586410854,16.81982944124681,14.801576392396921,13.137725505561965,11.753656043420985,10.591754032925254,9.608716302420671,8.7716120168573486,8.0555400330455438,7.4414479534742801,6.9106181681734986,6.452371674319707,6.0567627748154509,5.7155149603790552,5.4219727619822633,5.1706953191554419,4.9571899345846431],"type":"scatter","mode":"lines","marker":{"color":"rgba(31,119,180,1)","line":{"color":"rgba(31,119,180,1)"}},"error_y":{"color":"rgba(31,119,180,1)"},"error_x":{"color":"rgba(31,119,180,1)"},"line":{"color":"rgba(31,119,180,1)"},"xaxis":"x","yaxis":"y","frame":null}],"highlight":{"on":"plotly_click","persistent":false,"dynamic":false,"selectize":false,"opacityDim":0.20000000000000001,"selected":{"opacity":1},"debounce":0},"shinyEvents":["plotly_hover","plotly_click","plotly_selected","plotly_relayout","plotly_brushed","plotly_brushing","plotly_clickannotation","plotly_doubleclick","plotly_deselect","plotly_afterplot","plotly_sunburstclick"],"base_url":"https://plot.ly"},"evals":[],"jsHooks":[]}</script>
+</div>
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>period_dom <span class="ot">&lt;-</span> ps_bm<span class="sc">$</span>period[<span class="fu">which.max</span>(ps_bm<span class="sc">$</span>power)]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+</div>
+<p>Both spectra show the same structure: one sharp dominant peak at ~8–9 years, a cluster of smaller peaks at shorter periods (~2–5 years), and a broad red-noise background at long periods.</p>
+<p>The secondary peaks are harmonics - they sit at approximately 1/2, 1/3 of the dominant period. This is the frequency-domain signature of a periodic but non-sinusoidal waveform: energy leaks into integer multiples of the fundamental. The sharp crash / long plateau shape seen in the feeding level animation is exactly what produces this harmonic series ; fast depletion generates high-frequency components, while the sustained recovery plateau suppresses them.</p>
+<p>The feeding level spectrum has much stronger relative harmonic content than the biomass spectrum, which makes sense: the feeding level at the smallest size class is where the nonlinearity is sharpest (a near-instantaneous switch from saturation to ~0.24), so its waveform is more distorted. The biomass integrates over all sizes and smooths the signal.</p>
+<p>The key result: one fundamental frequency, not two. If the oscillation were quasiperiodic (two incommensurate timescales interfering), the spectrum would show two sharp peaks at non-harmonically-related periods. That is not present. The complexity seen in the feeding level animation is the waveform shape of a single nonlinear feedback loop, not multiple mechanisms competing.</p>
+<p>The y-axis (power) is the squared amplitude of the sinusoidal component at each period as it measures how much each frequency contributes to the total variance in the signal. The absolute power values are not comparable between the two plots (feeding level is dimensionless, biomass is g/m³), but the shapes are.</p>
+<hr>
+</section>
+<section id="period-vs-w_mat-the-scaling-law" class="level2">
+<h2 class="anchored" data-anchor-id="period-vs-w_mat-the-scaling-law">Period vs <code>w_mat</code>: The Scaling Law</h2>
+<p>If the ~8–9 year period is set by maturation time, it should scale predictably with <code>w_mat</code>. Twelve simulations were run across a range of maturation sizes (roughly 3–50 g), each perturbed and run for 600 years. The dominant period was extracted from the FFT of the settled biomass:</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>find_period <span class="ot">&lt;-</span> <span class="cf">function</span>(bm, times, <span class="at">t_min =</span> <span class="dv">300</span>, <span class="at">dt =</span> <span class="fl">0.2</span>) {</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>  post <span class="ot">&lt;-</span> times <span class="sc">&gt;</span> t_min</span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>  ps   <span class="ot">&lt;-</span> <span class="fu">power_spectrum</span>(bm[post], dt)</span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>  ps<span class="sc">$</span>period[<span class="fu">which.max</span>(ps<span class="sc">$</span>power)]</span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>w_mat_vals <span class="ot">&lt;-</span> <span class="dv">10</span><span class="sc">^</span><span class="fu">seq</span>(<span class="fl">0.5</span>, <span class="fl">1.7</span>, <span class="at">length.out =</span> <span class="dv">12</span>)</span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a>results_wmat <span class="ot">&lt;-</span> <span class="fu">lapply</span>(w_mat_vals, <span class="cf">function</span>(wm) {</span>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a>  params_wm <span class="ot">&lt;-</span> <span class="fu">newSingleSpeciesParams</span>(</span>
+<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a>    <span class="at">species_name =</span> <span class="st">"Anchovy"</span>,</span>
+<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a>    <span class="at">w_min =</span> p<span class="sc">$</span>w_min, <span class="at">w_max =</span> p<span class="sc">$</span>w_max, <span class="at">w_mat =</span> wm,</span>
+<span id="cb5-13"><a href="#cb5-13" aria-hidden="true" tabindex="-1"></a>    <span class="at">no_w  =</span> no_w,    <span class="at">lambda =</span> p<span class="sc">$</span>lambda, <span class="at">kappa =</span> kappa,</span>
+<span id="cb5-14"><a href="#cb5-14" aria-hidden="true" tabindex="-1"></a>    <span class="at">alpha =</span> p<span class="sc">$</span>alpha, <span class="at">gamma  =</span> p<span class="sc">$</span>gamma,  <span class="at">ks    =</span> <span class="dv">0</span></span>
+<span id="cb5-15"><a href="#cb5-15" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb5-16"><a href="#cb5-16" aria-hidden="true" tabindex="-1"></a>  r_wm      <span class="ot">&lt;-</span> <span class="fu">resource_rate</span>(params_wm) <span class="sc">*</span> <span class="fl">0.001</span></span>
+<span id="cb5-17"><a href="#cb5-17" aria-hidden="true" tabindex="-1"></a>  params_wm <span class="ot">&lt;-</span> <span class="fu">setResource</span>(params_wm, <span class="at">resource_rate =</span> r_wm,</span>
+<span id="cb5-18"><a href="#cb5-18" aria-hidden="true" tabindex="-1"></a>                           <span class="at">resource_dynamics =</span> <span class="st">"resource_semichemostat"</span>)</span>
+<span id="cb5-19"><a href="#cb5-19" aria-hidden="true" tabindex="-1"></a>  params_wm<span class="sc">@</span>initial_n_pp[] <span class="ot">&lt;-</span> params_wm<span class="sc">@</span>cc_pp <span class="sc">*</span> <span class="fl">0.1</span></span>
+<span id="cb5-20"><a href="#cb5-20" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-21"><a href="#cb5-21" aria-hidden="true" tabindex="-1"></a>  sim_wm  <span class="ot">&lt;-</span> <span class="fu">project</span>(params_wm, <span class="at">t_max =</span> <span class="dv">10</span>, <span class="at">dt =</span> <span class="fl">0.1</span>, <span class="at">t_save =</span> <span class="fl">0.2</span>,</span>
+<span id="cb5-22"><a href="#cb5-22" aria-hidden="true" tabindex="-1"></a>                     <span class="at">progress_bar =</span> <span class="cn">FALSE</span>, <span class="at">method =</span> <span class="st">"predictor-corrector"</span>)</span>
+<span id="cb5-23"><a href="#cb5-23" aria-hidden="true" tabindex="-1"></a>  idx_wm  <span class="ot">&lt;-</span> params_wm<span class="sc">@</span>w <span class="sc">&gt;=</span> wm <span class="sc">&amp;</span> params_wm<span class="sc">@</span>w <span class="sc">&lt;=</span> p<span class="sc">$</span>w_max</span>
+<span id="cb5-24"><a href="#cb5-24" aria-hidden="true" tabindex="-1"></a>  last_wm <span class="ot">&lt;-</span> <span class="fu">dim</span>(sim_wm<span class="sc">@</span>n)[<span class="dv">1</span>]</span>
+<span id="cb5-25"><a href="#cb5-25" aria-hidden="true" tabindex="-1"></a>  sim_wm<span class="sc">@</span>n[last_wm, , idx_wm] <span class="ot">&lt;-</span> sim_wm<span class="sc">@</span>n[last_wm, , idx_wm] <span class="sc">/</span> <span class="dv">10</span><span class="sc">^</span><span class="dv">3</span></span>
+<span id="cb5-26"><a href="#cb5-26" aria-hidden="true" tabindex="-1"></a>  sim_wm  <span class="ot">&lt;-</span> <span class="fu">project</span>(sim_wm, <span class="at">t_max =</span> <span class="dv">590</span>, <span class="at">dt =</span> <span class="fl">0.1</span>, <span class="at">t_save =</span> <span class="fl">0.2</span>,</span>
+<span id="cb5-27"><a href="#cb5-27" aria-hidden="true" tabindex="-1"></a>                     <span class="at">progress_bar =</span> <span class="cn">FALSE</span>, <span class="at">method =</span> <span class="st">"predictor-corrector"</span>)</span>
+<span id="cb5-28"><a href="#cb5-28" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-29"><a href="#cb5-29" aria-hidden="true" tabindex="-1"></a>  bm_wm    <span class="ot">&lt;-</span> <span class="fu">getBiomass</span>(sim_wm)[, <span class="st">"Anchovy"</span>]</span>
+<span id="cb5-30"><a href="#cb5-30" aria-hidden="true" tabindex="-1"></a>  times_wm <span class="ot">&lt;-</span> <span class="fu">as.numeric</span>(<span class="fu">names</span>(bm_wm))</span>
+<span id="cb5-31"><a href="#cb5-31" aria-hidden="true" tabindex="-1"></a>  settled  <span class="ot">&lt;-</span> bm_wm[times_wm <span class="sc">&gt;</span> <span class="dv">300</span>]</span>
+<span id="cb5-32"><a href="#cb5-32" aria-hidden="true" tabindex="-1"></a>  cv       <span class="ot">&lt;-</span> <span class="fu">sd</span>(settled) <span class="sc">/</span> <span class="fu">mean</span>(settled)</span>
+<span id="cb5-33"><a href="#cb5-33" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-34"><a href="#cb5-34" aria-hidden="true" tabindex="-1"></a>  <span class="fu">data.frame</span>(</span>
+<span id="cb5-35"><a href="#cb5-35" aria-hidden="true" tabindex="-1"></a>    <span class="at">w_mat  =</span> wm,</span>
+<span id="cb5-36"><a href="#cb5-36" aria-hidden="true" tabindex="-1"></a>    <span class="at">period =</span> <span class="cf">if</span> (cv <span class="sc">&gt;</span> <span class="fl">0.01</span>) <span class="fu">find_period</span>(bm_wm, times_wm) <span class="cf">else</span> <span class="cn">NA</span>,</span>
+<span id="cb5-37"><a href="#cb5-37" aria-hidden="true" tabindex="-1"></a>    <span class="at">cv     =</span> cv</span>
+<span id="cb5-38"><a href="#cb5-38" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb5-39"><a href="#cb5-39" aria-hidden="true" tabindex="-1"></a>})</span>
+<span id="cb5-40"><a href="#cb5-40" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-41"><a href="#cb5-41" aria-hidden="true" tabindex="-1"></a>df_wmat <span class="ot">&lt;-</span> <span class="fu">do.call</span>(rbind, results_wmat)</span>
+<span id="cb5-42"><a href="#cb5-42" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-43"><a href="#cb5-43" aria-hidden="true" tabindex="-1"></a><span class="fu">plot_ly</span>(df_wmat[<span class="sc">!</span><span class="fu">is.na</span>(df_wmat<span class="sc">$</span>period), ]) <span class="sc">|&gt;</span></span>
+<span id="cb5-44"><a href="#cb5-44" aria-hidden="true" tabindex="-1"></a>  <span class="fu">add_markers</span>(<span class="at">x =</span> <span class="sc">~</span>w_mat, <span class="at">y =</span> <span class="sc">~</span>period) <span class="sc">|&gt;</span></span>
+<span id="cb5-45"><a href="#cb5-45" aria-hidden="true" tabindex="-1"></a>  <span class="fu">layout</span>(<span class="at">xaxis =</span> <span class="fu">list</span>(<span class="at">type =</span> <span class="st">"log"</span>, <span class="at">title =</span> <span class="st">"w_mat (g)"</span>),</span>
+<span id="cb5-46"><a href="#cb5-46" aria-hidden="true" tabindex="-1"></a>         <span class="at">yaxis =</span> <span class="fu">list</span>(<span class="at">type =</span> <span class="st">"log"</span>, <span class="at">title =</span> <span class="st">"Period (years)"</span>),</span>
+<span id="cb5-47"><a href="#cb5-47" aria-hidden="true" tabindex="-1"></a>         <span class="at">title =</span> <span class="st">"Period vs maturation size"</span>)</span>
+<span id="cb5-48"><a href="#cb5-48" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-49"><a href="#cb5-49" aria-hidden="true" tabindex="-1"></a>fit <span class="ot">&lt;-</span> <span class="fu">lm</span>(<span class="fu">log10</span>(period) <span class="sc">~</span> <span class="fu">log10</span>(w_mat), <span class="at">data =</span> df_wmat[<span class="sc">!</span><span class="fu">is.na</span>(df_wmat<span class="sc">$</span>period), ])</span>
+<span id="cb5-50"><a href="#cb5-50" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(fit)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+</div>
+<p>The result was a clean power law: Period ~ w_mat^0.2, with R² = 0.9974. There is essentially no scatter - the period is determined entirely by maturation size across the full range tested.</p>
+<p>The exponent 0.2 has a direct metabolic interpretation. Juvenile growth rate in this model scales as w^n where n ≈ 0.8 (set by the search rate exponent). The time to grow from w_min to w_mat then scales as:</p>
+<blockquote class="blockquote">
+<p>T_mat ~ w_mat^(1 − n) = w_mat^0.2</p>
+</blockquote>
+<p>The slight deviation from the classic quarter-power scaling (0.25, which would imply n = 3/4) reflects the specific parameterisation: with search rate exponent q = 0.8 and lambda = 2, juvenile growth is dominated by encounter rate rather than metabolic maintenance, giving a slightly steeper scaling.</p>
+<p>The combination of the FFT result (one frequency) and the w_mat scaling (clean power law, metabolically grounded exponent) gives a complete mechanistic picture: one feedback loop, one timescale, set by how long it takes juveniles to reach maturation.</p>
+<hr>
+</section>
+<section id="cohort-tracking-phase-analysis" class="level2">
+<h2 class="anchored" data-anchor-id="cohort-tracking-phase-analysis">Cohort Tracking: Phase Analysis</h2>
+<p>With the mechanism confirmed, the question became whether the oscillation is a standing wave (all sizes pulsing in sync) or a travelling cohort wave (a pulse of fish moving through the size spectrum). The DFT coefficient at the dominant frequency was computed for each size class independently:</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>omega  <span class="ot">&lt;-</span> <span class="dv">2</span> <span class="sc">*</span> pi <span class="sc">/</span> period_dom</span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>post   <span class="ot">&lt;-</span> times <span class="sc">&gt;</span> <span class="dv">300</span></span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>t_post <span class="ot">&lt;-</span> times[post]</span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>t_vec  <span class="ot">&lt;-</span> t_post <span class="sc">-</span> t_post[<span class="dv">1</span>]</span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>n_post <span class="ot">&lt;-</span> sim_600<span class="sc">@</span>n[post, <span class="st">"Anchovy"</span>, ]</span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a>coeffs <span class="ot">&lt;-</span> <span class="fu">apply</span>(n_post, <span class="dv">2</span>, <span class="cf">function</span>(x) {</span>
+<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a>  signal <span class="ot">&lt;-</span> x <span class="sc">-</span> <span class="fu">mean</span>(x)</span>
+<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">sum</span>(signal <span class="sc">*</span> <span class="fu">exp</span>(<span class="sc">-</span><span class="dv">1</span>i <span class="sc">*</span> omega <span class="sc">*</span> t_vec))</span>
+<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a>})</span>
+<span id="cb6-11"><a href="#cb6-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-12"><a href="#cb6-12" aria-hidden="true" tabindex="-1"></a>df_phase <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(</span>
+<span id="cb6-13"><a href="#cb6-13" aria-hidden="true" tabindex="-1"></a>  <span class="at">w         =</span> params<span class="sc">@</span>w,</span>
+<span id="cb6-14"><a href="#cb6-14" aria-hidden="true" tabindex="-1"></a>  <span class="at">amplitude =</span> <span class="fu">Mod</span>(coeffs),</span>
+<span id="cb6-15"><a href="#cb6-15" aria-hidden="true" tabindex="-1"></a>  <span class="at">phase     =</span> <span class="fu">Arg</span>(coeffs)</span>
+<span id="cb6-16"><a href="#cb6-16" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb6-17"><a href="#cb6-17" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-18"><a href="#cb6-18" aria-hidden="true" tabindex="-1"></a>p_amp <span class="ot">&lt;-</span> <span class="fu">ggplot</span>(df_phase, <span class="fu">aes</span>(<span class="at">x =</span> w, <span class="at">y =</span> amplitude)) <span class="sc">+</span></span>
+<span id="cb6-19"><a href="#cb6-19" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>() <span class="sc">+</span> <span class="fu">scale_x_log10</span>() <span class="sc">+</span> <span class="fu">scale_y_log10</span>() <span class="sc">+</span></span>
+<span id="cb6-20"><a href="#cb6-20" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"Size (g)"</span>, <span class="at">y =</span> <span class="st">"Amplitude"</span>, <span class="at">title =</span> <span class="st">"Oscillation amplitude by size class"</span>)</span>
+<span id="cb6-21"><a href="#cb6-21" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-22"><a href="#cb6-22" aria-hidden="true" tabindex="-1"></a>p_phs <span class="ot">&lt;-</span> <span class="fu">ggplot</span>(df_phase, <span class="fu">aes</span>(<span class="at">x =</span> w, <span class="at">y =</span> phase)) <span class="sc">+</span></span>
+<span id="cb6-23"><a href="#cb6-23" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>() <span class="sc">+</span> <span class="fu">scale_x_log10</span>() <span class="sc">+</span></span>
+<span id="cb6-24"><a href="#cb6-24" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"Size (g)"</span>, <span class="at">y =</span> <span class="st">"Phase (radians)"</span>, <span class="at">title =</span> <span class="st">"Oscillation phase by size class"</span>)</span>
+<span id="cb6-25"><a href="#cb6-25" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-26"><a href="#cb6-26" aria-hidden="true" tabindex="-1"></a>p_amp <span class="sc">+</span> p_phs</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="2026-06-17-day-eight_files/figure-html/unnamed-chunk-4-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>The amplitude plot confirms what the feeding level already showed: the oscillation is overwhelmingly concentrated at juvenile sizes, with amplitude declining steeply across ~18 orders of magnitude from w_min to w_max. Large fish barely oscillate.</p>
+<p>The phase plot is more informative. A pure cohort wave would show monotonically increasing phase (each larger size class lagging behind smaller ones). A pure standing wave would show flat phase. What appears is neither: the phase rises from ~0 at the smallest fish to a peak of ~2.5 radians around 0.01–0.05 g, then decreases continuously through sub-adults and adults, reaching ~−1.5 radians at 100 g.</p>
+<p>Note on what “phase” means here: it’s <code>Arg()</code> of the DFT coefficient at the dominant frequency, computed a gainst <code>t_vec &lt;- t_post - t_post[1]</code> - time measured from the first saved point after <code>t = 300</code>, an arbitrary cutoff with no biological meaning (not anchored to e.g.&nbsp;peak adult biomass or a spawning event). So the absolute phase values aren’t meaningful on their own; what matters is the <em>relative</em> phase across size classes, since every size class’s coefficient shares the same <code>t_vec</code> and <code>omega</code>. The lag/lead structure between sizes - not the literal radian values - is what supports the closed-loop interpretation below.</p>
+<p>This non-monotonic pattern reveals a closed feedback loop. The causal chain is not a one-way wave travelling from small to large sizes - it circles back through reproduction:</p>
+<ol type="1">
+<li>Adults spawn → recruits appear at the smallest sizes</li>
+<li>Recruits grow slowly through the food-limited juvenile bottleneck (accumulating phase lag)</li>
+<li>Eventually mature into adults</li>
+<li>Those adults spawn → new recruits</li>
+</ol>
+<p>The reproductive connection between the large end of the spectrum and the small end is what produces the phase reversal. Adults and tiny recruits end up close in phase (adults peak, spawn, recruits appear shortly after), but the juvenile sizes in between carry the most lag because they spend extra time in the food-limited bottleneck. The delay that generates the ~8-year period lives in that bottleneck.</p>
+<section id="space-time-heatmap" class="level3">
+<h3 class="anchored" data-anchor-id="space-time-heatmap">Space-time heatmap</h3>
+<p>The heatmap of the size spectrum over time confirms this directly:</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>times  <span class="ot">&lt;-</span> <span class="fu">as.numeric</span>(<span class="fu">dimnames</span>(sim_600<span class="sc">@</span>n)[[<span class="dv">1</span>]])</span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>t_win  <span class="ot">&lt;-</span> times <span class="sc">&gt;</span> <span class="dv">300</span> <span class="sc">&amp;</span> times <span class="sc">&lt;</span> <span class="dv">380</span></span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>bm_win  <span class="ot">&lt;-</span> <span class="fu">sweep</span>(sim_600<span class="sc">@</span>n[t_win, <span class="st">"Anchovy"</span>, ], <span class="dv">2</span>, params<span class="sc">@</span>w<span class="sc">^</span><span class="dv">2</span>, <span class="st">"*"</span>)</span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a>df_heat <span class="ot">&lt;-</span> <span class="fu">melt</span>(bm_win)</span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a><span class="fu">names</span>(df_heat) <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">"time"</span>, <span class="st">"w"</span>, <span class="st">"bm"</span>)</span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a>df_heat<span class="sc">$</span>time   <span class="ot">&lt;-</span> <span class="fu">as.numeric</span>(<span class="fu">as.character</span>(df_heat<span class="sc">$</span>time))</span>
+<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a>df_heat<span class="sc">$</span>w      <span class="ot">&lt;-</span> <span class="fu">as.numeric</span>(<span class="fu">as.character</span>(df_heat<span class="sc">$</span>w))</span>
+<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(df_heat, <span class="fu">aes</span>(<span class="at">x =</span> time, <span class="at">y =</span> <span class="fu">log10</span>(w), <span class="at">fill =</span> <span class="fu">log10</span>(<span class="fu">pmax</span>(bm, <span class="fl">1e-12</span>)))) <span class="sc">+</span></span>
+<span id="cb7-11"><a href="#cb7-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_raster</span>() <span class="sc">+</span></span>
+<span id="cb7-12"><a href="#cb7-12" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_fill_viridis_c</span>(<span class="at">name =</span> <span class="st">"log10</span><span class="sc">\n</span><span class="st">biomass"</span>) <span class="sc">+</span></span>
+<span id="cb7-13"><a href="#cb7-13" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"Time (years)"</span>, <span class="at">y =</span> <span class="st">"log10(size [g])"</span>, <span class="at">title =</span> <span class="st">"Size–time heatmap"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="2026-06-17-day-eight_files/figure-html/unnamed-chunk-5-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>The heatmap shows vertical banding meaning all size classes brighten and dim together, in phase. A cohort wave would produce diagonal bands slanting from bottom-left to top-right. There are none. The oscillation is a synchronised food-limitation cycle.</p>
+<hr>
+</section>
+</section>
+<section id="lambda-what-it-controls-and-why-2.05-is-interesting" class="level2">
+<h2 class="anchored" data-anchor-id="lambda-what-it-controls-and-why-2.05-is-interesting">Lambda: What It Controls and Why 2.05 Is Interesting</h2>
+<p>Lambda (λ) is the slope of the plankton size spectrum: N_R(w) ~ κ · w^(−λ). It controls how quickly plankton abundance falls off with prey size, and therefore how food availability scales across fish sizes.</p>
+<p>With the model’s search rate exponent q = 0.8, the food encounter rate for a fish of size w scales as w^(q + 2 − λ). At λ = 2 this gives w^0.8, which is approximately the balanced point ; food availability rises with fish size at the same rate as maximum consumption, so the feeding level is roughly uniform across sizes. No size class is systematically more food-limited than another.</p>
+<p>Changing lambda from 2.0 to 2.05, a shift of just 0.05, produced a dramatically different phase structure:</p>
+<ul>
+<li>At λ = 2: smooth, gradual non-monotonic phase variation across sizes (the closed-loop structure described above)</li>
+<li>At λ = 2.05: near-discontinuous phase jumps at two specific size ranges (~0.003–0.01 g and ~1 g), with the phase traversing almost the full ±π range almost instantaneously at those sizes</li>
+</ul>
+<p>The heatmap at λ = 2.05 still shows vertical stripes but the oscillation remains fundamentally synchronous, and no cohort wave appears. The phase analysis detects a real structural reorganisation of the internal dynamics, but it doesn’t manifest as a macroscopic change in the heatmap.</p>
+<p>This extreme sensitivity to a 0.05 change in lambda suggests the system is near a bifurcation point at λ = 2. The balanced community condition may be a structurally degenerate special case where the neutral food environment simplifies the oscillation into a clean closed-loop structure. Moving even slightly above this value breaks the symmetry and reveals sharper, more localised food-limitation effects at specific size ranges.</p>
+<hr>
+</section>
+<section id="whats-next" class="level2">
+<h2 class="anchored" data-anchor-id="whats-next">What’s Next</h2>
+<ul>
+<li><p><strong>Connecting the traffic jam to fisheries:</strong> If the bottleneck is a real congestion effect</p>
+<p>at the juvenile food ceiling, fishing pressure on the right size classes might relieve it rather than just removing biomass. Worth testing whether harvesting juveniles or sub-adults thinsthe queue enough to let the remaining cohort grow through the bottleneck faster, and whether that translates into a net gain in average yield rather than a loss.</p></li>
+<li><p><strong>Flux at fishery-relevant sizes:</strong> Rather than tracking flux across the full size spectrum, plot growth/flux specifically at the size classes fisheries actually target (the catch-relevant range), to see whether the bottleneck shows up there as a throughput constraint on what’s effectively landable.</p></li>
+<li><p><strong>Yield vs time:</strong> Plot total (or size-selective) yield over time under different fishing mortality scenarios, to check whether yield itself oscillates with the ~8–9 year cycle, and whether fishing at the bottleneck size shifts the average yield up or down relative to no fishing.</p></li>
+</ul>
+
+
+</section>
+
+</main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp('/' + window.location.host + '/');
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+</div> <!-- /content -->
+
+
+
+
+</body></html>
