@@ -148,4 +148,7 @@ mean(y_fished[t_f > 550, ])   # average yield, fishing the bottleneck
 mean(y_base[t_b > 550, ])     # average yield, no fishing (will be 0)
 plotRelative(getFlux(sim_600,power=2),getFlux(sim_peaks_only,power=2),tlim=c(550,600))
 plotRelative(getBiomass(sim_peaks_only),getBiomass(sim_600),tlim=c(550,600))
+plotHover(getFlux(sim_600,power=2),tlim=c(550,600),wlim=c(10,100))
+plotHover(getFlux(sim_peaks_only,power=2),tlim=c(550,600),wlim=c(10,100))
 
+getFlux()
