@@ -121,7 +121,7 @@ peak_times <- t_p[is_peak]
 
 # 2. Build a 0/fish_level effort schedule: "on" only within `window`
 #    years either side of each peak, "off" everywhere else (troughs included)
-window     <- 1     # years either side of peak to fish
+window     <- 3     # years either side of peak to fish
 fish_level <- 0.3
 
 effort_vec <- rep(0, length(t_p))
@@ -138,18 +138,14 @@ sim_peaks_only <- project(sim_300_fished, t_max = 300, dt = 0.1, t_save = 0.2,
                           effort = effort_arr, progress_bar = FALSE,
                           method = "predictor-corrector")
 
-# Sanity check before plotting — should be TRUE
-identical(dimnames(sim_peaks_only@n)[[1]], dimnames(sim_600@n)[[1]])
-
 plotYield(sim_peaks_only, sim_600, tlim = c(550, 600))
-y_fished <- getYield(sim_fished)
-y_base   <- getYield(sim_600)
+y_fished <- getYield(sim_peaks_only)
+y_base   <- getYield(sim_fished)
 t_f      <- as.numeric(rownames(y_fished))
 t_b      <- as.numeric(rownames(y_base))
 
 mean(y_fished[t_f > 550, ])   # average yield, fishing the bottleneck
 mean(y_base[t_b > 550, ])     # average yield, no fishing (will be 0)
-plotHover(getBiomass(sim_600),tlim=c(550,600))
-plotHover(getBiomass(sim_peaks_only),tlim=c(550,600))
-plotHover(getFlux(sim_600,power=2),tlim=c(550,600))
-plotHover(getFlux(sim_peaks_only,power=2),tlim=c(550,600),wlim=c(5e-3,5e-2))
+plotRelative(getFlux(sim_600,power=2),getFlux(sim_peaks_only,power=2),tlim=c(550,600))
+plotRelative(getBiomass(sim_peaks_only),getBiomass(sim_600),tlim=c(550,600))
+
