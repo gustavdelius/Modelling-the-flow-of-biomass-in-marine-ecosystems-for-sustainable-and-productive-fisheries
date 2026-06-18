@@ -301,9 +301,7 @@ This extreme sensitivity to a 0.05 change in lambda suggests the system is near 
 
 ## What's Next
 
-- **Connecting the traffic jam to fisheries:** If the bottleneck is a real congestion effect
-
-  at the juvenile food ceiling, fishing pressure on the right size classes might relieve it rather than just removing biomass. Worth testing whether harvesting juveniles or sub-adults thinsthe queue enough to let the remaining cohort grow through the bottleneck faster, and whether that translates into a net gain in average yield rather than a loss.
+- **Connecting the traffic jam to fisheries:** If the bottleneck is a real congestion effect at the juvenile food ceiling, fishing pressure on the right size classes might relieve it rather than just removing biomass. Worth testing whether harvesting juveniles or sub-adults thinsthe queue enough to let the remaining cohort grow through the bottleneck faster, and whether that translates into a net gain in average yield rather than a loss.
 
 - **Flux at fishery-relevant sizes:** Rather than tracking flux across the full size spectrum, plot growth/flux specifically at the size classes fisheries actually target (the catch-relevant range), to see whether the bottleneck shows up there as a throughput constraint on what's effectively landable.
 
