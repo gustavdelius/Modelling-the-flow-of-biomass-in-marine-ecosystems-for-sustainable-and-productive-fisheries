@@ -7,7 +7,7 @@ library(mizerExperimental)
 library(tidyverse)
 library(glue)
 library(ggplot2)
-#Useful Plots 
+#Useful Plots
 nice_animation <- function(sim,t){
   nf <- melt(sim@n)
   n_ppf <- melt(sim@n_pp)
@@ -120,14 +120,34 @@ plotHover(getBiomass(sim_600,power=2),tlim=c(550,600))
 nice_biomass_plot(sim_600,550)
 #nice_animation(sim_600,550)
 plotHover(getFlux(sim_600,power=2),log="xy",tlim=c(550,600))
-#----Branch 2: fishing always ------ 
+#----Branch 2: fishing always ------
+#----Branch 2: fishing always, sub-adults only ------
 params_fished <- sim_300@params
-params_fished@gear_params$w_low        <- 0.01
-params_fished@gear_params$w_high       <- p$w_mat
-params_fished@gear_params$catchability <- 1
+
+gp <- params_fished@gear_params
+gp$sel_func        <- "box_selectivity_func"
+gp$w_low           <- 0.5 * p$w_mat
+gp$w_high          <- p$w_mat
+gp$catchability    <- 1
+gp$knife_edge_size <- NULL
+gear_params(params_fished) <- gp     # <-- triggers setFishing() and rebuilds @selectivity
 
 sim_300_fished        <- sim_300
 sim_300_fished@params <- params_fished
+
+# ===== juvenile-inclusive comparison variant =====
+params_fished_juv <- sim_300@params
+
+gp_juv <- params_fished_juv@gear_params
+gp_juv$sel_func        <- "box_selectivity_func"
+gp_juv$w_low           <- 0.01
+gp_juv$w_high          <- p$w_mat
+gp_juv$catchability    <- 1
+gp_juv$knife_edge_size <- NULL
+gear_params(params_fished_juv) <- gp_juv
+
+sim_300_fished_juv        <- sim_300
+sim_300_fished_juv@params <- params_fished_juv
 
 sim_fished <- project(sim_300_fished, t_max = 300, dt = 0.1, t_save = 0.2,
                       effort = 0.3, progress_bar = FALSE,
@@ -188,9 +208,61 @@ mean(y_fished[t_f > 550, ])   # average yield, fishing the bottleneck
 mean(y_base[t_b > 550, ])     # average yield, no fishing (will be 0)
 
 
+# ================== Confirm: does excluding juveniles explain the improvement? ==================
+# Build a "juvenile-inclusive" gear variant (your original setup) to compare
+# against the "sub-adults only" variant in params_fished -- now with the
+# selectivity fix applied, so this is a real comparison, not a no-op.
 
-plotRelative(getBiomass(sim_peaks_only),getBiomass(sim_600),tlim=c(550,600))
-plotRelative(getFlux(sim_600,power=2),getFlux(sim_peaks_only,power=2),tlim=c(550,600))
-plotRelative(getFlux(sim_600,power=2),getFlux(sim_fished,power=2),tlim=c(550,600))
-plotRelative(getBiomass(sim_peaks_only),getBiomass(sim_fished),tlim=c(550,600))
-plotRelative(getYield(sim_peaks_only),getYield(sim_fished),tlim=c(550,600))
+params_fished_juv <- sim_300@params
+params_fished_juv@gear_params$sel_func        <- "box_selectivity_func"
+params_fished_juv@gear_params$w_low           <- 0.01   # juveniles included
+params_fished_juv@gear_params$w_high          <- p$w_mat
+params_fished_juv@gear_params$catchability    <- 1
+params_fished_juv@gear_params$knife_edge_size <- NULL
+
+sim_300_fished_juv        <- sim_300
+sim_300_fished_juv@params <- params_fished_juv
+
+# --- Constant effort, juveniles included ---
+sim_fished_juv <- project(sim_300_fished_juv, t_max = 300, dt = 0.1, t_save = 0.2,
+                          effort = 0.3, progress_bar = FALSE,
+                          method = "predictor-corrector")
+
+# --- Peaks-only, juveniles included (same effort_arr schedule, different gear) ---
+sim_peaks_only_juv <- project(sim_300_fished_juv, t_max = 300, dt = 0.1, t_save = 0.2,
+                              effort = effort_arr, progress_bar = FALSE,
+                              method = "predictor-corrector")
+
+# --- Compare juvenile-inclusive vs sub-adult-only, within each fishing strategy ---
+
+# Constant effort: does excluding juveniles change the bottleneck?
+plotRelative(getFlux(sim_fished_juv, power = 2), getFlux(sim_fished, power = 2),
+             tlim = c(550, 600))
+plotRelative(getBiomass(sim_fished_juv), getBiomass(sim_fished), tlim = c(550, 600))
+
+# Peaks-only: does excluding juveniles change the bottleneck?
+plotRelative(getFlux(sim_peaks_only_juv, power = 2), getFlux(sim_peaks_only, power = 2),
+             tlim = c(550, 600))
+plotRelative(getBiomass(sim_peaks_only_juv), getBiomass(sim_peaks_only), tlim = c(550, 600))
+
+# Biomass ranges, sanity check that the gear change actually did something this time
+range(getBiomass(sim_fished)[, "Anchovy"])
+range(getBiomass(sim_peaks_only)[, "Anchovy"])
+range(getBiomass(sim_fished_juv)[, "Anchovy"])
+range(getBiomass(sim_peaks_only_juv)[, "Anchovy"])
+
+plotBiomass(sim_fished,         species = "Anchovy", start_time = 550, end_time = 600)
+plotBiomass(sim_peaks_only,     species = "Anchovy", start_time = 550, end_time = 600)
+plotBiomass(sim_fished_juv,     species = "Anchovy", start_time = 550, end_time = 600)
+plotBiomass(sim_peaks_only_juv, species = "Anchovy", start_time = 550, end_time = 600)
+
+# Yield trade-off: are you gaining bottleneck relief at the cost of yield?
+y_fished_juv     <- getYield(sim_fished_juv)
+y_peaks_only_juv <- getYield(sim_peaks_only_juv)
+t_fj <- as.numeric(rownames(y_fished_juv))
+t_pj <- as.numeric(rownames(y_peaks_only_juv))
+
+mean(y_fished_juv[t_fj > 550, "Anchovy"])       # constant, juveniles included
+mean(y_base[t_b > 550, "Anchovy"])              # constant, sub-adults only
+mean(y_peaks_only_juv[t_pj > 550, "Anchovy"])   # peaks-only, juveniles included
+mean(y_fished[t_f > 550, "Anchovy"])            # peaks-only, sub-adults only

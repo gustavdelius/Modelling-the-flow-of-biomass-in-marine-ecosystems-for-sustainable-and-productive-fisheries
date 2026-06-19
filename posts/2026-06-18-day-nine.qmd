@@ -1,0 +1,307 @@
+---
+title: "Day 9: Confirming the Jam, Then Easing It"
+author: "Samia"
+date: "2026-06-18"
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    theme: flatly
+    code-fold: true
+categories: [research, mizer, fisheries, yield, flux, traffic-jam, blog]
+description: "Confirming the bottleneck directly with flux diagnostics, recognising the current model is too extreme, and finding that fishing effort and timing alone ease the jam substantially plus an evening detour into the nonlinear dynamics textbook."
+---
+
+## Where Day 8 Left Us
+
+Day 8 closed the loop on the oscillation mechanism: a synchronised, food-limited bottleneck at juvenile sizes, confirmed via FFT (one fundamental frequency, not a quasiperiodic mix), the `w_mat` scaling law (period \~ w_mat\^0.2), and the phase/heatmap analysis (a standing wave, not a travelling cohort pulse). Discussing it with my supervisor, the consensus was that this *is* the traffic jam with recruits queuing against the food ceiling at small size.
+
+That reframing raised the obvious next question: if it's a traffic jam, can fishing act like ramp, thinning the queue at the bottleneck size enough to let the remaining fish through faster, and recovering some yield in the process? Today tested that directly, and ended up spending most of the day on a more basic question: is the jam itself too severe to be a realistic model in the first place?
+
+------------------------------------------------------------------------
+
+## New Diagnostic Tools
+
+Before re-running the fisheries comparison, I added a couple of interactive diagnostics that make it much faster to see what's happening across the whole size spectrum, not just at one size class at a time:
+
+```{r}
+#| message: false
+#| warning: false
+#| output: false
+library(mizer)
+library(patchwork)
+library(reshape2)
+library(plotly)
+library(dplyr)
+library(mizerExperimental)
+library(tidyverse) 
+library(glue)
+library(ggplot2)
+
+nice_animation <- function(sim, t) {
+  nf <- melt(sim@n)
+  n_ppf <- melt(sim@n_pp)
+  n_ppf$sp <- "Plankton"
+  nf <- rbind(nf, n_ppf)
+
+  plot_ly(nf) %>%
+    filter(w > 10^-5) %>%
+    filter(time >= t) %>%
+    mutate(b = value * w^2) %>%
+    add_lines(
+      x = ~w, y = ~b,
+      color = ~sp,
+      frame = ~time,
+      line = list(simplify = FALSE)
+    ) %>%
+    layout(xaxis = list(type = "log", exponentformat = "power",
+                        title_text = "body mass (g)"),
+           yaxis = list(type = "log", exponentformat = "power",
+                        title_text = "biomass (g/m^3)",
+                        range = c(-8, 0)))
+}
+
+nice_biomass_plot <- function(sim, t) {
+  abm  <- melt(getBiomass(sim))
+  abmr <- melt(getBiomass(sim, min_w = 0.01, max_w = 0.4))
+  abmr$sp <- "small Anchovy"
+  pbm <- sim@n_pp %*% (params@w_full * params@dw_full)
+  pbm <- melt(pbm)
+  names(pbm)[names(pbm) == "Var1"] <- "time"
+  pbm$Var2 <- NULL
+  pbm$sp <- "Plankton"
+  bm <- rbind(pbm, abm, abmr)
+  plot_ly(bm) %>%
+    filter(time >= t) %>%
+    add_lines(x = ~time, y = ~value, color = ~sp) %>%
+    layout(yaxis = list(type = "log", exponentformat = "power",
+                        title_text = "biomass (g/m^3)",
+                        range = c(-7, 2)),
+           xaxis = list(title_text = "time (year)"))
+}
+```
+
+`nice_animation` plays the whole size spectrum (Anchovy + Plankton) forward through time, and `nice_biomass_plot` tracks total Anchovy biomass, small Anchovy biomass (0.01–0.4 g), and Plankton biomass on the same log-scale time series. Both make it much easier to *see* the bottleneck rather than infer it from a single summary statistic. Together with `plotHover()` on `getBiomass()` and the built-in `getFlux(sim, power = 2)`, these became the standard diagnostic set for today.
+
+------------------------------------------------------------------------
+
+## Setting Up: A Slightly Different Anchovy
+
+The parameterisation was tweaked slightly from Day 8 with `lambda` being changed to 2.05 (the value that produced the sharp phase transitions in the Day 8 lambda sensitivity check), the resource depletion factor was loosened from `0.001` to `0.005` (less starvation than before), and the initial condition switched to a clean power law (`0.001 * w^-1.8`) instead of the old perturb-then-settle trick:
+
+```{r}
+#| message: false
+#| warning: false
+p <- list(
+  dt     = 0.001,
+  dx     = 0.1,
+  w_min  = 0.0003,
+  w_max  = 66.5,
+  w_mat  = 10,
+  alpha  = 0.1,
+  gamma  = 750,
+  lambda = 2.05,
+  a0     = 100
+)
+
+kappa <- p$a0 * exp(-6.9 * (p$lambda - 1))
+no_w  <- round(log(p$w_max / p$w_min) / p$dx)
+
+params <- newSingleSpeciesParams(
+  species_name = "Anchovy",
+  w_min  = p$w_min, w_max = p$w_max, w_mat = p$w_mat,
+  no_w   = no_w,    lambda = p$lambda, kappa = kappa,
+  alpha  = p$alpha, gamma  = p$gamma,  ks    = 0
+)
+
+r <- resource_rate(params)
+r <- r * 0.005
+
+params <- setResource(params, resource_rate = r, resource_dynamics = "resource_semichemostat")
+params@initial_n[]    <- 0.001 * params@w^(-1.8)
+params@initial_n_pp[] <- params@cc_pp
+
+sim <- project(params, t_max = 10, dt = 0.1, t_save = 0.2,
+               effort = 0, progress_bar = FALSE, method = "predictor-corrector")
+
+sim <- project(sim, t_max = 90, dt = 0.1, t_save = 0.2,
+               effort = 0, progress_bar = FALSE, method = "predictor-corrector")
+
+sim_300 <- project(sim, t_max = 200, dt = 0.1, t_save = 0.2,
+                   effort = 0, progress_bar = FALSE, method = "predictor-corrector")
+
+sim_600 <- project(sim_300, t_max = 300, dt = 0.1, t_save = 0.2,
+                   effort = 0, progress_bar = FALSE, method = "predictor-corrector")
+
+plotHover(getBiomass(sim_600), tlim = c(550, 600))
+plotHover(getFlux(sim_600, power = 2), tlim = c(550, 600), log = "xy")
+```
+
+The FFT diagnostics from Day 8 were re-run on this version too, just to confirm the dominant period and feeding-level signature still look like the same family of dynamics before drawing conclusions from the fishing experiments:
+
+```{r}
+#| message: false
+#| warning: false
+#| output: false
+power_spectrum <- function(signal, dt) {
+  signal <- signal - mean(signal)
+  n      <- length(signal)
+  freqs  <- (1:(n - 1)) / (n * dt)
+  power  <- Mod(fft(signal))^2
+  half   <- seq_len(floor((n - 1) / 2))
+  data.frame(freq = freqs[half], period = 1 / freqs[half], power = power[half + 1])
+}
+
+dt    <- 0.2
+bm    <- getBiomass(sim_600)[, "Anchovy"]
+times <- as.numeric(names(bm))
+
+ps_bm <- power_spectrum(bm[times > 300], dt)
+
+plot_ly(ps_bm |> filter(period > 1, period < 50)) |>
+  add_lines(x = ~period, y = ~power) |>
+  layout(xaxis = list(title = "Period (years)"),
+         yaxis = list(title = "Power", type = "log"),
+         title = "Power spectrum — Anchovy biomass")
+
+fl       <- getFeedingLevel(sim_600)
+fl_times <- as.numeric(dimnames(fl)[[1]])
+fl_small <- fl[, "Anchovy", 1]
+
+ps_fl <- power_spectrum(fl_small[fl_times > 300], dt)
+
+plot_ly(ps_fl |> filter(period > 1, period < 50)) |>
+  add_lines(x = ~period, y = ~power) |>
+  layout(xaxis = list(title = "Period (years)"),
+         yaxis = list(title = "Power", type = "log"),
+         title = "Power spectrum — feeding level (smallest size class)")
+```
+
+------------------------------------------------------------------------
+
+## Confirmed: It's Definitely a Bottleneck
+
+`getFlux(sim_600, power = 2)` settles the question that's been hanging since Day 8. This is unambiguously a bottleneck, not just a plausible interpretation of a standing wave. Watching flux directly on a log-log scale shows growth visibly stalling at juvenile sizes before the surviving fish push through into the adult range. There's no more hedging needed here: it's a traffic jam, and it's visible in the flux itself, not just inferred from phase analysis.
+
+But looking at the same diagnostics also raised a concern: the oscillation at large sizes is small, and the resulting yield numbers are correspondingly tiny. That's the real tell that the current parameterisation is too extreme as the bottleneck is squeezing so hard that almost nothing of substance is reaching the sizes a fishery would care about, regardless of fishing strategy. A model where adult biomass barely oscillates isn't just inconvenient for catching fish but it's a sign the food-limitation effect is dialled up further than is biologically reasonable.
+
+The plan: dial the resource depletion factor back further than today's `0.005` (a smaller reduction in `resource_rate`, i.e. more food available) and see whether a less starved juvenile stage produces a more moderate jam, one that still oscillates and still bottlenecks, but lets enough biomass through to large sizes to make the fisheries question meaningful. The way I tested this was by running both versions side by side, today's extreme parameterisation and the eased one and checking which actually produces a better outcome, not just assuming softer is better.
+
+------------------------------------------------------------------------
+
+## Easing the Jam With Fishing Alone
+
+Even without touching the ecology, two changes to the fishing strategy on the bottleneck gear eased the congestion substantially within today's (still extreme) model:
+
+```{r}
+#| message: false
+#| warning: false
+#| output: false
+bottleneck_sel <- function(w, w_low, w_high, ...) {
+  as.numeric(w >= w_low & w <= w_high)
+}
+
+params_fished <- sim_300@params
+
+gp <- params_fished@gear_params
+gp$sel_func     <- "bottleneck_sel"
+gp$w_low        <- 0.01
+gp$w_high       <- p$w_mat
+gp$catchability <- 1
+gear_params(params_fished) <- gp   # proper setter: direct `@gear_params$x <-` assignment
+                                    # skips setFishing() and leaves the cached
+                                    # @selectivity array stale, silently ignoring the edit
+
+sim_300_fished        <- sim_300
+sim_300_fished@params <- params_fished
+
+sim_fished <- project(sim_300_fished, t_max = 300, dt = 0.1, t_save = 0.2,
+                      effort = 0.3, progress_bar = FALSE,
+                      method = "predictor-corrector")
+
+all_times <- as.numeric(dimnames(sim_600@n)[[1]])
+keep      <- all_times >= 300
+t_p       <- all_times[keep]
+time_lbls <- dimnames(sim_600@n)[[1]][keep]
+
+bm   <- getBiomass(sim_600)[, "Anchovy"]
+bm_p <- bm[time_lbls]
+
+n_p <- length(bm_p)
+is_peak <- logical(n_p)
+is_peak[2:(n_p - 1)] <- bm_p[2:(n_p - 1)] > bm_p[1:(n_p - 2)] &
+                        bm_p[2:(n_p - 1)] > bm_p[3:n_p]
+peak_times <- t_p[is_peak]
+
+window     <- 2.6     # widened from 1 year
+fish_level <- 0.3
+
+effort_vec <- rep(0, length(t_p))
+for (pt in peak_times) {
+  effort_vec[t_p >= pt - window / 2 & t_p <= pt + window / 2] <- fish_level
+}
+
+gear_name  <- params_fished@gear_params$gear[1]
+effort_arr <- matrix(effort_vec, ncol = 1, dimnames = list(time_lbls, gear_name))
+
+sim_peaks_only <- project(sim_300_fished, t_max = 300, dt = 0.1, t_save = 0.2,
+                          effort = effort_arr, progress_bar = FALSE,
+                          method = "predictor-corrector")
+
+plotYield(sim_peaks_only, sim_fished, tlim = c(550, 600))
+
+
+plotHover(getBiomass(sim_600), tlim = c(550, 600))
+plotHover(getBiomass(sim_peaks_only), tlim = c(550, 600))
+plotHover(getFlux(sim_600, power = 2), tlim = c(550, 600))
+plotHover(getFlux(sim_peaks_only, power = 2), tlim = c(550, 600))
+```
+
+Two findings, both genuinely encouraging:
+
+- Fishing the bottleneck gear constantly (effort applied at all times, not just near peaks) eases the congestion and makes the whole system more efficient as removing fish from the queue faster lets the survivors move through without as much crowding.
+- Widening the fishing window around each peak (2.6 years either side, up from 1) eased the bottleneck further still, on top of the effort increase.
+
+Combined, the effect was large comparing flux and biomass between `sim_600` and `sim_peaks_only` shows the jam eased *a lot*. This is the most positive result so far in the fisheries thread: it suggests the bottleneck isn't a fixed, immovable feature of the dynamics but that it responds strongly to fishing pressure applied at the right size and the right time, which is exactly what the "ramp metering" framing predicted back at the top of the day.
+
+------------------------------------------------------------------------
+
+## Quantifying the Relief: `plotRelative` on Flux
+
+Eyeballing two `plotHover` panels side by side is suggestive but not a number. mizer's `plotRelative()` gives the relative difference directly, applied to flux rather than biomass since flux is the more direct signature of the bottleneck itself:
+
+```{r}
+#| message: false
+#| warning: false
+plotRelative(getFlux(sim_600, power = 2), getFlux(sim_peaks_only, power = 2), tlim = c(550, 600))
+```
+
+The resulting curve is positive across almost the entire size range that matters: starting around 0.78 at the smallest sizes, rising to a peak of \~1.3 near 1g, dipping briefly to \~0.7 around `w_mat` (still positive), and spiking again to \~1.3 around 20–30g. That's a strong, broad confirmation that the peaks-only fishing strategy relieves the bottleneck through the juvenile and sub-adult range, not just at one cherry-picked size.
+
+Then it crosses zero around 40–50g and crashes to roughly **−**1.4 right at the top of the spectrum, near `w_max`. First read: something bad happening to the very largest fish under fishing which is a worrying sign that easing the jam downstream might be creating a new one upstream.
+
+Checked the absolute flux values at those large sizes directly, rather than trusting the ratio, and the actual gap between the fished and unfished runs there was much smaller than the relative-difference plot implied. The collapse is a small-number artefact, not a real effect: abundance (and therefore flux) near `w_max` is tiny in both runs, so dividing two small, noisy numbers by each other produces a wildly amplified ratio even when the underlying difference is negligible. `plotRelative` is doing exactly what it's supposed to do but it's just unreliable wherever the baseline it's dividing by is near zero.
+
+Net result, read correctly: the bottleneck is genuinely relieved by the peaks-only strategy across the part of the size spectrum that's actually populated and meaningful, and the dramatic-looking dive at the very largest sizes is noise, not a cost of the fishing strategy. Worth remembering for every future `plotRelative` call, not just this one ; check the absolute values before trusting the tails of a relative-difference plot.
+
+------------------------------------------------------------------------
+
+## Open Question: Why the Juvenile Phase, Specifically?
+
+Confirming *that* the bottleneck sits at juvenile sizes isn't the same as explaining *why* it has to be there. Day 8's growth-scaling argument (juvenile growth rate \~ w\^0.8 under this search-rate exponent, giving the w_mat\^0.2 period law) explains how long juveniles take to grow through, but not why the food-limitation itself concentrates so heavily on that stage rather than being spread more evenly across the spectrum. Is it simply that juveniles sit at the steepest part of the encounter-rate-vs-requirement curve, or is there something more structural such as competition with adults for the same plankton pool, the shape of the plankton spectrum itself, the specific value of lambda?
+
+------------------------------------------------------------------------
+
+## A Quiet Evening With the Textbook
+
+Had a bit more breathing room in the evening, so instead of running more simulations I sat down with the nonlinear dynamics textbook for a while. It was a nice change of pace , going back to first principles on limit cycles, bifurcations, and phase portraits while everything I'd seen that day (the standing wave, the sensitivity to lambda near 2, the way fishing pressure reshaped the attractor) was still fresh made the abstract material land much more concretely than usual. It's reassuring that the formal language for what's happening in `sim_600` already exists and is well worked out which gives me some confidence that the open questions above (especially the "why juveniles" one) are tractable with the right framing, not just empirical observations with no theory behind them.
+
+------------------------------------------------------------------------
+
+## What's Next
+
+- Change the fishing selectivity to avoid fishing at juvenile age
+
+- Quantify how much of the easing came from effort vs. window, since both were changed together today. A small sweep over each independently would clarify which lever matters more.
+
+- Revisit the juvenile-bottleneck-gets-worse-under-fishing finding from the previous run once the less extreme model is in place and selectivity is actually being applied correctly, to see whether that effect persists or was itself an artefact of how severe the original parameterisation was (or of the selectivity bug).
