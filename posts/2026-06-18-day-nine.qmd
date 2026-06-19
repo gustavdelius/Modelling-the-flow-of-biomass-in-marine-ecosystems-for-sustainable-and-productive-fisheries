@@ -257,12 +257,12 @@ plotHover(getFlux(sim_600, power = 2), tlim = c(550, 600))
 plotHover(getFlux(sim_peaks_only, power = 2), tlim = c(550, 600))
 ```
 
-Two findings, both genuinely encouraging:
+Two changes were made to the fishing strategy on the bottleneck gear:
 
-- Fishing the bottleneck gear constantly (effort applied at all times, not just near peaks) eases the congestion and makes the whole system more efficient as removing fish from the queue faster lets the survivors move through without as much crowding.
-- Widening the fishing window around each peak (2.6 years either side, up from 1) eased the bottleneck further still, on top of the effort increase.
+- Fishing constantly (effort applied at all times, not just near peaks), instead of not fishing at all.
+- Widening the fishing window around each peak (2.6 years either side, up from 1).
 
-Combined, the effect was large comparing flux and biomass between `sim_600` and `sim_peaks_only` shows the jam eased *a lot*. This is the most positive result so far in the fisheries thread: it suggests the bottleneck isn't a fixed, immovable feature of the dynamics but that it responds strongly to fishing pressure applied at the right size and the right time, which is exactly what the "ramp metering" framing predicted back at the top of the day.
+Eyeballing the `plotHover` panels for flux and biomass between `sim_600` and `sim_peaks_only`, the dynamics clearly responded a lot to fishing pressure applied at this size and timing which is exactly what the "ramp metering" framing predicted back at the top of the day. Whether that response counts as "relief," though, turned out to depend heavily on which size class you look at, and only became clear once `plotRelative` put an actual number on it rather than comparing two plots by eye.
 
 ------------------------------------------------------------------------
 
@@ -276,13 +276,13 @@ Eyeballing two `plotHover` panels side by side is suggestive but not a number. m
 plotRelative(getFlux(sim_600, power = 2), getFlux(sim_peaks_only, power = 2), tlim = c(550, 600))
 ```
 
-The resulting curve is positive across almost the entire size range that matters: starting around 0.78 at the smallest sizes, rising to a peak of \~1.3 near 1g, dipping briefly to \~0.7 around `w_mat` (still positive), and spiking again to \~1.3 around 20–30g. That's a strong, broad confirmation that the peaks-only fishing strategy relieves the bottleneck through the juvenile and sub-adult range, not just at one cherry-picked size.
+The resulting curve is not the broad, mostly-positive shape I'd expected going in. Reading it left to right: at the very smallest sizes (near `w_min`) the relative difference starts out mildly positive, around +0.3, but immediately turns negative and dives to a sharp trough of roughly **−**1.0 around 0.05–0.1g which is right in the middle of the juvenile range the flux diagnostic identified as the bottleneck earlier today. It climbs back through zero around 1g, then turns positive through the sub-adult/adult range: a first peak of about +0.4 near `w_mat` (10g), a small dip to about +0.25 around 20g, and a second, sharper peak of about +0.55 around 30–40g. Then it crashes again, crossing zero around 50–60g and ending around **−**0.6 at the very top of the spectrum, near `w_max`.
 
-Then it crosses zero around 40–50g and crashes to roughly **−**1.4 right at the top of the spectrum, near `w_max`. First read: something bad happening to the very largest fish under fishing which is a worrying sign that easing the jam downstream might be creating a new one upstream.
+So the honest read is close to the opposite of what I expected: peaks-only fishing on the bottleneck gear makes the juvenile congestion *worse*, not better, across almost the entire juvenile range ,from just above `w_min` out to roughly 1g , which is exactly where flux was shown to be stalling in the first place. The relief only shows up for sub-adults and adults (1g up to \~40g), and then reverses again at the largest sizes.
 
-Checked the absolute flux values at those large sizes directly, rather than trusting the ratio, and the actual gap between the fished and unfished runs there was much smaller than the relative-difference plot implied. The collapse is a small-number artefact, not a real effect: abundance (and therefore flux) near `w_max` is tiny in both runs, so dividing two small, noisy numbers by each other produces a wildly amplified ratio even when the underlying difference is negligible. `plotRelative` is doing exactly what it's supposed to do but it's just unreliable wherever the baseline it's dividing by is near zero.
+The small-number-artefact caution from earlier in the project still matters at the right-hand tail: abundance near `w_max` is small in both runs, so the −0.6 endpoint is probably exaggerated rather than fully real, and worth checking against the absolute flux values directly before trusting its exact size. The juvenile-range trough is a different story as that part of the spectrum is densely populated in both runs, so dividing two small numbers isn't the issue there; that dip looks like a real effect, not a `plotRelative` artefact.
 
-Net result, read correctly: the bottleneck is genuinely relieved by the peaks-only strategy across the part of the size spectrum that's actually populated and meaningful, and the dramatic-looking dive at the very largest sizes is noise, not a cost of the fishing strategy. Worth remembering for every future `plotRelative` call, not just this one ; check the absolute values before trusting the tails of a relative-difference plot.
+Net result, corrected: peaks-only fishing does not relieve the bottleneck where it matters most. It relieves congestion for sub-adults and fish approaching/just past maturity, but it measurably worsens the food-limited queue at juvenile sizes, the opposite of what eyeballing the `plotHover` panels suggested. That's the real value of putting a number on it rather than comparing two plots by eye.
 
 ------------------------------------------------------------------------
 
@@ -304,4 +304,4 @@ Had a bit more breathing room in the evening, so instead of running more simulat
 
 - Quantify how much of the easing came from effort vs. window, since both were changed together today. A small sweep over each independently would clarify which lever matters more.
 
-- Revisit the juvenile-bottleneck-gets-worse-under-fishing finding from the previous run once the less extreme model is in place and selectivity is actually being applied correctly, to see whether that effect persists or was itself an artefact of how severe the original parameterisation was (or of the selectivity bug).
+- The juvenile-bottleneck-gets-worse-under-fishing finding wasn't just an artefact of the old severe parameterisation or the selectivity bug as it shows up directly in today's `plotRelative` result, with both fixes in place. Worth understanding *why* peaks-only fishing on this gear worsens congestion for juveniles while relieving it for sub-adults/adults, rather than just confirming that it does.
