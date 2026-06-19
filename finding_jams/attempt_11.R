@@ -116,10 +116,17 @@ sim_300 <- project(sim, t_max = 200, dt = 0.1, t_save = 0.2,
 sim_600 <- project(sim_300, t_max = 300, dt = 0.1, t_save = 0.2,
                    effort = 0, progress_bar = FALSE, method = "predictor-corrector")
 
-plotHover(getBiomass(sim_600,power=2),tlim=c(550,600))
-nice_biomass_plot(sim_600,550)
-#nice_animation(sim_600,550)
-plotHover(getFlux(sim_600,power=2),log="xy",tlim=c(550,600))
+bottleneck_sel <- function(w, w_low, w_high) {
+  as.numeric(w >= w_low & w <= w_high)
+}
+
+box_selectivity_func <- function(w, w_low, w_high, ...) {
+  as.numeric(w >= w_low & w <= w_high)
+}
+# plotHover(getBiomass(sim_600,power=2),tlim=c(550,600))
+# nice_biomass_plot(sim_600,550)
+# #nice_animation(sim_600,550)
+# plotHover(getFlux(sim_600,power=2),log="xy",tlim=c(550,600))
 #----Branch 2: fishing always ------
 #----Branch 2: fishing always, sub-adults only ------
 params_fished <- sim_300@params
@@ -196,16 +203,14 @@ sim_peaks_only <- project(sim_300_fished, t_max = 300, dt = 0.1, t_save = 0.2,
 plotRelative(getFlux(sim_600,power=2),getFlux(sim_peaks_only,power=2),tlim=c(550,600))
 plotRelative(getFlux(sim_fished,power=2),getFlux(sim_peaks_only,power=2),tlim=c(550,600))
 
-plotYield(sim_peaks_only,sim_fished,tlim=c(550,600))
-
 plotYield(sim_peaks_only, sim_fished, tlim = c(550, 600))
 y_fished <- getYield(sim_peaks_only)
 y_base   <- getYield(sim_fished)
 t_f      <- as.numeric(rownames(y_fished))
 t_b      <- as.numeric(rownames(y_base))
 
-mean(y_fished[t_f > 550, ])   # average yield, fishing the bottleneck
-mean(y_base[t_b > 550, ])     # average yield, no fishing (will be 0)
+mean(y_fished[t_f > 550, ])   # average yield, fishing the bottleneck (peaks-only)
+mean(y_base[t_b > 550, ])     # average yield, fishing constantly (sub-adults only)
 
 
 # ================== Confirm: does excluding juveniles explain the improvement? ==================
@@ -244,12 +249,8 @@ plotRelative(getBiomass(sim_fished_juv), getBiomass(sim_fished), tlim = c(550, 6
 plotRelative(getFlux(sim_peaks_only_juv, power = 2), getFlux(sim_peaks_only, power = 2),
              tlim = c(550, 600))
 plotRelative(getBiomass(sim_peaks_only_juv), getBiomass(sim_peaks_only), tlim = c(550, 600))
+plotRelative(getFlux(sim_600,power=2),getFlux(sim_peaks_only_juv,power=2),tlim=c(550,600))
 
-# Biomass ranges, sanity check that the gear change actually did something this time
-range(getBiomass(sim_fished)[, "Anchovy"])
-range(getBiomass(sim_peaks_only)[, "Anchovy"])
-range(getBiomass(sim_fished_juv)[, "Anchovy"])
-range(getBiomass(sim_peaks_only_juv)[, "Anchovy"])
 
 plotBiomass(sim_fished,         species = "Anchovy", start_time = 550, end_time = 600)
 plotBiomass(sim_peaks_only,     species = "Anchovy", start_time = 550, end_time = 600)
@@ -266,3 +267,7 @@ mean(y_fished_juv[t_fj > 550, "Anchovy"])       # constant, juveniles included
 mean(y_base[t_b > 550, "Anchovy"])              # constant, sub-adults only
 mean(y_peaks_only_juv[t_pj > 550, "Anchovy"])   # peaks-only, juveniles included
 mean(y_fished[t_f > 550, "Anchovy"])            # peaks-only, sub-adults only
+plotRelative(getFlux(sim_peaks_only,power=2),getFlux(sim_peaks_only_juv,power=2),tlim=c(550,600))
+
+nice_biomass_plot(sim_peaks_only_juv,550)
+nice_biomass_plot(sim_fished_juv,550)

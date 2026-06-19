@@ -1,0 +1,180 @@
+---
+title: "Day 10: Chasing the New Bottlenecks"
+author: "Samia"
+date: "2026-06-19"
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    theme: flatly
+    code-fold: true
+categories: [research, mizer, fisheries, lambda, fishing-frequency, traffic-jam, blog]
+description: "Closing out yesterday's selectivity bugs for good, finding that lambda sets where the bottleneck sits, and discovering that fishing frequency — not selectivity — was the real reason peaks-only fishing kept introducing new bottlenecks worse than the ones it relieved."
+---
+
+## Where Day 9 Left Us
+
+Day 9 ended on an uncomfortable correction: once the `gear_params<-` selectivity bug was actually fixed and `plotRelative` was read properly instead of eyeballed, peaks-only fishing on the bottleneck gear didn't relieve the jam where it mattered. It relieved congestion for sub-adults and fish approaching maturity, but it measurably *worsened* the food-limited queue at juvenile sizes. The open question going into today was why, and whether that was about selectivity (still catching too many juveniles), timing (fishing too rarely near each peak), or something else entirely.
+
+------------------------------------------------------------------------
+
+## Closing Out Yesterday's Bugs, For Real This Time
+
+First thing today: re-running yesterday's fixed code in a fresh session immediately hit a new error —
+
+```
+Error in get(fun, mode = "function", envir = envir) :
+  object 'box_selectivity_func' of mode 'function' was not found
+```
+
+The `gear_params(params) <- gp` fix from Day 9 was correct, but it calls `setFishing()` immediately, which looks up `sel_func` by name and calls it right away — not lazily later inside `project()`. The actual function definition had never made it into the saved script, only the string `"box_selectivity_func"` referencing it. Added it back in, with `...` in the signature so it absorbs the `species_params` argument mizer's `calc_selectivity()` always passes (the same fix `bottleneck_sel` needed in yesterday's post):
+
+```{r}
+#| eval: false
+box_selectivity_func <- function(w, w_low, w_high, ...) {
+  as.numeric(w >= w_low & w <= w_high)
+}
+```
+
+With that in place, every comparison below is finally running on the gear that's actually intended, not a silent default.
+
+------------------------------------------------------------------------
+
+## Lambda Sets Where the Jam Sits
+
+Before getting back to the fishing experiments, a side observation from poking at `lambda` again: it doesn't just change *whether* there's a bottleneck (Day 8 already showed that), it shifts *where in time* the bottleneck shows up in a settling simulation. Higher lambda pushes the bottleneck later; lower lambda brings it on earlier.
+
+This is currently just an eyeballed observation from watching `plotHover(getBiomass(...))` across a couple of lambda values, not a quantified sweep — and Day 9's own lesson was "don't trust an eyeballed read, put a number on it." So this one goes straight into What's Next rather than being treated as confirmed.
+
+------------------------------------------------------------------------
+
+## Fishing Everywhere: Same Trade-off as Before
+
+With the bug fixed, the gear now genuinely targets sub-adults only (`w_low = 0.5 * w_mat` to `w_high = w_mat`), not the unintended default:
+
+```{r}
+#| eval: false
+params_fished <- sim_300@params
+
+gp <- params_fished@gear_params
+gp$sel_func        <- "box_selectivity_func"
+gp$w_low           <- 0.5 * p$w_mat
+gp$w_high          <- p$w_mat
+gp$catchability    <- 1
+gp$knife_edge_size <- NULL
+gear_params(params_fished) <- gp
+
+sim_300_fished        <- sim_300
+sim_300_fished@params <- params_fished
+
+sim_fished <- project(sim_300_fished, t_max = 300, dt = 0.1, t_save = 0.2,
+                      effort = 0.3, progress_bar = FALSE,
+                      method = "predictor-corrector")
+
+plotRelative(getFlux(sim_600, power = 2), getFlux(sim_fished, power = 2), tlim = c(550, 600))
+plotRelative(getBiomass(sim_600), getBiomass(sim_fished), tlim = c(550, 600))
+```
+
+Same qualitative result as before the bug was found: fishing the bottleneck gear constantly eases congestion at the worst point in the spectrum, but at the cost of introducing new bottlenecks elsewhere. Removing biomass continuously changes the whole flow pattern, not just the part you're targeting — relief in one place has to show up as a cost somewhere else in a closed system like this.
+
+------------------------------------------------------------------------
+
+## Fishing Only the Peaks: A Worse Trade, At First
+
+The peaks-only schedule from Day 9, rebuilt on the corrected gear:
+
+```{r}
+#| eval: false
+all_times <- as.numeric(dimnames(sim_600@n)[[1]])
+keep      <- all_times >= 300
+t_p       <- all_times[keep]
+time_lbls <- dimnames(sim_600@n)[[1]][keep]
+
+bm   <- getBiomass(sim_600)[, "Anchovy"]
+bm_p <- bm[time_lbls]
+
+n <- length(bm_p)
+is_peak <- logical(n)
+is_peak[2:(n-1)] <- bm_p[2:(n-1)] > bm_p[1:(n-2)] & bm_p[2:(n-1)] > bm_p[3:n]
+peak_times <- t_p[is_peak]
+
+window     <- 3    # years either side of peak to fish
+fish_level <- 0.3
+
+effort_vec <- rep(0, length(t_p))
+for (pt in peak_times) {
+  effort_vec[t_p >= pt - window / 2 & t_p <= pt + window / 2] <- fish_level
+}
+
+gear_name  <- params_fished@gear_params$gear[1]
+effort_arr <- matrix(effort_vec, ncol = 1, dimnames = list(time_lbls, gear_name))
+
+sim_peaks_only <- project(sim_300_fished, t_max = 300, dt = 0.1, t_save = 0.2,
+                          effort = effort_arr, progress_bar = FALSE,
+                          method = "predictor-corrector")
+
+plotRelative(getFlux(sim_600, power = 2), getFlux(sim_peaks_only, power = 2), tlim = c(550, 600))
+plotRelative(getFlux(sim_fished, power = 2), getFlux(sim_peaks_only, power = 2), tlim = c(550, 600))
+plotYield(sim_peaks_only, sim_fished, tlim = c(550, 600))
+
+y_fished <- getYield(sim_peaks_only)
+y_base   <- getYield(sim_fished)
+t_f      <- as.numeric(rownames(y_fished))
+t_b      <- as.numeric(rownames(y_base))
+
+mean(y_fished[t_f > 550, "Anchovy"])   # average yield, fishing the bottleneck (peaks-only)
+mean(y_base[t_b > 550, "Anchovy"])     # average yield, fishing constantly (sub-adults only)
+```
+
+The `window` shown above (3 years either side) is already the *fixed* value — the first pass today reused something close to Day 9's narrower window, and it relieved the original bottleneck better than fishing everywhere did, exactly as hoped. But the new bottlenecks it introduced elsewhere in the spectrum were worse than the new bottlenecks fishing-everywhere had introduced. That's a genuinely bad trade: better at the one thing it was supposed to fix, worse everywhere else. Worth digging into why before concluding peaks-only fishing was the better strategy after all.
+
+------------------------------------------------------------------------
+
+## Ruling Out Selectivity As the Cause
+
+First hypothesis: maybe the new, worse bottlenecks were because the gear was still catching too far down into the juvenile range. Built a juvenile-inclusive comparison variant — the original setup from before the sub-adults-only restriction — to test it directly:
+
+```{r}
+#| eval: false
+params_fished_juv <- sim_300@params
+params_fished_juv@gear_params$sel_func        <- "box_selectivity_func"
+params_fished_juv@gear_params$w_low           <- 0.01   # juveniles included
+params_fished_juv@gear_params$w_high          <- p$w_mat
+params_fished_juv@gear_params$catchability    <- 1
+params_fished_juv@gear_params$knife_edge_size <- NULL
+
+sim_300_fished_juv        <- sim_300
+sim_300_fished_juv@params <- params_fished_juv
+
+sim_fished_juv <- project(sim_300_fished_juv, t_max = 300, dt = 0.1, t_save = 0.2,
+                          effort = 0.3, progress_bar = FALSE,
+                          method = "predictor-corrector")
+
+sim_peaks_only_juv <- project(sim_300_fished_juv, t_max = 300, dt = 0.1, t_save = 0.2,
+                              effort = effort_arr, progress_bar = FALSE,
+                              method = "predictor-corrector")
+
+plotRelative(getFlux(sim_fished_juv, power = 2), getFlux(sim_fished, power = 2), tlim = c(550, 600))
+plotRelative(getBiomass(sim_fished_juv), getBiomass(sim_fished), tlim = c(550, 600))
+plotRelative(getFlux(sim_peaks_only_juv, power = 2), getFlux(sim_peaks_only, power = 2), tlim = c(550, 600))
+plotRelative(getBiomass(sim_peaks_only_juv), getBiomass(sim_peaks_only), tlim = c(550, 600))
+```
+
+This wasn't it, or at least not the main driver — juveniles-included vs. sub-adults-only produced broadly similar patterns of new bottlenecks under both fishing strategies. Excluding juveniles from the catch is still the right thing to do on biological grounds, but it isn't what explains why peaks-only fishing was creating worse new congestion than fishing constantly.
+
+------------------------------------------------------------------------
+
+## The Real Lever: Fishing Frequency, Not Selectivity
+
+Going back to basics: with a narrow window, the peaks-only schedule is only fishing for a small slice of each cycle — most of the time, effort is sitting at zero. That's the entire appeal (avoid fishing during troughs), but it also means each fishing pulse has to do disproportionately more work whenever it *is* active, concentrating pressure into a short burst rather than spreading it out. That concentration looks like exactly the kind of thing that could create sharper, worse localised bottlenecks than constant low-level fishing does.
+
+Widening the window from something close to Day 9's ~2.6 years to **3 years either side of each peak** (the `window <- 3` already shown above) eased this substantially. The new-bottleneck problem that motivated the selectivity hypothesis mostly went away once fishing was active for a larger share of each cycle — it wasn't about *which* sizes were being caught, it was about *how often* fishing was actually happening.
+
+------------------------------------------------------------------------
+
+## What's Next
+
+- Quantify the lambda-vs-bottleneck-timing observation properly with an actual sweep and a `plotRelative`-style measurement, rather than eyeballing a couple of `plotHover` panels — same lesson Day 9 already learned the hard way, just applied to a new parameter.
+- Now that frequency looks like the dominant lever (not selectivity), run a proper window × effort grid sweep — the thing flagged as missing back on Day 9 — to map out where exactly the trade-off between "relieves the original bottleneck" and "introduces a worse one elsewhere" flips.
+- Re-run today's `plotRelative` comparisons across the *full* size spectrum (not just eyeballing whether new bottlenecks look "worse") to get an honest, quantified before/after picture now that `window = 3` is in place — there may still be a smaller residual bottleneck hiding somewhere that hasn't been checked for directly.
+- Connect the widened-window result back to the juvenile/sub-adult selectivity finding: now that frequency is fixed, is restricting the catch to sub-adults still worth doing on its own, or was most of its apparent benefit actually coming from changes in effective fishing frequency all along?
