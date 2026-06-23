@@ -227,17 +227,13 @@ Model the (mean-subtracted) signal at size bin $w$ as $\text{signal}_w(t) = A(w)
 
 $$\phi(w) = k\, t_{\text{peak}}(w) = k\, t_{\text{birth}} + k\, a(w) \pmod {2\pi}.$$
 
-Projecting this signal onto its own dominant frequency $k$ (the standard DFT-projection identity that `sum(signal * exp(-1i * omega * t_vec))` is computing) gives $C(k) = \tfrac{n}{2}A(w)e^{-i\phi(w)}$, so $\text{Arg(coeffs)} = -\phi(w) \bmod 2\pi$. That minus sign matters: it means the quantity the code actually reports is $-\phi(w)$, not $\phi(w)$ itself.
-
 ### The slope prediction
 
 Differentiating $\phi(w) = k\,t_{\text{birth}} + k\,a(w)$ with respect to $w$ (product rule, with $u(w)=k$ constant and $v(w)=a(w)$, so $u'(w)=0$):
 
 $$\frac{d\phi}{dw} = 0 \cdot a(w) + k\cdot\frac{da}{dw} = \frac{k}{g(w)},$$
 
-using $da/dw = 1/g(w)$ from the fundamental theorem of calculus applied to the age-at-size integral. Carrying the minus sign from `Arg() = -phi(w)` through:
-
-$$\frac{d\,(\text{Arg(coeffs)})}{dw} = -\frac{d\phi}{dw} = -\frac{k}{g(w)} \qquad\Longleftrightarrow\qquad g(w) = -\frac{k}{\,d(\text{Arg})/dw\,}.$$
+using $da/dw = 1/g(w)$ from the fundamental theorem of calculus applied to the age-at-size integral.
 
 **In plain language:** picture each size class as a clock showing how long ago that fish was tiny. Bigger fish reflect what small fish were doing further in the past, and "phase" is just that time-lag written as an angle instead of a number of years. If growth is slow, a lot of lag builds up between one size and the next, so the angle should move a lot per step in size; if growth is fast, the angle barely moves. That same logic is what produces the wraparound in the section above: an angle that moves a lot eventually wraps around the circle.
 
