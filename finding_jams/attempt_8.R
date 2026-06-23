@@ -268,5 +268,3 @@ ggplot(df_heat, aes(x = time, y = log10(w), fill = log10(pmax(bm, 1e-12)))) +
        title = "Size–time heatmap")
 animateSpectra(sim_cohort,tlim=c(0,20))
 
-#Testing to see whether seasonal reproduction can help with this
-

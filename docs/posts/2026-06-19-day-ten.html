@@ -509,24 +509,26 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb12"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a>params_fished_juv <span class="ot">&lt;-</span> sim_300<span class="sc">@</span>params</span>
-<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a>params_fished_juv<span class="sc">@</span>gear_params<span class="sc">$</span>sel_func        <span class="ot">&lt;-</span> <span class="st">"box_selectivity_func"</span></span>
-<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a>params_fished_juv<span class="sc">@</span>gear_params<span class="sc">$</span>w_low           <span class="ot">&lt;-</span> <span class="fl">0.01</span>   <span class="co"># juveniles included</span></span>
-<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a>params_fished_juv<span class="sc">@</span>gear_params<span class="sc">$</span>w_high          <span class="ot">&lt;-</span> p<span class="sc">$</span>w_mat</span>
-<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a>params_fished_juv<span class="sc">@</span>gear_params<span class="sc">$</span>catchability    <span class="ot">&lt;-</span> <span class="dv">1</span></span>
-<span id="cb12-6"><a href="#cb12-6" aria-hidden="true" tabindex="-1"></a>params_fished_juv<span class="sc">@</span>gear_params<span class="sc">$</span>knife_edge_size <span class="ot">&lt;-</span> <span class="cn">NULL</span></span>
-<span id="cb12-7"><a href="#cb12-7" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-8"><a href="#cb12-8" aria-hidden="true" tabindex="-1"></a>sim_300_fished_juv        <span class="ot">&lt;-</span> sim_300</span>
-<span id="cb12-9"><a href="#cb12-9" aria-hidden="true" tabindex="-1"></a>sim_300_fished_juv<span class="sc">@</span>params <span class="ot">&lt;-</span> params_fished_juv</span>
-<span id="cb12-10"><a href="#cb12-10" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-11"><a href="#cb12-11" aria-hidden="true" tabindex="-1"></a>sim_fished_juv <span class="ot">&lt;-</span> <span class="fu">project</span>(sim_300_fished_juv, <span class="at">t_max =</span> <span class="dv">300</span>, <span class="at">dt =</span> <span class="fl">0.1</span>, <span class="at">t_save =</span> <span class="fl">0.2</span>,</span>
-<span id="cb12-12"><a href="#cb12-12" aria-hidden="true" tabindex="-1"></a>                          <span class="at">effort =</span> <span class="fl">0.3</span>, <span class="at">progress_bar =</span> <span class="cn">FALSE</span>,</span>
-<span id="cb12-13"><a href="#cb12-13" aria-hidden="true" tabindex="-1"></a>                          <span class="at">method =</span> <span class="st">"predictor-corrector"</span>)</span>
-<span id="cb12-14"><a href="#cb12-14" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-15"><a href="#cb12-15" aria-hidden="true" tabindex="-1"></a>sim_peaks_only_juv <span class="ot">&lt;-</span> <span class="fu">project</span>(sim_300_fished_juv, <span class="at">t_max =</span> <span class="dv">300</span>, <span class="at">dt =</span> <span class="fl">0.1</span>, <span class="at">t_save =</span> <span class="fl">0.2</span>,</span>
-<span id="cb12-16"><a href="#cb12-16" aria-hidden="true" tabindex="-1"></a>                              <span class="at">effort =</span> effort_arr, <span class="at">progress_bar =</span> <span class="cn">FALSE</span>,</span>
-<span id="cb12-17"><a href="#cb12-17" aria-hidden="true" tabindex="-1"></a>                              <span class="at">method =</span> <span class="st">"predictor-corrector"</span>)</span>
-<span id="cb12-18"><a href="#cb12-18" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-19"><a href="#cb12-19" aria-hidden="true" tabindex="-1"></a><span class="fu">plotRelative</span>(<span class="fu">getFlux</span>(sim_fished_juv, <span class="at">power =</span> <span class="dv">2</span>), <span class="fu">getFlux</span>(sim_fished, <span class="at">power =</span> <span class="dv">2</span>), <span class="at">tlim =</span> <span class="fu">c</span>(<span class="dv">550</span>, <span class="dv">600</span>))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a>gp_juv <span class="ot">&lt;-</span> params_fished_juv<span class="sc">@</span>gear_params</span>
+<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a>gp_juv<span class="sc">$</span>sel_func        <span class="ot">&lt;-</span> <span class="st">"box_selectivity_func"</span></span>
+<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a>gp_juv<span class="sc">$</span>w_low           <span class="ot">&lt;-</span> <span class="fl">0.01</span>   <span class="co"># juveniles included</span></span>
+<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a>gp_juv<span class="sc">$</span>w_high          <span class="ot">&lt;-</span> p<span class="sc">$</span>w_mat</span>
+<span id="cb12-6"><a href="#cb12-6" aria-hidden="true" tabindex="-1"></a>gp_juv<span class="sc">$</span>catchability    <span class="ot">&lt;-</span> <span class="dv">1</span></span>
+<span id="cb12-7"><a href="#cb12-7" aria-hidden="true" tabindex="-1"></a>gp_juv<span class="sc">$</span>knife_edge_size <span class="ot">&lt;-</span> <span class="cn">NULL</span></span>
+<span id="cb12-8"><a href="#cb12-8" aria-hidden="true" tabindex="-1"></a><span class="fu">gear_params</span>(params_fished_juv) <span class="ot">&lt;-</span> gp_juv</span>
+<span id="cb12-9"><a href="#cb12-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-10"><a href="#cb12-10" aria-hidden="true" tabindex="-1"></a>sim_300_fished_juv        <span class="ot">&lt;-</span> sim_300</span>
+<span id="cb12-11"><a href="#cb12-11" aria-hidden="true" tabindex="-1"></a>sim_300_fished_juv<span class="sc">@</span>params <span class="ot">&lt;-</span> params_fished_juv</span>
+<span id="cb12-12"><a href="#cb12-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-13"><a href="#cb12-13" aria-hidden="true" tabindex="-1"></a>sim_fished_juv <span class="ot">&lt;-</span> <span class="fu">project</span>(sim_300_fished_juv, <span class="at">t_max =</span> <span class="dv">300</span>, <span class="at">dt =</span> <span class="fl">0.1</span>, <span class="at">t_save =</span> <span class="fl">0.2</span>,</span>
+<span id="cb12-14"><a href="#cb12-14" aria-hidden="true" tabindex="-1"></a>                          <span class="at">effort =</span> <span class="fl">0.3</span>, <span class="at">progress_bar =</span> <span class="cn">FALSE</span>,</span>
+<span id="cb12-15"><a href="#cb12-15" aria-hidden="true" tabindex="-1"></a>                          <span class="at">method =</span> <span class="st">"predictor-corrector"</span>)</span>
+<span id="cb12-16"><a href="#cb12-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-17"><a href="#cb12-17" aria-hidden="true" tabindex="-1"></a>sim_peaks_only_juv <span class="ot">&lt;-</span> <span class="fu">project</span>(sim_300_fished_juv, <span class="at">t_max =</span> <span class="dv">300</span>, <span class="at">dt =</span> <span class="fl">0.1</span>, <span class="at">t_save =</span> <span class="fl">0.2</span>,</span>
+<span id="cb12-18"><a href="#cb12-18" aria-hidden="true" tabindex="-1"></a>                              <span class="at">effort =</span> effort_arr, <span class="at">progress_bar =</span> <span class="cn">FALSE</span>,</span>
+<span id="cb12-19"><a href="#cb12-19" aria-hidden="true" tabindex="-1"></a>                              <span class="at">method =</span> <span class="st">"predictor-corrector"</span>)</span>
+<span id="cb12-20"><a href="#cb12-20" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-21"><a href="#cb12-21" aria-hidden="true" tabindex="-1"></a><span class="fu">plotRelative</span>(<span class="fu">getFlux</span>(sim_fished_juv, <span class="at">power =</span> <span class="dv">2</span>), <span class="fu">getFlux</span>(sim_fished, <span class="at">power =</span> <span class="dv">2</span>), <span class="at">tlim =</span> <span class="fu">c</span>(<span class="dv">550</span>, <span class="dv">600</span>))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </details>
 <div class="cell-output-display">
 <div>

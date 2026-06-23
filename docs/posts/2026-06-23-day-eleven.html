@@ -1,0 +1,955 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.9.37">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="author" content="Samia">
+<meta name="dcterms.date" content="2026-06-23">
+<meta name="description" content="A consolidation day: confirming that Day 8’s lambda = 2.05 phase ‘discontinuity’ is just Arg() wrapping, actually calculating generation time against the oscillation period, and deriving a phase-growth-rate relationship that turns out to fail a direct check against the data which is itself the more interesting result.">
+
+<title>Day 11: Generation Time, the Growth-Rate Proof, and Unwrapping Day 8’s Discontinuity – Modelling-the-flow-of-biomass</title>
+<style>
+/* Default styles provided by pandoc.
+** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+*/
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../">
+<script src="../site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="../site_libs/quarto-html/popper.min.js"></script>
+<script src="../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-7f8f88aac4f3542376d5c11b86a4c14d.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../site_libs/bootstrap/bootstrap-9a9447a135e5b1c05e5522b7712596fa.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "navbar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "end",
+  "type": "overlay",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+
+  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
+  <script defer="" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+
+<script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN" && texText && texText.data) {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
+</script>
+
+<link rel="stylesheet" href="../styles.css">
+</head>
+
+<body class="nav-fixed quarto-light">
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+    <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container mx-auto">
+    <a class="navbar-brand" href="../index.html">
+    <span class="navbar-title">Modelling-the-flow-of-biomass</span>
+    </a>
+  </div>
+            <div id="quarto-search" class="" title="Search"></div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" role="menu" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll me-auto">
+  <li class="nav-item">
+    <a class="nav-link" href="../index.html"> 
+<span class="menu-text">Home</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../about.html"> 
+<span class="menu-text">About</span></a>
+  </li>  
+</ul>
+          </div> <!-- /navcollapse -->
+            <div class="quarto-navbar-tools">
+</div>
+      </div> <!-- /container-fluid -->
+    </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
+<!-- sidebar -->
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">On this page</h2>
+   
+  <ul>
+  <li><a href="#where-day-10-left-us" id="toc-where-day-10-left-us" class="nav-link active" data-scroll-target="#where-day-10-left-us">Where Day 10 Left Us</a></li>
+  <li><a href="#closing-the-loop-on-day-8-why-lambda-2.05-broke-the-phase-plot" id="toc-closing-the-loop-on-day-8-why-lambda-2.05-broke-the-phase-plot" class="nav-link" data-scroll-target="#closing-the-loop-on-day-8-why-lambda-2.05-broke-the-phase-plot">Closing the Loop on Day 8: Why Lambda = 2.05 “Broke” the Phase Plot</a></li>
+  <li><a href="#how-long-does-it-take-to-grow-up-calculating-generation-time" id="toc-how-long-does-it-take-to-grow-up-calculating-generation-time" class="nav-link" data-scroll-target="#how-long-does-it-take-to-grow-up-calculating-generation-time">How Long Does It Take to Grow Up? Calculating Generation Time</a></li>
+  <li><a href="#the-phase-growth-rate-proof-and-where-it-breaks" id="toc-the-phase-growth-rate-proof-and-where-it-breaks" class="nav-link" data-scroll-target="#the-phase-growth-rate-proof-and-where-it-breaks">The Phase-Growth-Rate Proof and Where It Breaks</a>
+  <ul class="collapse">
+  <li><a href="#where-the-phase-physically-comes-from-mizers-transport-equation" id="toc-where-the-phase-physically-comes-from-mizers-transport-equation" class="nav-link" data-scroll-target="#where-the-phase-physically-comes-from-mizers-transport-equation">Where the phase physically comes from: mizer’s transport equation</a></li>
+  <li><a href="#from-peak-time-to-phase-and-the-sign-that-connects-it-to-arg" id="toc-from-peak-time-to-phase-and-the-sign-that-connects-it-to-arg" class="nav-link" data-scroll-target="#from-peak-time-to-phase-and-the-sign-that-connects-it-to-arg">From peak time to phase, and the sign that connects it to <code>Arg()</code></a></li>
+  <li><a href="#the-slope-prediction" id="toc-the-slope-prediction" class="nav-link" data-scroll-target="#the-slope-prediction">The slope prediction</a></li>
+  <li><a href="#checking-it-against-todays-numbers" id="toc-checking-it-against-todays-numbers" class="nav-link" data-scroll-target="#checking-it-against-todays-numbers">Checking it against today’s numbers</a></li>
+  </ul></li>
+  <li><a href="#whats-next" id="toc-whats-next" class="nav-link" data-scroll-target="#whats-next">What’s Next</a></li>
+  </ul>
+</nav>
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title">Day 11: Generation Time, the Growth-Rate Proof, and Unwrapping Day 8’s Discontinuity</h1>
+  <div class="quarto-categories">
+    <div class="quarto-category">research</div>
+    <div class="quarto-category">mizer</div>
+    <div class="quarto-category">phase</div>
+    <div class="quarto-category">growth-rate</div>
+    <div class="quarto-category">generation-time</div>
+    <div class="quarto-category">consolidation</div>
+    <div class="quarto-category">blog</div>
+  </div>
+  </div>
+
+<div>
+  <div class="description">
+    A consolidation day: confirming that Day 8’s lambda = 2.05 phase ‘discontinuity’ is just Arg() wrapping, actually calculating generation time against the oscillation period, and deriving a phase-growth-rate relationship that turns out to fail a direct check against the data which is itself the more interesting result.
+  </div>
+</div>
+
+
+<div class="quarto-title-meta">
+
+    <div>
+    <div class="quarto-title-meta-heading">Author</div>
+    <div class="quarto-title-meta-contents">
+             <p>Samia </p>
+          </div>
+  </div>
+    
+    <div>
+    <div class="quarto-title-meta-heading">Published</div>
+    <div class="quarto-title-meta-contents">
+      <p class="date">June 23, 2026</p>
+    </div>
+  </div>
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<section id="where-day-10-left-us" class="level2">
+<h2 class="anchored" data-anchor-id="where-day-10-left-us">Where Day 10 Left Us</h2>
+<p>Day 10 closed on fishing frequency, not selectivity, being the dominant lever behind the new bottlenecks created by peaks-only fishing. That thread is still open (the lambda-vs-bottleneck-timing sweep and the window x effort grid are both still queued), but today went back further, to something from Day 8 that had been left unexplained: the near-discontinuous phase jumps that appeared when lambda moved from 2 to 2.05. Today was a consolidation day, going back over that result properly with real numbers instead of leaving it as an “interesting but weird” footnote.</p>
+<p>All of the code below was actually run today (not just sketched). Each section ends with a short what this shows note giving the real numbers that came out, not a guess at what they should be.</p>
+<hr>
+</section>
+<section id="closing-the-loop-on-day-8-why-lambda-2.05-broke-the-phase-plot" class="level2">
+<h2 class="anchored" data-anchor-id="closing-the-loop-on-day-8-why-lambda-2.05-broke-the-phase-plot">Closing the Loop on Day 8: Why Lambda = 2.05 “Broke” the Phase Plot</h2>
+<p>Day 8’s phase-by-size-class plot (<code>Arg()</code> of the DFT coefficient at the dominant frequency, for each size bin) looked smooth at lambda = 2, but at lambda = 2.05 it showed sharp jumps across almost the full <span class="math inline">\(\pm\pi\)</span> range at two size ranges. At the time this got filed as evidence of “a bifurcation point at lambda = 2,” treating the balanced food environment as a structurally special case.</p>
+<p>That framing doesn’t hold up. <code>Arg()</code> only ever returns a value in <span class="math inline">\((-\pi, \pi]\)</span>, because a complex number’s angle is only defined modulo <span class="math inline">\(2\pi\)</span>. Whatever the true, unwrapped phase lag of the system is doing as size increases, the moment it crosses an odd multiple of <span class="math inline">\(\pi\)</span>, <code>Arg()</code> snaps it back into range producing an apparent jump of almost a full <span class="math inline">\(2\pi\)</span> in the plot even though nothing physically discontinuous happened. If lambda = 2.05 makes that crossing happen (twice, within the size range tested) and lambda = 2 doesn’t, that alone is enough to produce exactly the pattern seen on Day 8, with no need for a bifurcation.</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(mizer)</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(patchwork)</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(reshape2)</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(plotly)</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(dplyr)</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(mizerExperimental)</span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(tidyverse)</span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(glue)</span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(ggplot2)</span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a><span class="co"># Same single-species Anchovy setup as Day 8, wrapped in a function so it can</span></span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a><span class="co"># be re-run cleanly for both lambda values without copy-pasting the pipeline.</span></span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a>run_anchovy <span class="ot">&lt;-</span> <span class="cf">function</span>(lambda) {</span>
+<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a>  p <span class="ot">&lt;-</span> <span class="fu">list</span>(</span>
+<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a>    <span class="at">dt =</span> <span class="fl">0.001</span>, <span class="at">dx =</span> <span class="fl">0.1</span>, <span class="at">w_min =</span> <span class="fl">0.0003</span>, <span class="at">w_max =</span> <span class="fl">66.5</span>,</span>
+<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a>    <span class="at">w_mat =</span> <span class="dv">10</span>, <span class="at">alpha =</span> <span class="fl">0.1</span>, <span class="at">gamma =</span> <span class="dv">750</span>, <span class="at">lambda =</span> lambda, <span class="at">a0 =</span> <span class="dv">100</span></span>
+<span id="cb1-17"><a href="#cb1-17" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb1-18"><a href="#cb1-18" aria-hidden="true" tabindex="-1"></a>  kappa <span class="ot">&lt;-</span> p<span class="sc">$</span>a0 <span class="sc">*</span> <span class="fu">exp</span>(<span class="sc">-</span><span class="fl">6.9</span> <span class="sc">*</span> (p<span class="sc">$</span>lambda <span class="sc">-</span> <span class="dv">1</span>))</span>
+<span id="cb1-19"><a href="#cb1-19" aria-hidden="true" tabindex="-1"></a>  no_w  <span class="ot">&lt;-</span> <span class="fu">round</span>(<span class="fu">log</span>(p<span class="sc">$</span>w_max <span class="sc">/</span> p<span class="sc">$</span>w_min) <span class="sc">/</span> p<span class="sc">$</span>dx)</span>
+<span id="cb1-20"><a href="#cb1-20" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-21"><a href="#cb1-21" aria-hidden="true" tabindex="-1"></a>  params <span class="ot">&lt;-</span> <span class="fu">newSingleSpeciesParams</span>(</span>
+<span id="cb1-22"><a href="#cb1-22" aria-hidden="true" tabindex="-1"></a>    <span class="at">species_name =</span> <span class="st">"Anchovy"</span>,</span>
+<span id="cb1-23"><a href="#cb1-23" aria-hidden="true" tabindex="-1"></a>    <span class="at">w_min =</span> p<span class="sc">$</span>w_min, <span class="at">w_max =</span> p<span class="sc">$</span>w_max, <span class="at">w_mat =</span> p<span class="sc">$</span>w_mat,</span>
+<span id="cb1-24"><a href="#cb1-24" aria-hidden="true" tabindex="-1"></a>    <span class="at">no_w  =</span> no_w,    <span class="at">lambda =</span> p<span class="sc">$</span>lambda, <span class="at">kappa =</span> kappa,</span>
+<span id="cb1-25"><a href="#cb1-25" aria-hidden="true" tabindex="-1"></a>    <span class="at">alpha =</span> p<span class="sc">$</span>alpha, <span class="at">gamma  =</span> p<span class="sc">$</span>gamma,  <span class="at">ks    =</span> <span class="dv">0</span></span>
+<span id="cb1-26"><a href="#cb1-26" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb1-27"><a href="#cb1-27" aria-hidden="true" tabindex="-1"></a>  <span class="co"># getResourceRate() is the older name for this getter (mizer now suggests</span></span>
+<span id="cb1-28"><a href="#cb1-28" aria-hidden="true" tabindex="-1"></a>  <span class="co"># resource_rate()) but it still works and is what was actually run today.</span></span>
+<span id="cb1-29"><a href="#cb1-29" aria-hidden="true" tabindex="-1"></a>  r <span class="ot">&lt;-</span> <span class="fu">getResourceRate</span>(params) <span class="sc">*</span> <span class="fl">0.001</span></span>
+<span id="cb1-30"><a href="#cb1-30" aria-hidden="true" tabindex="-1"></a>  params <span class="ot">&lt;-</span> <span class="fu">setResource</span>(params, <span class="at">resource_rate =</span> r,</span>
+<span id="cb1-31"><a href="#cb1-31" aria-hidden="true" tabindex="-1"></a>                        <span class="at">resource_dynamics =</span> <span class="st">"resource_semichemostat"</span>)</span>
+<span id="cb1-32"><a href="#cb1-32" aria-hidden="true" tabindex="-1"></a>  params<span class="sc">@</span>initial_n_pp[] <span class="ot">&lt;-</span> params<span class="sc">@</span>cc_pp <span class="sc">*</span> <span class="fl">0.1</span></span>
+<span id="cb1-33"><a href="#cb1-33" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-34"><a href="#cb1-34" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Spin up, then crash the large size class to kick the system off</span></span>
+<span id="cb1-35"><a href="#cb1-35" aria-hidden="true" tabindex="-1"></a>  <span class="co"># equilibrium and let the food-limitation cycle from Day 7/8 develop.</span></span>
+<span id="cb1-36"><a href="#cb1-36" aria-hidden="true" tabindex="-1"></a>  sim <span class="ot">&lt;-</span> <span class="fu">project</span>(params, <span class="at">t_max =</span> <span class="dv">10</span>, <span class="at">dt =</span> <span class="fl">0.1</span>, <span class="at">t_save =</span> <span class="fl">0.2</span>,</span>
+<span id="cb1-37"><a href="#cb1-37" aria-hidden="true" tabindex="-1"></a>                 <span class="at">progress_bar =</span> <span class="cn">FALSE</span>, <span class="at">method =</span> <span class="st">"predictor-corrector"</span>)</span>
+<span id="cb1-38"><a href="#cb1-38" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-39"><a href="#cb1-39" aria-hidden="true" tabindex="-1"></a>  idx  <span class="ot">&lt;-</span> params<span class="sc">@</span>w <span class="sc">&gt;=</span> <span class="dv">10</span> <span class="sc">&amp;</span> params<span class="sc">@</span>w <span class="sc">&lt;=</span> <span class="dv">100</span></span>
+<span id="cb1-40"><a href="#cb1-40" aria-hidden="true" tabindex="-1"></a>  last <span class="ot">&lt;-</span> <span class="fu">dim</span>(sim<span class="sc">@</span>n)[<span class="dv">1</span>]</span>
+<span id="cb1-41"><a href="#cb1-41" aria-hidden="true" tabindex="-1"></a>  sim<span class="sc">@</span>n[last, , idx] <span class="ot">&lt;-</span> sim<span class="sc">@</span>n[last, , idx] <span class="sc">/</span> <span class="dv">10</span><span class="sc">^</span><span class="dv">3</span></span>
+<span id="cb1-42"><a href="#cb1-42" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-43"><a href="#cb1-43" aria-hidden="true" tabindex="-1"></a>  sim     <span class="ot">&lt;-</span> <span class="fu">project</span>(sim, <span class="at">t_max =</span> <span class="dv">90</span>, <span class="at">dt =</span> <span class="fl">0.1</span>, <span class="at">t_save =</span> <span class="fl">0.2</span>,</span>
+<span id="cb1-44"><a href="#cb1-44" aria-hidden="true" tabindex="-1"></a>                     <span class="at">progress_bar =</span> <span class="cn">FALSE</span>, <span class="at">method =</span> <span class="st">"predictor-corrector"</span>)</span>
+<span id="cb1-45"><a href="#cb1-45" aria-hidden="true" tabindex="-1"></a>  sim_300 <span class="ot">&lt;-</span> <span class="fu">project</span>(sim, <span class="at">t_max =</span> <span class="dv">200</span>, <span class="at">dt =</span> <span class="fl">0.1</span>, <span class="at">t_save =</span> <span class="fl">0.2</span>,</span>
+<span id="cb1-46"><a href="#cb1-46" aria-hidden="true" tabindex="-1"></a>                     <span class="at">progress_bar =</span> <span class="cn">FALSE</span>, <span class="at">method =</span> <span class="st">"predictor-corrector"</span>)</span>
+<span id="cb1-47"><a href="#cb1-47" aria-hidden="true" tabindex="-1"></a>  sim_600 <span class="ot">&lt;-</span> <span class="fu">project</span>(sim_300, <span class="at">t_max =</span> <span class="dv">300</span>, <span class="at">dt =</span> <span class="fl">0.1</span>, <span class="at">t_save =</span> <span class="fl">0.2</span>,</span>
+<span id="cb1-48"><a href="#cb1-48" aria-hidden="true" tabindex="-1"></a>                     <span class="at">progress_bar =</span> <span class="cn">FALSE</span>, <span class="at">method =</span> <span class="st">"predictor-corrector"</span>)</span>
+<span id="cb1-49"><a href="#cb1-49" aria-hidden="true" tabindex="-1"></a>  <span class="fu">list</span>(<span class="at">params =</span> params, <span class="at">sim_600 =</span> sim_600)</span>
+<span id="cb1-50"><a href="#cb1-50" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb1-51"><a href="#cb1-51" aria-hidden="true" tabindex="-1"></a><span class="co"># Note: this triggers a mizer warning about an "unrealistic erepro" value for</span></span>
+<span id="cb1-52"><a href="#cb1-52" aria-hidden="true" tabindex="-1"></a><span class="co"># Anchovy. That's expected for this toy single-species fit (it isn't tuned to</span></span>
+<span id="cb1-53"><a href="#cb1-53" aria-hidden="true" tabindex="-1"></a><span class="co"># match a real stock's reproductive biology) and isn't a sign of a bug.</span></span>
+<span id="cb1-54"><a href="#cb1-54" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-55"><a href="#cb1-55" aria-hidden="true" tabindex="-1"></a><span class="co"># Reused from Day 8: power spectrum of a (mean-subtracted) signal, skipping</span></span>
+<span id="cb1-56"><a href="#cb1-56" aria-hidden="true" tabindex="-1"></a><span class="co"># the zero-frequency bin.</span></span>
+<span id="cb1-57"><a href="#cb1-57" aria-hidden="true" tabindex="-1"></a>power_spectrum <span class="ot">&lt;-</span> <span class="cf">function</span>(signal, dt) {</span>
+<span id="cb1-58"><a href="#cb1-58" aria-hidden="true" tabindex="-1"></a>  signal <span class="ot">&lt;-</span> signal <span class="sc">-</span> <span class="fu">mean</span>(signal)</span>
+<span id="cb1-59"><a href="#cb1-59" aria-hidden="true" tabindex="-1"></a>  n      <span class="ot">&lt;-</span> <span class="fu">length</span>(signal)</span>
+<span id="cb1-60"><a href="#cb1-60" aria-hidden="true" tabindex="-1"></a>  freqs  <span class="ot">&lt;-</span> (<span class="dv">1</span><span class="sc">:</span>(n <span class="sc">-</span> <span class="dv">1</span>)) <span class="sc">/</span> (n <span class="sc">*</span> dt)</span>
+<span id="cb1-61"><a href="#cb1-61" aria-hidden="true" tabindex="-1"></a>  power  <span class="ot">&lt;-</span> <span class="fu">Mod</span>(<span class="fu">fft</span>(signal))<span class="sc">^</span><span class="dv">2</span></span>
+<span id="cb1-62"><a href="#cb1-62" aria-hidden="true" tabindex="-1"></a>  half   <span class="ot">&lt;-</span> <span class="fu">seq_len</span>(<span class="fu">floor</span>((n <span class="sc">-</span> <span class="dv">1</span>) <span class="sc">/</span> <span class="dv">2</span>))</span>
+<span id="cb1-63"><a href="#cb1-63" aria-hidden="true" tabindex="-1"></a>  <span class="fu">data.frame</span>(<span class="at">freq =</span> freqs[half], <span class="at">period =</span> <span class="dv">1</span> <span class="sc">/</span> freqs[half], <span class="at">power =</span> power[half <span class="sc">+</span> <span class="dv">1</span>])</span>
+<span id="cb1-64"><a href="#cb1-64" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb1-65"><a href="#cb1-65" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-66"><a href="#cb1-66" aria-hidden="true" tabindex="-1"></a><span class="co"># DFT coefficient at the dominant frequency, for every size bin at once.</span></span>
+<span id="cb1-67"><a href="#cb1-67" aria-hidden="true" tabindex="-1"></a><span class="co"># Mod() gives amplitude, Arg() gives the (wrapped) phase used throughout.</span></span>
+<span id="cb1-68"><a href="#cb1-68" aria-hidden="true" tabindex="-1"></a>phase_by_size <span class="ot">&lt;-</span> <span class="cf">function</span>(sim_600, params) {</span>
+<span id="cb1-69"><a href="#cb1-69" aria-hidden="true" tabindex="-1"></a>  times  <span class="ot">&lt;-</span> <span class="fu">as.numeric</span>(<span class="fu">dimnames</span>(sim_600<span class="sc">@</span>n)[[<span class="dv">1</span>]])</span>
+<span id="cb1-70"><a href="#cb1-70" aria-hidden="true" tabindex="-1"></a>  bm     <span class="ot">&lt;-</span> <span class="fu">getBiomass</span>(sim_600)[, <span class="st">"Anchovy"</span>]</span>
+<span id="cb1-71"><a href="#cb1-71" aria-hidden="true" tabindex="-1"></a>  ps     <span class="ot">&lt;-</span> <span class="fu">power_spectrum</span>(bm[times <span class="sc">&gt;</span> <span class="dv">300</span>], <span class="fl">0.2</span>)</span>
+<span id="cb1-72"><a href="#cb1-72" aria-hidden="true" tabindex="-1"></a>  period_dom <span class="ot">&lt;-</span> ps<span class="sc">$</span>period[<span class="fu">which.max</span>(ps<span class="sc">$</span>power)]</span>
+<span id="cb1-73"><a href="#cb1-73" aria-hidden="true" tabindex="-1"></a>  omega  <span class="ot">&lt;-</span> <span class="dv">2</span> <span class="sc">*</span> pi <span class="sc">/</span> period_dom</span>
+<span id="cb1-74"><a href="#cb1-74" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-75"><a href="#cb1-75" aria-hidden="true" tabindex="-1"></a>  post   <span class="ot">&lt;-</span> times <span class="sc">&gt;</span> <span class="dv">300</span></span>
+<span id="cb1-76"><a href="#cb1-76" aria-hidden="true" tabindex="-1"></a>  t_vec  <span class="ot">&lt;-</span> times[post] <span class="sc">-</span> times[post][<span class="dv">1</span>]</span>
+<span id="cb1-77"><a href="#cb1-77" aria-hidden="true" tabindex="-1"></a>  n_post <span class="ot">&lt;-</span> sim_600<span class="sc">@</span>n[post, <span class="st">"Anchovy"</span>, ]</span>
+<span id="cb1-78"><a href="#cb1-78" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-79"><a href="#cb1-79" aria-hidden="true" tabindex="-1"></a>  coeffs <span class="ot">&lt;-</span> <span class="fu">apply</span>(n_post, <span class="dv">2</span>, <span class="cf">function</span>(x) {</span>
+<span id="cb1-80"><a href="#cb1-80" aria-hidden="true" tabindex="-1"></a>    signal <span class="ot">&lt;-</span> x <span class="sc">-</span> <span class="fu">mean</span>(x)</span>
+<span id="cb1-81"><a href="#cb1-81" aria-hidden="true" tabindex="-1"></a>    <span class="fu">sum</span>(signal <span class="sc">*</span> <span class="fu">exp</span>(<span class="sc">-</span><span class="dv">1</span>i <span class="sc">*</span> omega <span class="sc">*</span> t_vec))</span>
+<span id="cb1-82"><a href="#cb1-82" aria-hidden="true" tabindex="-1"></a>  })</span>
+<span id="cb1-83"><a href="#cb1-83" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-84"><a href="#cb1-84" aria-hidden="true" tabindex="-1"></a>  <span class="fu">list</span>(<span class="at">period_dom =</span> period_dom,</span>
+<span id="cb1-85"><a href="#cb1-85" aria-hidden="true" tabindex="-1"></a>       <span class="at">df =</span> <span class="fu">data.frame</span>(<span class="at">w =</span> params<span class="sc">@</span>w, <span class="at">amplitude =</span> <span class="fu">Mod</span>(coeffs), <span class="at">phase =</span> <span class="fu">Arg</span>(coeffs)))</span>
+<span id="cb1-86"><a href="#cb1-86" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb1-87"><a href="#cb1-87" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-88"><a href="#cb1-88" aria-hidden="true" tabindex="-1"></a>run_2    <span class="ot">&lt;-</span> <span class="fu">run_anchovy</span>(<span class="dv">2</span>)</span>
+<span id="cb1-89"><a href="#cb1-89" aria-hidden="true" tabindex="-1"></a>run_2<span class="fl">.05</span> <span class="ot">&lt;-</span> <span class="fu">run_anchovy</span>(<span class="fl">2.05</span>)</span>
+<span id="cb1-90"><a href="#cb1-90" aria-hidden="true" tabindex="-1"></a>res_2    <span class="ot">&lt;-</span> <span class="fu">phase_by_size</span>(run_2<span class="sc">$</span>sim_600, run_2<span class="sc">$</span>params)</span>
+<span id="cb1-91"><a href="#cb1-91" aria-hidden="true" tabindex="-1"></a>res_2<span class="fl">.05</span> <span class="ot">&lt;-</span> <span class="fu">phase_by_size</span>(run_2<span class="fl">.05</span><span class="sc">$</span>sim_600, run_2<span class="fl">.05</span><span class="sc">$</span>params)</span>
+<span id="cb1-92"><a href="#cb1-92" aria-hidden="true" tabindex="-1"></a>df_2     <span class="ot">&lt;-</span> res_2<span class="sc">$</span>df</span>
+<span id="cb1-93"><a href="#cb1-93" aria-hidden="true" tabindex="-1"></a>df_2<span class="fl">.05</span>  <span class="ot">&lt;-</span> res_2<span class="fl">.05</span><span class="sc">$</span>df</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+</div>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>p1 <span class="ot">&lt;-</span> <span class="fu">ggplot</span>(df_2, <span class="fu">aes</span>(<span class="at">x =</span> w, <span class="at">y =</span> phase)) <span class="sc">+</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>() <span class="sc">+</span> <span class="fu">scale_x_log10</span>() <span class="sc">+</span></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"Size (g)"</span>, <span class="at">y =</span> <span class="st">"Phase (radians)"</span>, <span class="at">title =</span> <span class="st">"lambda = 2"</span>)</span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>p2 <span class="ot">&lt;-</span> <span class="fu">ggplot</span>(df_2<span class="fl">.05</span>, <span class="fu">aes</span>(<span class="at">x =</span> w, <span class="at">y =</span> phase)) <span class="sc">+</span></span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>() <span class="sc">+</span> <span class="fu">scale_x_log10</span>() <span class="sc">+</span></span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"Size (g)"</span>, <span class="at">y =</span> <span class="st">"Phase (radians)"</span>, <span class="at">title =</span> <span class="st">"lambda = 2.05"</span>)</span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a>p1 <span class="sc">+</span> p2</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="2026-06-23-day-eleven_files/figure-html/unnamed-chunk-2-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+<p><strong>What this shows:</strong> at lambda = 2, the phase stays inside <span class="math inline">\([-1.66, 2.68]\)</span> radians across the whole size range, well within one branch of <span class="math inline">\((-\pi,\pi]\)</span>, so there’s nothing to wrap. At lambda = 2.05, phase spans <span class="math inline">\([-3.14, 3.13]\)</span> radians, i.e.&nbsp;essentially the full circle, and there are two places where it jumps almost exactly <span class="math inline">\(2\pi\)</span> between adjacent size bins: a jump of 6.16 radians around <span class="math inline">\(w \approx 0.0010\)</span>–<span class="math inline">\(0.0011\)</span> g, and a jump of 6.25 radians around <span class="math inline">\(w \approx 1.95\)</span>–<span class="math inline">\(2.15\)</span> g (both compared with a largest jump of only 0.31 radians anywhere in the lambda = 2 curve). <span class="math inline">\(2\pi \approx 6.28\)</span>, so these are indeed full wraps, not gradual structural changes.</p>
+<p>(Day 8’s original eyeballed read placed the jump locations at roughly 0.003–0.01 g and ~1 g which is in the right ballpark but not exact, which is itself a small reminder that Day 8’s numbers were never claimed to be precise either.)</p>
+<p>If this really were a dynamical bifurcation, it should leave a mark on the actual dynamics, not just on a quantity (<span class="math inline">\(\mathrm{Arg}\)</span>) that is mathematically guaranteed to wrap. The size-time heatmap is a check on exactly that:</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>times  <span class="ot">&lt;-</span> <span class="fu">as.numeric</span>(<span class="fu">dimnames</span>(run_2<span class="fl">.05</span><span class="sc">$</span>sim_600<span class="sc">@</span>n)[[<span class="dv">1</span>]])</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>t_win  <span class="ot">&lt;-</span> times <span class="sc">&gt;</span> <span class="dv">560</span> <span class="sc">&amp;</span> times <span class="sc">&lt;</span> <span class="dv">580</span>   <span class="co"># ~4 cycles</span></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>bm_win <span class="ot">&lt;-</span> <span class="fu">sweep</span>(run_2<span class="fl">.05</span><span class="sc">$</span>sim_600<span class="sc">@</span>n[t_win, <span class="st">"Anchovy"</span>, ], <span class="dv">2</span>, run_2<span class="fl">.05</span><span class="sc">$</span>params<span class="sc">@</span>w<span class="sc">^</span><span class="dv">2</span>, <span class="st">"*"</span>)</span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>df_heat <span class="ot">&lt;-</span> <span class="fu">melt</span>(bm_win)</span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a><span class="fu">names</span>(df_heat) <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">"time"</span>, <span class="st">"w"</span>, <span class="st">"bm"</span>)</span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>df_heat<span class="sc">$</span>time <span class="ot">&lt;-</span> <span class="fu">as.numeric</span>(<span class="fu">as.character</span>(df_heat<span class="sc">$</span>time))</span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a>df_heat<span class="sc">$</span>w    <span class="ot">&lt;-</span> <span class="fu">as.numeric</span>(<span class="fu">as.character</span>(df_heat<span class="sc">$</span>w))</span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(df_heat, <span class="fu">aes</span>(<span class="at">x =</span> time, <span class="at">y =</span> <span class="fu">log10</span>(w), <span class="at">fill =</span> <span class="fu">log10</span>(<span class="fu">pmax</span>(bm, <span class="fl">1e-12</span>)))) <span class="sc">+</span></span>
+<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_raster</span>() <span class="sc">+</span></span>
+<span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_fill_viridis_c</span>(<span class="at">name =</span> <span class="st">"log10</span><span class="sc">\n</span><span class="st">biomass"</span>) <span class="sc">+</span></span>
+<span id="cb3-13"><a href="#cb3-13" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"Time (years)"</span>, <span class="at">y =</span> <span class="st">"log10(size [g])"</span>,</span>
+<span id="cb3-14"><a href="#cb3-14" aria-hidden="true" tabindex="-1"></a>       <span class="at">title =</span> <span class="st">"Size-time heatmap, lambda = 2.05"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="2026-06-23-day-eleven_files/figure-html/unnamed-chunk-3-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+<p><strong>What this shows:</strong> the heatmap at lambda = 2.05 looks like Day 8’s lambda = 2 heatmap ,with a slightly diagonal structure, everything brightening and dimming together. Nothing about the raw dynamics looks different near the two “jump” sizes. The only place the lambda = 2.05 case looks different from lambda = 2 is in the wrapped phase number, exactly what the wraparound explanation predicts and the bifurcation explanation doesn’t.</p>
+<hr>
+</section>
+<section id="how-long-does-it-take-to-grow-up-calculating-generation-time" class="level2">
+<h2 class="anchored" data-anchor-id="how-long-does-it-take-to-grow-up-calculating-generation-time">How Long Does It Take to Grow Up? Calculating Generation Time</h2>
+<p>Day 8’s mechanistic story was that the oscillation period is set by how long it takes a recruit to grow up to maturity, supported indirectly by the <code>period ~ w_mat^0.2</code> scaling law. The generation time itself had never actually been calculated. Today it was, using the steady-state growth rate from <code>getEGrowth()</code>:</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>params <span class="ot">&lt;-</span> run_2<span class="sc">$</span>params</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>g  <span class="ot">&lt;-</span> <span class="fu">getEGrowth</span>(params)[<span class="st">"Anchovy"</span>, ]   <span class="co"># steady-state growth rate g(w)</span></span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>w  <span class="ot">&lt;-</span> params<span class="sc">@</span>w</span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>dw <span class="ot">&lt;-</span> params<span class="sc">@</span>dw</span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a><span class="co"># age(w) = integral_{w_min}^{w} 1/g(w') dw', via the trapezoidal rule —</span></span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a><span class="co"># i.e. cumulative time spent growing from w_min up to w.</span></span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>integrand  <span class="ot">&lt;-</span> <span class="dv">1</span> <span class="sc">/</span> g</span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a>age        <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="dv">0</span>, <span class="fu">cumsum</span>((integrand[<span class="sc">-</span><span class="dv">1</span>] <span class="sc">+</span> integrand[<span class="sc">-</span><span class="fu">length</span>(integrand)]) <span class="sc">/</span> <span class="dv">2</span> <span class="sc">*</span> dw[<span class="sc">-</span><span class="fu">length</span>(dw)]))</span>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a>age_at_mat <span class="ot">&lt;-</span> <span class="fu">approx</span>(<span class="at">x =</span> w, <span class="at">y =</span> age, <span class="at">xout =</span> params<span class="sc">@</span>species_params<span class="sc">$</span>w_mat)<span class="sc">$</span>y</span>
+<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a>df_age <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(<span class="at">w =</span> <span class="fu">head</span>(w, <span class="sc">-</span><span class="dv">1</span>), <span class="at">age =</span> <span class="fu">head</span>(age, <span class="sc">-</span><span class="dv">1</span>))</span>
+<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-14"><a href="#cb4-14" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(df_age, <span class="fu">aes</span>(<span class="at">x =</span> w, <span class="at">y =</span> age)) <span class="sc">+</span></span>
+<span id="cb4-15"><a href="#cb4-15" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>() <span class="sc">+</span></span>
+<span id="cb4-16"><a href="#cb4-16" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_vline</span>(<span class="at">xintercept =</span> params<span class="sc">@</span>species_params<span class="sc">$</span>w_mat, <span class="at">linetype =</span> <span class="st">"dashed"</span>, <span class="at">colour =</span> <span class="st">"grey50"</span>) <span class="sc">+</span></span>
+<span id="cb4-17"><a href="#cb4-17" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_hline</span>(<span class="at">yintercept =</span> age_at_mat, <span class="at">linetype =</span> <span class="st">"dashed"</span>, <span class="at">colour =</span> <span class="st">"grey50"</span>) <span class="sc">+</span></span>
+<span id="cb4-18"><a href="#cb4-18" aria-hidden="true" tabindex="-1"></a>  <span class="fu">annotate</span>(<span class="st">"point"</span>, <span class="at">x =</span> params<span class="sc">@</span>species_params<span class="sc">$</span>w_mat, <span class="at">y =</span> age_at_mat, <span class="at">colour =</span> <span class="st">"red"</span>, <span class="at">size =</span> <span class="dv">2</span>) <span class="sc">+</span></span>
+<span id="cb4-19"><a href="#cb4-19" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_x_log10</span>() <span class="sc">+</span></span>
+<span id="cb4-20"><a href="#cb4-20" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"body mass (g)"</span>, <span class="at">y =</span> <span class="st">"age (years)"</span>, <span class="at">title =</span> <span class="st">"Age-at-size, Anchovy"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="2026-06-23-day-eleven_files/figure-html/unnamed-chunk-4-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+<p><code>age_at_mat</code> is exactly the generation time: how long, in years, a fish takes to grow from <code>w_min</code> to <code>w_mat</code> under the steady-state growth rate.</p>
+<p><strong>What this shows:</strong> at lambda = 2, <code>age_at_mat</code> = 3.50 years and the dominant FFT period (<code>period_dom</code>, same machinery as Day 8) = 8.33 years, giving a ratio of 2.38, not 3. Re-running the same calculation under the lambda = 2.05 parameters gives <code>age_at_mat</code> = 2.70 years against a period of 7.14 years giving a ratio of 2.65. So the period is consistently a small multiple of the generation time, somewhere around 2.4–2.7, in both cases closer to “two and a half generations” than to a clean “three generations.” The original ballpark guess was in the right neighbourhood, but the actual number ,once calculated rather than eyeballed, is a bit lower than that. The fact that it isn’t a clean integer (2, 3, or otherwise) in either case is itself worth sitting with rather than rounding away.</p>
+<hr>
+</section>
+<section id="the-phase-growth-rate-proof-and-where-it-breaks" class="level2">
+<h2 class="anchored" data-anchor-id="the-phase-growth-rate-proof-and-where-it-breaks">The Phase-Growth-Rate Proof and Where It Breaks</h2>
+<p>The rest of the day went into deriving, properly, how phase should depend on growth rate, rather than just asserting the relationship. The derivation has two pieces: where the phase physically comes from in mizer’s underlying equation, and what slope it should therefore have as a function of size. Each piece holds up on its own. What doesn’t hold up is the final prediction, once it’s actually checked against today’s numbers, and that failure turns out to be informative rather than just a dead end.</p>
+<section id="where-the-phase-physically-comes-from-mizers-transport-equation" class="level3">
+<h3 class="anchored" data-anchor-id="where-the-phase-physically-comes-from-mizers-transport-equation">Where the phase physically comes from: mizer’s transport equation</h3>
+<p>Mizer’s size-spectrum dynamics are, at their core, a transport equation in <span class="math inline">\(w\)</span>:</p>
+<p><span class="math display">\[\frac{\partial n(w,t)}{\partial t} + \frac{\partial}{\partial w}\big[g(w)\,n(w,t)\big] = -(\text{death terms}),\]</span></p>
+<p>meaning biomass density is advected through size-space along characteristic curves defined by <span class="math inline">\(dw/dt = g(w)\)</span>. A characteristic starting at <span class="math inline">\(w_{min}\)</span> at birth time <span class="math inline">\(t_{\text{birth}}\)</span> reaches size <span class="math inline">\(w\)</span> at time <span class="math inline">\(t_{\text{birth}} + \tau(w)\)</span>, where <span class="math inline">\(\tau\)</span> solves <span class="math inline">\(d\tau/dw = 1/g(w)\)</span> with <span class="math inline">\(\tau(w_{min})=0\)</span>. Separating variables,</p>
+<p><span class="math display">\[\tau(w) = \int_{w_{min}}^{w} \frac{dw'}{g(w')} = a(w),\]</span></p>
+<p>exactly the age-at-size integral calculated in the previous section. So a perturbation introduced at <span class="math inline">\(w_{min}\)</span> at time <span class="math inline">\(t_{\text{birth}}\)</span> is carried, to leading order, along this characteristic and peaks at size <span class="math inline">\(w\)</span> at time</p>
+<p><span class="math display">\[t_{\text{peak}}(w) = t_{\text{birth}} + a(w).\]</span></p>
+</section>
+<section id="from-peak-time-to-phase-and-the-sign-that-connects-it-to-arg" class="level3">
+<h3 class="anchored" data-anchor-id="from-peak-time-to-phase-and-the-sign-that-connects-it-to-arg">From peak time to phase, and the sign that connects it to <code>Arg()</code></h3>
+<p>Model the (mean-subtracted) signal at size bin <span class="math inline">\(w\)</span> as <span class="math inline">\(\text{signal}_w(t) = A(w)\cos(k t - \phi(w))\)</span>, with <span class="math inline">\(A(w)&gt;0\)</span> and <span class="math inline">\(k = 2\pi/{}\)</span><code>period_dom</code> the dominant angular frequency (the code’s <code>omega</code>). This cosine is at its maximum exactly when its argument is <span class="math inline">\(0 \bmod 2\pi\)</span>, i.e.&nbsp;when <span class="math inline">\(k t - \phi(w) = 0\)</span>. Solving for <span class="math inline">\(t\)</span> defines <span class="math inline">\(t_{\text{peak}}(w) = \phi(w)/k\)</span>, i.e.</p>
+<p><span class="math display">\[\phi(w) = k\, t_{\text{peak}}(w) = k\, t_{\text{birth}} + k\, a(w) \pmod {2\pi}.\]</span></p>
+<p>Projecting this signal onto its own dominant frequency <span class="math inline">\(k\)</span> (the standard DFT-projection identity that <code>sum(signal * exp(-1i * omega * t_vec))</code> is computing) gives <span class="math inline">\(C(k) = \tfrac{n}{2}A(w)e^{-i\phi(w)}\)</span>, so <span class="math inline">\(\text{Arg(coeffs)} = -\phi(w) \bmod 2\pi\)</span>. That minus sign matters: it means the quantity the code actually reports is <span class="math inline">\(-\phi(w)\)</span>, not <span class="math inline">\(\phi(w)\)</span> itself.</p>
+</section>
+<section id="the-slope-prediction" class="level3">
+<h3 class="anchored" data-anchor-id="the-slope-prediction">The slope prediction</h3>
+<p>Differentiating <span class="math inline">\(\phi(w) = k\,t_{\text{birth}} + k\,a(w)\)</span> with respect to <span class="math inline">\(w\)</span> (product rule, with <span class="math inline">\(u(w)=k\)</span> constant and <span class="math inline">\(v(w)=a(w)\)</span>, so <span class="math inline">\(u'(w)=0\)</span>):</p>
+<p><span class="math display">\[\frac{d\phi}{dw} = 0 \cdot a(w) + k\cdot\frac{da}{dw} = \frac{k}{g(w)},\]</span></p>
+<p>using <span class="math inline">\(da/dw = 1/g(w)\)</span> from the fundamental theorem of calculus applied to the age-at-size integral. Carrying the minus sign from <code>Arg() = -phi(w)</code> through:</p>
+<p><span class="math display">\[\frac{d\,(\text{Arg(coeffs)})}{dw} = -\frac{d\phi}{dw} = -\frac{k}{g(w)} \qquad\Longleftrightarrow\qquad g(w) = -\frac{k}{\,d(\text{Arg})/dw\,}.\]</span></p>
+<p><strong>In plain language:</strong> picture each size class as a clock showing how long ago that fish was tiny. Bigger fish reflect what small fish were doing further in the past, and “phase” is just that time-lag written as an angle instead of a number of years. If growth is slow, a lot of lag builds up between one size and the next, so the angle should move a lot per step in size; if growth is fast, the angle barely moves. That same logic is what produces the wraparound in the section above: an angle that moves a lot eventually wraps around the circle.</p>
+</section>
+<section id="checking-it-against-todays-numbers" class="level3">
+<h3 class="anchored" data-anchor-id="checking-it-against-todays-numbers">Checking it against today’s numbers</h3>
+<p>The prediction is specific enough to test directly: <code>Arg(coeffs)</code> should <em>fall</em> steadily as size increases, and the total fall from <span class="math inline">\(w_{min}\)</span> to <span class="math inline">\(w_{mat}\)</span> should equal <span class="math inline">\(k \cdot a(w_{mat}) = 2\pi/2.38 \approx 2.64\)</span> radians (using the lambda = 2 numbers from the previous section).</p>
+<p>That is not what the lambda = 2 phase curve actually does. Reading the curve plotted earlier: phase starts at 0.98 radians at <span class="math inline">\(w_{min}\)</span>, <em>rises</em> to a peak of about 2.68 radians around <span class="math inline">\(w \approx 0.005\)</span> g, and only then starts falling, reaching 1.40 radians by <span class="math inline">\(w \approx 9.8\)</span> g (the nearest size bin to <span class="math inline">\(w_{mat} = 10\)</span> g) before continuing down to <span class="math inline">\(-1.66\)</span> at <span class="math inline">\(w_{max}\)</span>. The measured change from <span class="math inline">\(w_{min}\)</span> to <span class="math inline">\(w_{mat}\)</span> is <span class="math inline">\(0.98 - 1.40 = -0.42\)</span> radians: the <em>wrong sign</em> (phase rose slightly overall, it didn’t fall) and less than a sixth of the predicted 2.64 radian drop.</p>
+<p><strong>Why the simple picture fails.</strong> The derivation assumes something that isn’t true, which is that growth rate is fixed. Neither holds.. Today’s derivation independently predicts what a <em>non</em>-feedback, one-way version of this system would look like, a phase that falls steadily and by a specific predictable amount, and the real curve does neither. Two independent checks (the heatmap’s structure; the wrong-signed, wrong-sized phase drop) land on the same conclusion.</p>
+<p>The fixed-growth-rate assumption is also suspect on its own terms: the food supply driving growth oscillates along with everything else in this model, so <span class="math inline">\(g(w)\)</span> measured at the unperturbed steady state is, at best, an average over a quantity that’s actually moving. Separating “the model is a feedback loop, not a delay line” from “the growth rate used was the wrong (time-averaged) one” isn’t possible from today’s numbers alone, both push in the direction of breaking the simple proof, and untangling them is the natural next step.</p>
+<p>A side exploration today, looking for parameter settings closer to a pure sine wave (low harmonic content) rather than Day 8’s sharp-crash-long-plateau shape, was aimed at getting a cleaner signal to eventually retest this against a single-frequency, low-harmonic signal is a fairer test of a single-frequency theory than the one used above. Bumping the resource depletion rate from <code>0.001</code> to <code>0.01</code> (faster-replenishing resource pool) was the first thing tried:</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>nice_biomass_plot <span class="ot">&lt;-</span> <span class="cf">function</span>(sim, params, t){</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>  abm  <span class="ot">&lt;-</span> <span class="fu">melt</span>(<span class="fu">getBiomass</span>(sim))</span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>  abmr <span class="ot">&lt;-</span> <span class="fu">melt</span>(<span class="fu">getBiomass</span>(sim, <span class="at">min_w =</span> <span class="fl">0.01</span>, <span class="at">max_w =</span> <span class="fl">0.4</span>))</span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>  abmr<span class="sc">$</span>sp <span class="ot">&lt;-</span> <span class="st">"small Anchovy"</span></span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>  pbm <span class="ot">&lt;-</span> sim<span class="sc">@</span>n_pp <span class="sc">%*%</span> (params<span class="sc">@</span>w_full <span class="sc">*</span> params<span class="sc">@</span>dw_full)</span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>  pbm <span class="ot">&lt;-</span> <span class="fu">melt</span>(pbm)</span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">names</span>(pbm)[<span class="fu">names</span>(pbm) <span class="sc">==</span> <span class="st">"Var1"</span>] <span class="ot">&lt;-</span> <span class="st">"time"</span></span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>  pbm<span class="sc">$</span>Var2 <span class="ot">&lt;-</span> <span class="cn">NULL</span></span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a>  pbm<span class="sc">$</span>sp <span class="ot">&lt;-</span> <span class="st">"Plankton"</span></span>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a>  bm <span class="ot">&lt;-</span> <span class="fu">rbind</span>(pbm, abm, abmr)</span>
+<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">plot_ly</span>(bm) <span class="sc">%&gt;%</span></span>
+<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a>    <span class="fu">filter</span>(time <span class="sc">&gt;=</span> t) <span class="sc">%&gt;%</span></span>
+<span id="cb5-13"><a href="#cb5-13" aria-hidden="true" tabindex="-1"></a>    <span class="fu">add_lines</span>(<span class="at">x =</span> <span class="sc">~</span>time, <span class="at">y =</span> <span class="sc">~</span>value, <span class="at">color =</span> <span class="sc">~</span>sp) <span class="sc">%&gt;%</span></span>
+<span id="cb5-14"><a href="#cb5-14" aria-hidden="true" tabindex="-1"></a>    <span class="fu">layout</span>(<span class="at">yaxis =</span> <span class="fu">list</span>(<span class="at">type =</span> <span class="st">"log"</span>, <span class="at">exponentformat =</span> <span class="st">"power"</span>,</span>
+<span id="cb5-15"><a href="#cb5-15" aria-hidden="true" tabindex="-1"></a>                        <span class="at">title_text =</span> <span class="st">"biomass (g/m^3)"</span>, <span class="at">range =</span> <span class="fu">c</span>(<span class="sc">-</span><span class="dv">7</span>, <span class="dv">2</span>)),</span>
+<span id="cb5-16"><a href="#cb5-16" aria-hidden="true" tabindex="-1"></a>           <span class="at">xaxis =</span> <span class="fu">list</span>(<span class="at">title_text =</span> <span class="st">"time (year)"</span>))</span>
+<span id="cb5-17"><a href="#cb5-17" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb5-18"><a href="#cb5-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-19"><a href="#cb5-19" aria-hidden="true" tabindex="-1"></a>p <span class="ot">&lt;-</span> <span class="fu">list</span>(</span>
+<span id="cb5-20"><a href="#cb5-20" aria-hidden="true" tabindex="-1"></a>  <span class="at">dt =</span> <span class="fl">0.001</span>, <span class="at">dx =</span> <span class="fl">0.1</span>, <span class="at">w_min =</span> <span class="fl">0.0003</span>, <span class="at">w_max =</span> <span class="fl">66.5</span>,</span>
+<span id="cb5-21"><a href="#cb5-21" aria-hidden="true" tabindex="-1"></a>  <span class="at">w_mat =</span> <span class="dv">10</span>, <span class="at">alpha =</span> <span class="fl">0.1</span>, <span class="at">gamma =</span> <span class="dv">750</span>, <span class="at">lambda =</span> <span class="fl">2.05</span>, <span class="at">a0 =</span> <span class="dv">100</span></span>
+<span id="cb5-22"><a href="#cb5-22" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb5-23"><a href="#cb5-23" aria-hidden="true" tabindex="-1"></a>kappa <span class="ot">&lt;-</span> p<span class="sc">$</span>a0 <span class="sc">*</span> <span class="fu">exp</span>(<span class="sc">-</span><span class="fl">6.9</span> <span class="sc">*</span> (p<span class="sc">$</span>lambda <span class="sc">-</span> <span class="dv">1</span>))</span>
+<span id="cb5-24"><a href="#cb5-24" aria-hidden="true" tabindex="-1"></a>no_w  <span class="ot">&lt;-</span> <span class="fu">round</span>(<span class="fu">log</span>(p<span class="sc">$</span>w_max <span class="sc">/</span> p<span class="sc">$</span>w_min) <span class="sc">/</span> p<span class="sc">$</span>dx)</span>
+<span id="cb5-25"><a href="#cb5-25" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-26"><a href="#cb5-26" aria-hidden="true" tabindex="-1"></a>params_fast <span class="ot">&lt;-</span> <span class="fu">newSingleSpeciesParams</span>(</span>
+<span id="cb5-27"><a href="#cb5-27" aria-hidden="true" tabindex="-1"></a>  <span class="at">species_name =</span> <span class="st">"Anchovy"</span>,</span>
+<span id="cb5-28"><a href="#cb5-28" aria-hidden="true" tabindex="-1"></a>  <span class="at">w_min =</span> p<span class="sc">$</span>w_min, <span class="at">w_max =</span> p<span class="sc">$</span>w_max, <span class="at">w_mat =</span> p<span class="sc">$</span>w_mat,</span>
+<span id="cb5-29"><a href="#cb5-29" aria-hidden="true" tabindex="-1"></a>  <span class="at">no_w  =</span> no_w,    <span class="at">lambda =</span> p<span class="sc">$</span>lambda, <span class="at">kappa =</span> kappa,</span>
+<span id="cb5-30"><a href="#cb5-30" aria-hidden="true" tabindex="-1"></a>  <span class="at">alpha =</span> p<span class="sc">$</span>alpha, <span class="at">gamma  =</span> p<span class="sc">$</span>gamma,  <span class="at">ks    =</span> <span class="dv">0</span></span>
+<span id="cb5-31"><a href="#cb5-31" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb5-32"><a href="#cb5-32" aria-hidden="true" tabindex="-1"></a>r <span class="ot">&lt;-</span> <span class="fu">getResourceRate</span>(params_fast) <span class="sc">*</span> <span class="fl">0.01</span>   <span class="co"># faster turnover than Day 8's 0.001</span></span>
+<span id="cb5-33"><a href="#cb5-33" aria-hidden="true" tabindex="-1"></a>params_fast <span class="ot">&lt;-</span> <span class="fu">setResource</span>(params_fast, <span class="at">resource_rate =</span> r,</span>
+<span id="cb5-34"><a href="#cb5-34" aria-hidden="true" tabindex="-1"></a>                           <span class="at">resource_dynamics =</span> <span class="st">"resource_semichemostat"</span>)</span>
+<span id="cb5-35"><a href="#cb5-35" aria-hidden="true" tabindex="-1"></a>params_fast<span class="sc">@</span>initial_n_pp[] <span class="ot">&lt;-</span> params_fast<span class="sc">@</span>cc_pp <span class="sc">*</span> <span class="fl">0.1</span></span>
+<span id="cb5-36"><a href="#cb5-36" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-37"><a href="#cb5-37" aria-hidden="true" tabindex="-1"></a>sim <span class="ot">&lt;-</span> <span class="fu">project</span>(params_fast, <span class="at">t_max =</span> <span class="dv">10</span>, <span class="at">dt =</span> <span class="fl">0.1</span>, <span class="at">t_save =</span> <span class="fl">0.2</span>,</span>
+<span id="cb5-38"><a href="#cb5-38" aria-hidden="true" tabindex="-1"></a>               <span class="at">progress_bar =</span> <span class="cn">FALSE</span>, <span class="at">method =</span> <span class="st">"predictor-corrector"</span>)</span>
+<span id="cb5-39"><a href="#cb5-39" aria-hidden="true" tabindex="-1"></a>idx  <span class="ot">&lt;-</span> params_fast<span class="sc">@</span>w <span class="sc">&gt;=</span> <span class="dv">10</span> <span class="sc">&amp;</span> params_fast<span class="sc">@</span>w <span class="sc">&lt;=</span> <span class="dv">100</span></span>
+<span id="cb5-40"><a href="#cb5-40" aria-hidden="true" tabindex="-1"></a>last <span class="ot">&lt;-</span> <span class="fu">dim</span>(sim<span class="sc">@</span>n)[<span class="dv">1</span>]</span>
+<span id="cb5-41"><a href="#cb5-41" aria-hidden="true" tabindex="-1"></a>sim<span class="sc">@</span>n[last, , idx] <span class="ot">&lt;-</span> sim<span class="sc">@</span>n[last, , idx] <span class="sc">/</span> <span class="dv">10</span><span class="sc">^</span><span class="dv">3</span></span>
+<span id="cb5-42"><a href="#cb5-42" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-43"><a href="#cb5-43" aria-hidden="true" tabindex="-1"></a>sim     <span class="ot">&lt;-</span> <span class="fu">project</span>(sim, <span class="at">t_max =</span> <span class="dv">90</span>, <span class="at">dt =</span> <span class="fl">0.1</span>, <span class="at">t_save =</span> <span class="fl">0.2</span>,</span>
+<span id="cb5-44"><a href="#cb5-44" aria-hidden="true" tabindex="-1"></a>                   <span class="at">progress_bar =</span> <span class="cn">FALSE</span>, <span class="at">method =</span> <span class="st">"predictor-corrector"</span>)</span>
+<span id="cb5-45"><a href="#cb5-45" aria-hidden="true" tabindex="-1"></a>sim_300 <span class="ot">&lt;-</span> <span class="fu">project</span>(sim, <span class="at">t_max =</span> <span class="dv">200</span>, <span class="at">dt =</span> <span class="fl">0.1</span>, <span class="at">t_save =</span> <span class="fl">0.2</span>,</span>
+<span id="cb5-46"><a href="#cb5-46" aria-hidden="true" tabindex="-1"></a>                   <span class="at">progress_bar =</span> <span class="cn">FALSE</span>, <span class="at">method =</span> <span class="st">"predictor-corrector"</span>)</span>
+<span id="cb5-47"><a href="#cb5-47" aria-hidden="true" tabindex="-1"></a>sim_600_fast <span class="ot">&lt;-</span> <span class="fu">project</span>(sim_300, <span class="at">t_max =</span> <span class="dv">300</span>, <span class="at">dt =</span> <span class="fl">0.1</span>, <span class="at">t_save =</span> <span class="fl">0.2</span>,</span>
+<span id="cb5-48"><a href="#cb5-48" aria-hidden="true" tabindex="-1"></a>                        <span class="at">progress_bar =</span> <span class="cn">FALSE</span>, <span class="at">method =</span> <span class="st">"predictor-corrector"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+</div>
+<p>This is set up and runs cleanly, but the comparison against the (now revised) proof hasn’t been done yet. That’s queued for tomorrow rather than claimed here.</p>
+<hr>
+</section>
+</section>
+<section id="whats-next" class="level2">
+<h2 class="anchored" data-anchor-id="whats-next">What’s Next</h2>
+<ul>
+<li><strong>Separate the two reasons the simple proof failed.</strong> Redo the phase-vs-growth-rate check using a growth rate that actually varies with time (not the fixed steady-state snapshot), to see how much of today’s mismatch that accounts for on its own and how much is left over that can only be explained by the feedback-loop structure itself.</li>
+<li><strong>Strogatz, <em>Nonlinear Dynamics and Chaos</em>, Chapter 7 (limit cycles).</strong> Now that the oscillation looks like a genuine self-sustained cycle, it’s worth putting it on proper footing with the standard theory rather than reasoning about it ad hoc — and limit-cycle theory may have a cleaner way to handle phase in a feedback loop than the one-way delay-line model tried today.</li>
+<li><strong>Learn the discrete Fourier transform properly.</strong> So far <code>fft()</code> has been used as a black box. Understanding frequency bins, the Nyquist limit, and normalisation should put today’s phase argument on firmer ground.</li>
+</ul>
+
+
+</section>
+
+</main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp('/' + window.location.host + '/');
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+</div> <!-- /content -->
+
+
+
+
+</body></html>

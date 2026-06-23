@@ -266,11 +266,13 @@ First hypothesis: maybe the new, worse bottlenecks were because the gear was sti
 #| message: false
 #| warning: false
 params_fished_juv <- sim_300@params
-params_fished_juv@gear_params$sel_func        <- "box_selectivity_func"
-params_fished_juv@gear_params$w_low           <- 0.01   # juveniles included
-params_fished_juv@gear_params$w_high          <- p$w_mat
-params_fished_juv@gear_params$catchability    <- 1
-params_fished_juv@gear_params$knife_edge_size <- NULL
+gp_juv <- params_fished_juv@gear_params
+gp_juv$sel_func        <- "box_selectivity_func"
+gp_juv$w_low           <- 0.01   # juveniles included
+gp_juv$w_high          <- p$w_mat
+gp_juv$catchability    <- 1
+gp_juv$knife_edge_size <- NULL
+gear_params(params_fished_juv) <- gp_juv
 
 sim_300_fished_juv        <- sim_300
 sim_300_fished_juv@params <- params_fished_juv
