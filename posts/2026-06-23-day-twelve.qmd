@@ -117,11 +117,11 @@ round(c(period_dom = period_dom, age_at_mat = age_at_mat,
        ratio = period_dom / age_at_mat), 3)
 ```
 
-**What this shows:** the dominant oscillation period comes out at 8.33 years, age-at-maturity at 3.50 years, giving a period-to-generation-time ratio of **2.38**. The earlier working assumption had been "about 3 generations" per period; the actual calculated number sits a bit below that, closer to "two and a bit" generations than three. Worth flagging honestly: this uses the same fixed, steady-state growth rate as Day 11, not a growth rate that varies with the cycle, so the number is a snapshot to build on rather than a final answer.
+The dominant oscillation period comes out at 8.33 years, age-at-maturity at 3.50 years, giving a period-to-generation-time ratio of 2.38. The earlier working assumption had been "about 3 generations" per period; the actual calculated number sits a bit below that, closer to "two and a bit" generations than three. Worth flagging honestly: this uses the same fixed, steady-state growth rate as Day 11, not a growth rate that varies with the cycle, so the number is a snapshot to build on rather than a final answer.
 
 ### Does the Growth Rate Assumption Hold Up?
 
-Day 11 derived a clean prediction for how phase should depend on growth rate, then checked it against the actual data and found it failed: the measured phase curve didn't fall steadily the way the proof predicted, and the relative phase drop from $w_{min}$ to $w_{mat}$ had the wrong sign and was far too small in magnitude. Two assumptions behind that proof were flagged as suspect: that recruitment is an independent external forcing rather than the output of a feedback loop, and that growth rate is fixed at its steady-state value when the food supply driving it actually oscillates along with everything else. The generation-time number just calculated rests on that same fixed-growth-rate assumption (`getEGrowth(params)`, evaluated at the steady state), so before moving on to the DFT and limit-cycle reading, it was worth checking directly how much that assumption was costing.
+Day 11 derived a clean prediction for how phase should depend on growth rate, then checked it against the actual data and found it failed: the measured phase curve didn't fall steadily the way the proof predicted, and the relative phase drop from $w_{min}$ to $w_{mat}$ had the wrong sign and was far too small in magnitude. An assumption behind that proof were flagged as suspect: that growth rate is fixed at its steady-state value when the food supply driving it actually oscillates along with everything else. The generation-time number just calculated rests on that same fixed-growth-rate assumption (`getEGrowth(params)`, evaluated at the steady state), so before moving on to the DFT and limit-cycle reading, it was worth checking directly how much that assumption was costing.
 
 #### Why You Can't Just Separate Variables for $g(w,t)$
 
@@ -139,7 +139,7 @@ There's one case where separation still rescues you: if the time-dependence fact
 
 $$\frac{dw}{g_0(w)} = h(t)\,dt \quad\Longrightarrow\quad A(w) = H(t) - H(t_{\text{birth}})$$
 
-where $A(w) = \int_{w_{min}}^w dw'/g_0(w')$ and $H$ is an antiderivative of $h$. This still gives a closed form, but a cohort-dependent one: $t_{\text{peak}}(w) = H^{-1}(A(w) + H(t_{\text{birth}}))$ now depends on $t_{\text{birth}}$ in a genuinely nonlinear way, unlike the steady-state case where every cohort shares the same offset $a(w)$. There was no good reason to expect mizer's actual $g(w,t)$ to factor this cleanly, though, so rather than gamble on that assumption, the honest route is the fully general one: solve $dw/dt = g(w,t)$ as the coupled equation it is, numerically, for each cohort separately. That's what `project()` is already doing internally; the next step just pulls a labelled cohort's trajectory back out of it after the fact.
+where $A(w) = \int_{w_{min}}^w dw'/g_0(w')$ and $H$ is an antiderivative of $h$. This still gives a closed form, but a cohort-dependent one: $t_{\text{peak}}(w) = H^{-1}(A(w) + H(t_{\text{birth}}))$ now depends on $t_{\text{birth}}$ in a nonlinear way, unlike the steady-state case where every cohort shares the same offset $a(w)$. There was no good reason to expect mizer's actual $g(w,t)$ to factor this cleanly, though, so rather than gamble on that assumption, the honest route is the fully general one: solve $dw/dt = g(w,t)$ as the coupled equation it is, numerically, for each cohort separately. That's what `project()` is already doing internally; the next step just pulls a labelled cohort's trajectory back out of it after the fact.
 
 #### Building $g(w,t)$ From the Simulation's Own History
 
@@ -242,23 +242,17 @@ round(mean(ratios), 3)
 
 The ratio per cohort ranges from about 2.97 to 3.38, averaging **3.27**. That's much closer to the original "about 3 generations" intuition than the 2.38 figure calculated above, not further from it. The steady-state growth rate was underestimating how fast fish actually grow in this system by roughly 30%, which was dragging the calculated ratio down with it. Once the real, time-varying growth field is used, the rough guess holds up better than the more careful-looking calculation that initially seemed to correct it.
 
-**Why the steady-state estimate ran slow.** `getEGrowth(params)` computes growth at the model's nominal unfished equilibrium spectrum, the reference state the simulation starts from before the large-size-class crash that kicks off the whole boom-bust cycle. That reference state isn't the same thing as the time-average of the actual oscillating attractor the system settles into. The food-limitation cycle from Day 7/8 is driven by juveniles getting a temporary glut of food right after each adult crash; cohorts living through the real cycle get to ride that glut, while the steady-state snapshot, by construction, never sees it. That asymmetry is the likely source of the systematic gap, not noise or a coding error.
-
-This doesn't yet settle Day 11's main open question, whether the phase-vs-growth-rate proof's failure was about the feedback loop, the fixed growth rate, or both. What it does establish is that the fixed-growth-rate assumption was hiding a real, systematic, \~30% bias, not a negligible one. Re-running Day 11's actual phase check ($d\varphi/dw$ against $k/g(w)$) using cohort-tracked ages instead of the steady-state integral is the natural next step, not yet done here.
-
 #### Phase Velocity vs Group Velocity: Why the Two Calculations Disagree
 
 There's a cleaner way to describe what went wrong with the steady-state estimate and what the cohort-tracking above actually fixed, borrowed from how dispersive waves are normally described.
 
-For a wave built from a single frequency, points of constant phase move through space at the **phase velocity**, $v_{\text{phase}} = k/\kappa$, where $k$ is the (temporal) frequency and $\kappa$ is the (spatial) wavenumber, how fast the phase angle changes per unit of space. A wave *packet*, a localised pulse built from a narrow spread of frequencies, instead moves at the **group velocity**, $v_g = dk/d\kappa$. In a non-dispersive medium these are the same number. In a dispersive one, they aren't, and the difference is exactly the gap between "where the ripples appear to be" and "where the actual energy is going."
+For a wave built from a single frequency, points of constant phase move through space at the phase velocity, $v_{\text{phase}} = k/\kappa$, where $k$ is the (temporal) frequency and $\kappa$ is the (spatial) wavenumber. A wave *packet*, a localised pulse built from a narrow spread of frequencies, instead moves at the group velocity, $v_g = dk/d\kappa$. In a non-dispersive medium these are the same number. In a dispersive one, they aren't, and the difference is exactly the gap between "where the ripples appear to be" and "where the actual energy is going."
 
-This system has a direct translation: size $w$ plays the role of space, real time $t$ plays the role of time, and Day 11's $\kappa(w) = d\varphi/dw = -k/g(w)$ is a wavenumber computed from a single frequency, the dominant FFT peak. That makes the whole Day 11 derivation a **phase-velocity** calculation: how fast a surface of constant phase, for one Fourier component, moves through size-space. `track_cohort()` above does something different: it forward-integrates the actual nonlinear $g(w,t)$ that real fish experience, with no decomposition into frequencies at all. That's a direct measurement of how fast the real pulse of fish moves through size-space, which is exactly what **group velocity** means once "wave packet" is replaced with "cohort."
+This system has a direct translation: size $w$ plays the role of space, real time $t$ plays the role of time, and Day 11's $\kappa(w) = d\varphi/dw = -k/g(w)$ is a wavenumber computed from a single frequency, the dominant FFT peak. That makes the whole Day 11 derivation a phase-velocity calculation: how fast a surface of constant phase, for one Fourier component, moves through size-space. `track_cohort()` above does something different: it forward-integrates the actual nonlinear $g(w,t)$ that real fish experience, with no decomposition into frequencies at all. That's a direct measurement of how fast the real pulse of fish moves through size-space, which is exactly what **group velocity** means once "wave packet" is replaced with "cohort."
 
-These two only have to agree if the underlying signal is a clean single sinusoid riding a linear, non-dispersive medium. Neither is true here. Day 8 already found the oscillation is a relaxation-oscillator shape (sharp crash, long plateau) loaded with harmonics, not a pure sine wave, and the growth field $g(w,t)$ is itself nonlinear, it depends on the very population state being transported through it, which is exactly what makes a medium dispersive rather than uniform. The mismatch between Day 11's phase-velocity calculation and today's cohort-tracked group velocity isn't a separate failure from Day 8's harmonic finding; it's the same fact, met again in a different calculation.
+These two only have to agree if the underlying signal is a clean single sinusoid riding a linear, non-dispersive medium. Neither is true here. Day 8 already found the oscillation is a relaxation-oscillator shape (sharp crash, long plateau) loaded with harmonics, not a pure sine wave, and the growth field $g(w,t)$ is itself nonlinear, depending on the very population state being transported through it, which is exactly what makes a medium dispersive rather than uniform. The mismatch between Day 11's phase-velocity calculation and today's cohort-tracked group velocity isn't a separate failure from Day 8's harmonic finding; it's the same fact, met again in a different calculation.
 
-It also gives a tidier reading of today's cohort-to-cohort spread. If there were one well-defined phase velocity for this system, every cohort would share exactly the same generation time. Instead the five tracked cohorts came out at 2.46 to 2.81 years, and the period-to-generation-time ratio ranged from 2.97 to 3.38 rather than landing on one fixed number. That spread is the empirical signature of dispersion. A single "the" generation time was never quite the right concept for a system like this; there's a distribution of them, the same way a dispersive pulse doesn't have one well-defined speed once you look closely enough.
-
-One honest caveat: this is a framing, not yet a separately verified mechanism. It explains *why* the steady-state and cohort-tracked calculations were never guaranteed to agree, but it hasn't been checked quantitatively yet, e.g. by computing an actual group velocity from the harmonic decomposition and comparing it directly against `track_cohort()`'s output.
+It also gives a tidier reading of today's cohort-to-cohort spread. If there were one well-defined phase velocity for this system, every cohort would share exactly the same generation time. Instead the five tracked cohorts came out at 2.46 to 2.81 years, and the period-to-generation-time ratio ranged from 2.97 to 3.38 rather than landing on one fixed number. That spread is the sign of their being dispersion. A single "the" generation time was never quite the right concept for a system like this; there's a distribution of them, the same way a dispersive pulse doesn't have one well-defined speed once you look closely enough.
 
 ------------------------------------------------------------------------
 
@@ -266,7 +260,7 @@ One honest caveat: this is a framing, not yet a separately verified mechanism. I
 
 Wednesday finished off the notes that Tuesday started rather than opening new threads: the discrete Fourier transform notes (covering the CCRMA derivation plus the 3Blue1Brown/Brunton intuition) got finished, and so did the limit-cycle section of Strogatz. With both of those closed out, the next chapter in Strogatz, on bifurcations, got started.
 
-Separately, Wednesday's reading also went back to waves: a refresher on **group velocity** from *Waves: A Mathematical Approach to the Common Types of Wave Motion*, and then chapters 15, 16, and 17 of *An Introduction to the Mathematical Theory of Waves*. The group-velocity refresher is a useful one to have fresh, since Tuesday's write-up above had already reached for the phase-velocity/group-velocity distinction (treating a single Fourier component's wavenumber as a phase velocity, and a tracked cohort's actual trajectory through size-space as the group velocity) without having the underlying wave theory freshly in mind at the time.
+Separately, Wednesday's reading also went back to waves: a refresher on group velocity from *Waves: A Mathematical Approach to the Common Types of Wave Motion*, and then chapters 15, 16, and 17 of *An Introduction to the Mathematical Theory of Waves*. The group velocity refresher is a useful one to have fresh, since Tuesday's write-up above had already reached for the phase velocity/group velocity distinction (treating a single Fourier component's wavenumber as a phase velocity, and a tracked cohort's actual trajectory through size-space as the group velocity) without having the underlying wave theory freshly in mind at the time.
 
 ### Can You Beat Constant Fishing by Fishing Only the Peaks?
 
@@ -274,7 +268,7 @@ The other Wednesday thread continued an investigation that had been running in p
 
 An earlier draft of this used a box-selectivity gear catching only "sub-adults" (sizes between half of $w_{mat}$ and $w_{mat}$), i.e. fish that hadn't yet had a chance to reproduce. That's not a realistic fishery, so it was replaced with mizer's built-in knife-edge selectivity at $w_{mat}$: nothing below maturity weight is ever caught, only mature individuals, the standard "minimum landing size" idealisation.
 
-Separately, the first version of "fish only at the peaks" found peak times once, in advance, by running the unfished trajectory all the way to $t=600$ and scanning it for local maxima, then baked those fixed times into a constant effort schedule. That's static, and more importantly it's circular for any real use of this model: peak timing isn't knowable in advance without already having run the unfished case to completion first. The fix uses mizer's `setRateFunction()` to swap in a custom fishing-mortality function that detects peaks **live**, from the actual (fished) trajectory as it's being simulated, with no foreknowledge:
+Separately, the first version of "fish only at the peaks" found peak times once, in advance, by running the unfished trajectory all the way to $t=600$ and scanning it for local maxima, then baked those fixed times into a constant effort schedule. That's static, and more importantly it's circular for any real use of this model: peak timing isn't knowable in advance without already having run the unfished case to completion first. The fix uses mizer's `setRateFunction()` to swap in a custom fishing-mortality function that detects peaks live, from the actual (fished) trajectory as it's being simulated, with no foreknowledge:
 
 ```{r}
 #| message: false
@@ -401,7 +395,7 @@ modelling_fishing_at_peaks <- function(resource_decrease = 0.001, f_effort = 0.3
 }
 ```
 
-**What this shows:** `make_dynamic_peak_FMort()` is a closure factory. The environment it creates (`state`) is captured by the function it returns, so that function can read and mutate `t_prev`/`bm_prev1`/`bm_prev2`/`fish_until` across thousands of calls during a single `project()` run without mizer's API giving it any explicit mechanism for that. Peak detection itself is the classic "is the middle of three points a local max" test, applied causally: it only confirms `bm_prev1` was a peak once a *later* point (`bm`) shows biomass has already started falling, so this can only react to a peak one step after it happened, not anticipate one in advance, unlike the old offline version. Once confirmed, a `window`-year fishing pulse opens from that point forward; overlapping pulses extend rather than reset (`max(state$fish_until, ...)`). The function never reimplements how selectivity, catchability, and effort combine, it just substitutes a gated `effort` into mizer's own `mizerFMort()`, so only effort changes, never selectivity.
+`make_dynamic_peak_FMort()` is a closure factory. The environment it creates (`state`) is captured by the function it returns, so that function can read and mutate `t_prev`/`bm_prev1`/`bm_prev2`/`fish_until` across thousands of calls during a single `project()` run without mizer's API giving it any explicit mechanism for that. Peak detection itself is the classic "is the middle of three points a local max" test, applied causally: it only confirms `bm_prev1` was a peak once a *later* point (`bm`) shows biomass has already started falling, so this can only react to a peak one step after it happened, not anticipate one in advance, unlike the old offline version. Once confirmed, a `window`-year fishing pulse opens from that point forward; overlapping pulses extend rather than reset (`max(state$fish_until, ...)`). The function never reimplements how selectivity, catchability, and effort combine, it just substitutes a gated `effort` into mizer's own `mizerFMort()`, so only effort changes, never selectivity.
 
 #### Constant Fishing vs. Fishing the Peaks
 
@@ -414,7 +408,7 @@ sim_peaks      <- modelling_fishing_at_peaks()
 plotYield(sim_const_fish, sim_peaks, log = "x", tlim = c(550, 600))
 ```
 
-**What this shows, and an open thread:** the first version of this comparison used each function's own default resource scenario (`modelling_steady_state()`'s default is full resource, `modelling_fishing_at_peaks()`'s default is heavily depleted resource), which is not a fair comparison of fishing strategies, it's a comparison of two different ecosystems. Worse, under that mismatch the constant-fishing run produced *exactly* zero yield from $t=300$ onward, while total biomass stayed healthy and oscillating. Checking `range(selectivity)` ruled out a gear bug (it was a proper `[0, 1]`), which narrowed it to either a real population collapse or a structural mismatch between the two resource scenarios. The code above now matches `resource_decrease` between the two calls, which should remove that confound, but a clean re-check of the zero-yield anomaly specifically, biomass-above-$w_{mat}$ over time, with and without fishing, hasn't been re-run since making that fix. Treat the comparison plot as illustrative of the mechanism, not yet a verified result.
+The first version of this comparison used each function's own default resource scenario (`modelling_steady_state()`'s default is full resource, `modelling_fishing_at_peaks()`'s default is heavily depleted resource), which is not a fair comparison of fishing strategies, it's a comparison of two different ecosystems. Worse, under that mismatch the constant-fishing run produced *exactly* zero yield from $t=300$ onward, while total biomass stayed healthy and oscillating. Checking `range(selectivity)` ruled out a gear bug (it was a proper `[0, 1]`), which narrowed it to either a real population collapse or a structural mismatch between the two resource scenarios. The code above now matches `resource_decrease` between the two calls, which should remove that confound, but a clean re-check of the zero-yield anomaly specifically, biomass-above-$w_{mat}$ over time, with and without fishing, hasn't been re-run since making that fix. Treat the comparison plot as illustrative of the mechanism, not yet a verified result.
 
 #### Hunting for the Best Effort and Window
 
@@ -466,34 +460,7 @@ grid3[order(-grid3$mean_yield), ][1:5, ]
 
 Best again landed on the boundary: effort = 2, window = 0.5. Widening or narrowing the box just relocates the wall; it never produces an interior maximum.
 
-**What this shows:** raw yield, as an optimisation target, is structurally degenerate here. A pulse removes roughly $1-e^{-F\cdot\text{window}}$ of the standing mature biomass, a fraction that climbs toward (but can never exceed) 100% as effort rises and the window shrinks. Because the pulse is brief, it never touches the juveniles driving recruitment, so the stock fully rebuilds before the next peak regardless of how hard a given pulse hit it. Nothing in raw yield penalises "more effort, less time", so the optimum is always at whatever the most extreme effort/shortest window in the search range happens to be: take as much of each peak as possible, as fast as possible, and leave the rest of the cycle alone. That's a real result about the biology, no biological mechanism here makes brief, intense harvesting unsustainable, but it also means the search needs a different objective before "optimal effort and window" means anything a real fishery could act on.
-
-#### Toward a Real Optimum: Pricing In the Cost of Effort
-
-The fix is the standard one from fisheries economics: optimise net value (yield minus a cost that scales with how much effort is deployed and for how long), not raw yield. This hasn't been run yet, it's the natural next step:
-
-```{r}
-#| eval: false
-#| message: false
-#| warning: false
-net_value_summary <- function(f_effort, peak_window, cost_rate = 0.5) {
-  sim <- modelling_fishing_at_peaks(f_effort = f_effort, peak_window = peak_window)
-  yt  <- getYield(sim)
-  t   <- as.numeric(rownames(yt))
-  yield <- mean(yt[t > 300, ])
-  cost  <- cost_rate * f_effort * peak_window
-  yield - cost
-}
-
-effort_grid <- seq(0.1, 2, length.out = 8)
-window_grid <- seq(0.5, 3, length.out = 6)
-
-grid4 <- expand.grid(f_effort = effort_grid, peak_window = window_grid)
-grid4$net_value <- mapply(net_value_summary, grid4$f_effort, grid4$peak_window)
-grid4[order(-grid4$net_value), ][1:5, ]
-```
-
-`cost_rate = 0.5` is an arbitrary placeholder, not calibrated to any real price or fleet-day cost, so the absolute optimum this produces shouldn't be read as economically meaningful yet. What's worth checking first is just whether an interior optimum, one that doesn't sit on a grid edge, appears at all for some reasonable `cost_rate`. If it does, `cost_rate` becomes a sensitivity-analysis knob rather than a fixed assumption: how the optimal (effort, window) pair shifts as fishing gets cheaper or more expensive relative to fish value is a more interesting result than any single point estimate.
+This shows how raw yield, as an optimisation target, is structurally degenerate here. A pulse removes roughly $1-e^{-F\cdot\text{window}}$ of the standing mature biomass, a fraction that climbs toward (but can never exceed) 100% as effort rises and the window shrinks. Because the pulse is brief, it never touches the juveniles driving recruitment, so the stock fully rebuilds before the next peak regardless of how hard a given pulse hit it. Nothing in raw yield penalises "more effort, less time", so the optimum is always at whatever the most extreme effort/shortest window in the search range happens to be: take as much of each peak as possible, as fast as possible, and leave the rest of the cycle alone. That's a real result about the biology, no biological mechanism here makes brief, intense harvesting unsustainable, but it also means the search needs a different objective before "optimal effort and window" means anything a real fishery could act on.
 
 ------------------------------------------------------------------------
 
@@ -502,5 +469,3 @@ grid4[order(-grid4$net_value), ][1:5, ]
 - **Chapters 18, 19, and 20 of *An Introduction to the Mathematical Theory of Waves*.** Continuing on from 15–17.
 - **Work through exercises from the textbooks** (Strogatz and the wave-motion books) rather than just reading, to actually solidify the DFT, limit-cycle, bifurcation, and group-velocity material rather than letting it stay passive.
 - **Read over the Mizer Course material on tuning results.** Useful to revisit now, with a live model that needs its own tuning decisions justified rather than just copied from the course examples.
-- Run the cost-weighted sweep above and check whether a genuine interior optimum appears, rather than another boundary.
-- Re-check the constant-fishing zero-yield anomaly now that `resource_decrease` is matched between the two functions, specifically biomass above $w_{mat}$ over time, with and without fishing, to confirm it's a real population effect and not still a leftover mismatch.
