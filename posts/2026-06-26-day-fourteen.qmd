@@ -1,0 +1,135 @@
+---
+title: "Days 14 and 15: Shocks, Characteristics, and the Mathematics of Breaking Waves"
+author: "Samia"
+date: "2026-06-26"
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    theme: flatly
+    code-fold: true
+categories: [research, mizer, waves, pde, method-of-characteristics, shock-waves, rarefaction, blog]
+description: "Two days of mathematical theory: Thursday working through chapters 17–22 of An Introduction to the Mathematical Theory of Waves (method of characteristics, gradient catastrophe, shock waves, the traffic-light example, the viscosity method, and rarefaction waves), and Friday consolidating that material by working through the exercises in chapters 18–21."
+---
+
+## Two Days Off the R Console
+
+Days 14 and 15 had no simulation output to speak of. Both days were spent purely on mathematical theory, working through *An Introduction to the Mathematical Theory of Waves*, the same textbook that provided the group velocity background in Day 12. The material picks up directly from where that day's reading left off (chapters 15–17 on group velocity and dispersion), moving into the less familiar territory of characteristics, shock formation, and rarefaction.
+
+The immediate motivation is clear from Days 11 and 12. Mizer's size-spectrum dynamics are governed by a transport equation, biomass density advected through size-space at rate $g(w,t)$ , and two days of grappling with that equation without properly knowing the underlying PDE theory showed the gaps. Day 11 tried to read off phase behaviour from the characteristics of that transport equation and the prediction failed; Day 12 built a cohort tracker that is, at its core, integrating the characteristic curves numerically. The theory in these chapters is the formal mathematical foundation for all of that, and reading it properly rather than reconstructing it piecemeal on the fly seemed worth the time.
+
+------------------------------------------------------------------------
+
+## Thursday: Chapters 17–22
+
+### Chapter 17: The Method of Characteristics
+
+The method of characteristics is the standard technique for solving first-order hyperbolic PDEs, and for understanding what "characteristic" meant in Days 11 and 12 it is the right place to start. The idea is to convert the PDE into a family of ODEs by changing to coordinates that travel with the signal rather than coordinates that stay fixed.
+
+For a first-order PDE of the form
+
+$$\frac{\partial u}{\partial t} + c(u)\frac{\partial u}{\partial x} = 0,$$
+
+the characteristics are curves $x(t)$ satisfying $dx/dt = c(u)$, i.e. curves that travel through the $(x,t)$ plane at the same speed as the local wave speed. Along any such curve,
+
+$$\frac{du}{dt} = \frac{\partial u}{\partial t} + \frac{dx}{dt}\frac{\partial u}{\partial x} = \frac{\partial u}{\partial t} + c(u)\frac{\partial u}{\partial x} = 0,$$
+
+so $u$ is constant along each characteristic. The PDE, which couples $u$ at all points simultaneously, reduces to a family of decoupled statements: "on this curve, $u$ does not change." Solving the original PDE is then a matter of finding which characteristic passes through any given point $(x,t)$ and reading off its initial value.
+
+The connection to Day 11 is immediate: mizer's transport equation is exactly this, with $x$ replaced by $w$ (body mass), $u$ replaced by $n(w,t)$ (number density), and $c$ replaced by $g(w,t)$ (growth rate). The characteristic curves are the growth trajectories $dw/dt = g(w,t)$. Day 12's `track_cohort()` function is a numerical integrator for these characteristics. Day 11's age-at-size derivation , $\tau(w) = \int_{w_{min}}^w dw'/g(w')$ , is the closed-form solution for characteristics when $g$ depends only on $w$, not $t$. Knowing this explicitly is more satisfying than having arrived at it by analogy.
+
+### Chapter 18: Gradient Catastrophe and Breaking Times
+
+In the linear case $c(u) = \text{const}$, all characteristics are parallel lines and nothing goes wrong. Chapter 18 is about what happens when $c$ depends on $u$: characteristics from different initial points can travel at different speeds and eventually intersect each other.
+
+When two characteristics cross, the solution $u$ at the crossing point would have to take two different values simultaneously , one inherited from each characteristic, which is impossible for a function. The solution breaks down in finite time. This is the *gradient catastrophe*: the spatial gradient $\partial u/\partial x$ grows without bound, eventually becoming vertical, and at that moment the PDE solution in the classical sense ceases to exist.
+
+The *breaking time* $t_B$ is the time at which this first happens. For an initial profile $u_0(x)$, the characteristics from $x_0$ have speed $c(u_0(x_0))$, so two characteristics from nearby points $x_0$ and $x_0 + \delta x_0$ will eventually meet if they are converging. Intersections first occur at:
+
+$$t_B = \min_{x_0} \frac{-1}{c'(u_0(x_0))\, u_0'(x_0)},$$
+
+where the minimum is taken over all $x_0$ where the denominator is negative (i.e., where characteristics are converging). The breaking time is the reciprocal of the maximum rate at which initial data is being compressed.
+
+For the mizer application, this is suggestive. The growth rate $g(w,t)$ is not independent of $n$ but depends on the prey field, which depends on $n$ itself. This feedback means the "effective wave speed" for different size classes is not fixed, and there is in principle no reason characteristics cannot converge. Whether anything close to a gradient catastrophe actually occurs in the Anchovy simulation, and on what timescale, is not something the simulation has been checked for directly.
+
+### Chapter 19: Shock Waves
+
+After the gradient catastrophe, the classical smooth solution no longer exists. Chapter 19 introduces the *shock wave* as the replacement: a propagating discontinuity in $u$, where the solution jumps from one value to another at the shock location. Rather than requiring $u$ to be smooth everywhere (which it can no longer be), the PDE is rewritten in integral (weak) form, which makes sense even across discontinuities.
+
+The key result is the *Rankine-Hugoniot condition*, which determines the speed $s$ at which a shock propagates:
+
+$$s = \frac{[\phi(u)]}{[u]} = \frac{\phi(u_R) - \phi(u_L)}{u_R - u_L},$$
+
+where $\phi$ is the flux, and $u_L$, $u_R$ are the values of $u$ immediately to the left and right of the shock. The shock is not free to move at any speed; it must move at exactly the rate that balances the flux on either side.
+
+There is also the question of uniqueness. Weak solutions satisfying the Rankine-Hugoniot condition are not, in general, unique as multiple shock positions can satisfy the jump conditions. The *Lax entropy condition* selects the physically correct one: characteristics on both sides of the shock must run into the shock (not out of it). In other words, the shock is a sink for characteristics, not a source.
+
+### Chapter 20: Shock Waves: Traffic at a Red Light
+
+Chapter 20 applies the shock theory to traffic flow. This is one of the canonical examples of conservation-law shocks because the initial and boundary conditions are physically clean and the result is intuitively verifiable.
+
+The model treats traffic density $u(x,t)$ as a continuum satisfying $u_t+ \phi' u_x = 0$, where $v$ is a speed-density relationship (cars slow down as the road gets crowded). The flux is $\phi=uv$ .
+
+The red-light problem: at $t=0$ a line of stationary cars sits upstream of a red light at $x=0$, with empty road downstream. When the light turns green, a *rarefaction wave* (covered in Chapter 22) propagates back through the queue, permitting cars to start moving. When a green light turns red, upstream traffic hits the stationary queue and the incoming flux exceeds the standing-traffic flux, characteristics from both sides converge, and a shock (the queue front) forms and moves backward at the Rankine-Hugoniot speed. The shock front is the queue growing, the rarefaction is the queue draining.
+
+What the traffic example makes concrete is that both shocks and rarefactions are routine physical events in conservation-law systems, not pathological exceptions. Any time flux is non-monotone in the conserved quantity, you expect both to appear as different parts of the same initial condition evolve.
+
+### Chapter 21: The Viscosity Method
+
+With multiple weak solutions available and the Lax entropy condition providing one selection criterion, Chapter 21 introduces a second, more analytical approach to the same question: *vanishing viscosity*, also called the viscosity method.
+
+The idea is to regularise the equation by adding a small diffusion term:
+
+$$u_t +c(u)u_x = ru_{xx},$$
+
+and then take $r \to 0^+$. The regularised equation has a unique smooth solution for each $r > 0$, and as $r$ shrinks these smooth solutions converge to a weak solution of the original equation. The solution they select is, under reasonable conditions.
+
+The viscosity method matters beyond being an alternative derivation of the Rankine-Hugoniot condition. It gives a physical story for why that particular weak solution is the right one: it is the limit of physically-regularised systems (real fluids have viscosity; real traffic has reaction times and finite car lengths; real fish populations have diffusion in size-space). The sharp shock is an idealisation, but it is the limit of the physically realistic, smooth solutions.
+
+### Chapter 22: Rarefaction Waves
+
+The last chapter of Thursday's reading returns to the other half of the story. Where shocks arise from characteristics converging, *rarefaction waves* arise when they spread out. The initial data sends characteristics in diverging directions, leaving a region that no single characteristic reaches and the solution fills it with a fan of characteristics connecting the left and right states.
+
+For the Burgers-like equation $u_t + uu_x = 0$ with a step initial condition $u_L < u_R$ at $x=0$, the unique entropy solution is a centred rarefaction fan:
+
+$$u(x,t) = \begin{cases} u_L & x/t < u_L \\ x/t & u_L \leq x/t \leq u_R \\ u_R & x/t > u_R \end{cases}$$
+
+The solution in the fan region $u = x/t$ is a *similarity solution*: it depends only on the ratio $x/t$, not $x$ and $t$ separately. Physically, the fan is smooth (no gradient catastrophe), and each point within it has a unique $u$ value determined by which characteristic passes through it.
+
+------------------------------------------------------------------------
+
+## Friday: Exercises from Chapters 18–21
+
+Friday was spent working through the exercises in chapters 18–21, rather than reading further ahead.It was partly independently and partly alongside Gustav (the project supervisor), which gave a useful chance to work through the trickier parts out loud. Chapters 17 through 22 cover material that is interconnected; the method of characteristics feeds into the gradient catastrophe, which motivates shocks, which require the Rankine-Hugoniot conditions and the entropy criterion, which the viscosity method justifies, and rarefaction waves complete the picture on the other side. Reading it all through on Thursday gave the shape of the argument; the exercises were the check on whether the pieces actually worked in hand.
+
+The exercises in chapter 18 focused on computing breaking times for specific initial profiles. This turns out to be mostly calculus: finding $c'(u_0)\,u_0'(x_0)$ and minimising $-1/(c'\,u_0')$ over initial positions. The subtlety is in recognising which initial profiles will *not* break (those where characteristics everywhere diverge) versus those that will (characteristics converging somewhere), and not confusing the breaking time with the time of the catastrophe's worst consequences.
+
+The chapter 19 and 20 exercises were largely on applying the Rankine-Hugoniot condition to specific left and right states and tracking shock positions through time.
+
+Chapter 21's exercises on the viscosity method included verifying that the tanh shock profile satisfies the regularised ODE, and checking that the shock speed matches Rankine-Hugoniot. The algebra is not difficult once the structure is set up, but it is easy to get signs wrong without care.
+
+------------------------------------------------------------------------
+
+## What's Next
+
+### Back to the Simulation: Build the Wave Solution Step by Step
+
+With the wave theory properly in place, the next priority is returning to the mizer simulation and working through the following sequence:
+
+- **Validate the linear (density-independent) model.** Confirm the steady state is a power law. Run time-dependent solutions starting from a Gaussian initial condition and verify the peak travels as a wave. Use a travelling-wave ansatz to reduce the PDE to an ODE, and cross-check against the Meiser vignette by setting diffusion to zero.
+
+- **Switch mechanisms on one at a time:**
+
+  1.  Add reproduction: Perturbations should slow down as fish approach maturity.
+  2.  Add the feedback loop (mature individuals seeding new recruits at the small-size end): The wave should return broadened at the lower end after a delay.
+  3.  Add resource depletion: This is the mechanism required for persistent oscillatory waves. Without it, the wave should broaden and eventually settle back to steady state.
+
+- **Isolate resource depletion.** As a shorter intermediate test, skip the other mechanisms entirely and add only resource depletion. Measure how much it slows the Gaussian peak and check whether it alone can account for the observed \~3× generation-time oscillation period. Also check whether it is the resource depletion itself, or the resulting reduction in growth, that drives the slowdown.
+
+### Finding the Unstable Steady State: `steadyNewton()`
+
+The dev version of mizer (3.1.0.9000, installable from GitHub) includes a new function `steadyNewton()` that solves the steady-state equation directly , without running the dynamics to equilibrium. This matters because the method does not depend on stability: it should be able to locate the *unstable* steady state that the periodic solutions oscillate around which is something ordinary time-integration would never converge to. The longer-term goal is to use this to answer the bifurcation question: at the transition from a stable to an unstable steady state, does productivity decrease?
+
+### Fishing: Window vs. Effort
+
+The surprising result from Day 12, that a short fishing window (\~5–6 months) barely affects fish density while a 10-year window at high effort crashes the population to zero, still deserves a proper follow-up. The intuition Gustav offered is that a constant flow from the resource is more efficient than alternating between years of underutilisation and overutilisation: during a long off-season the primary production is going to waste, and the resource can't bank it. A short pulse avoids that waste and leaves the rest of the cycle to run undisturbed. Systematically comparing constant low-effort fishing with periodic high-effort short-window fishing, and checking whether the yield gap tracks the degree of primary-production underutilisation, would make this argument concrete.

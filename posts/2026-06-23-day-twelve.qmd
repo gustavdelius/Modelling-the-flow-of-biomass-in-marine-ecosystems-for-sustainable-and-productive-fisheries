@@ -1,5 +1,5 @@
 ---
-title: "Day 12: Learning the Discrete Fourier Transform, Limit Cycles, and a Second Look at Generation Time"
+title: "Day 12 and 13: Learning the Discrete Fourier Transform, Limit Cycles, and a Second Look at Generation Time"
 author: "Samia"
 date: "2026-06-24"
 format:
@@ -165,7 +165,7 @@ times_post <- times[idx_post]
 t_save     <- times_post[2] - times_post[1]   # 0.2, matches the project() calls above
 ```
 
-**What this shows:** `getEGrowth(params, n = n_t, n_pp = n_pp_t)` for a single time step gives a growth profile very close to, but not identical to, the steady-state `getEGrowth(params)` used above. At $t=19.8$ (an early, still-settling point), the smallest-size growth rate was 0.00683 vs. 0.00673 from the steady state, a small difference at that particular moment. The whole point of building `G` across every saved time step is that this difference isn't constant, it swings with the cycle, and the steady-state calculation used only the time-averaged-looking (but actually unperturbed-equilibrium) snapshot.
+This shows that `getEGrowth(params, n = n_t, n_pp = n_pp_t)` for a single time step gives a growth profile very close to, but not identical to, the steady-state `getEGrowth(params)` used above. At $t=19.8$ (an early, still-settling point), the smallest-size growth rate was 0.00683 vs. 0.00673 from the steady state, a small difference at that particular moment. The whole point of building `G` across every saved time step is that this difference isn't constant, it swings with the cycle, and the steady-state calculation used only the time-averaged-looking (but actually unperturbed-equilibrium) snapshot.
 
 #### Tracking Real Cohorts Through the Oscillation
 
@@ -226,7 +226,7 @@ ages_at_mat <- sapply(cohorts, function(co)
 round(ages_at_mat, 3)
 ```
 
-**What this shows:** the five cohort curves sit almost exactly on top of each other across the entire size range, the plot doesn't visually distinguish them. Age-at-maturity across the five birth phases comes out as 2.464, 2.512, 2.808, 2.490, and 2.467 years. There is a real spread (the 308.33 cohort takes noticeably longer), but it's modest compared to the gap between *any* of these and the steady-state estimate of 3.50 years above. The dominant effect of switching to a real, time-varying growth rate isn't that different cohorts now disagree with each other, it's that all of them mature faster than the steady-state calculation predicted.
+The five cohort curves sit almost exactly on top of each other across the entire size range, the plot doesn't visually distinguish them. Age-at-maturity across the five birth phases comes out as 2.464, 2.512, 2.808, 2.490, and 2.467 years. There is a real spread (the 308.33 cohort takes noticeably longer), but it's modest compared to the gap between *any* of these and the steady-state estimate of 3.50 years above. The dominant effect of switching to a real, time-varying growth rate isn't that different cohorts now disagree with each other, it's that all of them mature faster than the steady-state calculation predicted.
 
 #### What This Does to the "Generation Time" Result
 

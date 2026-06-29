@@ -10,7 +10,7 @@
 <meta name="dcterms.date" content="2026-06-24">
 <meta name="description" content="Two days spent mostly off the R console: hunting down good resources for properly learning the discrete Fourier transform, working through limit cycles and into bifurcations in Strogatz, picking group velocity back up in the wave-motion textbook, and continuing the fishing-only-the-peaks investigation. Also revisits generation time: the steady-state calculation gives 2.38, but replacing the fixed growth rate with the real, time-varying growth field and tracking cohorts through it pulls that back up to about 3.27, closer to the original ballpark guess.">
 
-<title>Day 12: Learning the Discrete Fourier Transform, Limit Cycles, and a Second Look at Generation Time – Modelling-the-flow-of-biomass</title>
+<title>Day 12 and 13: Learning the Discrete Fourier Transform, Limit Cycles, and a Second Look at Generation Time – Modelling-the-flow-of-biomass</title>
 <style>
 /* Default styles provided by pandoc.
 ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
@@ -203,7 +203,7 @@ window.Quarto = {
 
 <header id="title-block-header" class="quarto-title-block default">
 <div class="quarto-title">
-<h1 class="title">Day 12: Learning the Discrete Fourier Transform, Limit Cycles, and a Second Look at Generation Time</h1>
+<h1 class="title">Day 12 and 13: Learning the Discrete Fourier Transform, Limit Cycles, and a Second Look at Generation Time</h1>
   <div class="quarto-categories">
     <div class="quarto-category">research</div>
     <div class="quarto-category">mizer</div>
@@ -390,7 +390,7 @@ window.Quarto = {
 <span id="cb4-14"><a href="#cb4-14" aria-hidden="true" tabindex="-1"></a>t_save     <span class="ot">&lt;-</span> times_post[<span class="dv">2</span>] <span class="sc">-</span> times_post[<span class="dv">1</span>]   <span class="co"># 0.2, matches the project() calls above</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </details>
 </div>
-<p><strong>What this shows:</strong> <code>getEGrowth(params, n = n_t, n_pp = n_pp_t)</code> for a single time step gives a growth profile very close to, but not identical to, the steady-state <code>getEGrowth(params)</code> used above. At <span class="math inline">\(t=19.8\)</span> (an early, still-settling point), the smallest-size growth rate was 0.00683 vs.&nbsp;0.00673 from the steady state, a small difference at that particular moment. The whole point of building <code>G</code> across every saved time step is that this difference isn’t constant, it swings with the cycle, and the steady-state calculation used only the time-averaged-looking (but actually unperturbed-equilibrium) snapshot.</p>
+<p>This shows that <code>getEGrowth(params, n = n_t, n_pp = n_pp_t)</code> for a single time step gives a growth profile very close to, but not identical to, the steady-state <code>getEGrowth(params)</code> used above. At <span class="math inline">\(t=19.8\)</span> (an early, still-settling point), the smallest-size growth rate was 0.00683 vs.&nbsp;0.00673 from the steady state, a small difference at that particular moment. The whole point of building <code>G</code> across every saved time step is that this difference isn’t constant, it swings with the cycle, and the steady-state calculation used only the time-averaged-looking (but actually unperturbed-equilibrium) snapshot.</p>
 </section>
 <section id="tracking-real-cohorts-through-the-oscillation" class="level4">
 <h4 class="anchored" data-anchor-id="tracking-real-cohorts-through-the-oscillation">Tracking Real Cohorts Through the Oscillation</h4>
@@ -461,7 +461,7 @@ window.Quarto = {
          2.464          2.512          2.808          2.490          2.467 </code></pre>
 </div>
 </div>
-<p><strong>What this shows:</strong> the five cohort curves sit almost exactly on top of each other across the entire size range, the plot doesn’t visually distinguish them. Age-at-maturity across the five birth phases comes out as 2.464, 2.512, 2.808, 2.490, and 2.467 years. There is a real spread (the 308.33 cohort takes noticeably longer), but it’s modest compared to the gap between <em>any</em> of these and the steady-state estimate of 3.50 years above. The dominant effect of switching to a real, time-varying growth rate isn’t that different cohorts now disagree with each other, it’s that all of them mature faster than the steady-state calculation predicted.</p>
+<p>The five cohort curves sit almost exactly on top of each other across the entire size range, the plot doesn’t visually distinguish them. Age-at-maturity across the five birth phases comes out as 2.464, 2.512, 2.808, 2.490, and 2.467 years. There is a real spread (the 308.33 cohort takes noticeably longer), but it’s modest compared to the gap between <em>any</em> of these and the steady-state estimate of 3.50 years above. The dominant effect of switching to a real, time-varying growth rate isn’t that different cohorts now disagree with each other, it’s that all of them mature faster than the steady-state calculation predicted.</p>
 </section>
 <section id="what-this-does-to-the-generation-time-result" class="level4">
 <h4 class="anchored" data-anchor-id="what-this-does-to-the-generation-time-result">What This Does to the “Generation Time” Result</h4>
