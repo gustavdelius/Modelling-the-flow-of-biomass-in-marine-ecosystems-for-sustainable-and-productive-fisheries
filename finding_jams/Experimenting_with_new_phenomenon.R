@@ -148,21 +148,21 @@ scan_lambda <- function(lam) {
 
   ss    <- tryCatch(steadyNewton(p), error = function(e) NULL)
   bm_fp_l <- if (!is.null(ss)) sum(getBiomass(ss)) else NA
-
-  data.frame(lambda      = lam,
+  
+  n_avg_spec <- apply(sim_long@n[t_idx, 1, ], 2, mean)
+  n_min_spec <- apply(sim_long@n[t_idx, 1, ], 2, min)
+  n_max_spec <- apply(sim_long@n[t_idx, 1, ], 2, max)
+  
+  data.frame(lambda = lam,
              fixed_point = bm_fp_l,
-             time_avg    = mean(bm[t > 400]),
-             ratio       = mean(bm[t > 400]) / bm_fp_l)
-}
+             amp = n_max_spec - n_min_spec)}
 
 lambdas    <- seq(1.9, 2.2, by = 0.025)
 df_lambdas <- do.call(rbind, lapply(lambdas, scan_lambda))
-n_avg_spec <- apply(sim_long@n[t_idx, 1, ], 2, mean)
-n_min_spec <- apply(sim_long@n[t_idx, 1, ], 2, min)
-n_max_spec <- apply(sim_long@n[t_idx, 1, ], 2, max)
 
-plot(df_lambdas$lambda, df_lambdas$ratio, type = "b", pch = 19,
-     xlab = "lambda", ylab = "Time avg / fixed point",
+
+plot(df_lambdas$lambda, df_lambdas$amp, type = "b", pch = 19,
+     xlab = "lambda", ylab = "Amplitude",
      main = "Limit-cycle advantage across lambda")
 abline(h = 1, lty = 2, col = "grey50")
 
@@ -228,7 +228,7 @@ legend("bottomright",
          paste0("Total biomass ratio (~", round(bm_avg / bm_fp, 2), "x)"),
          "Ratio = 1"),
        col = c("darkgreen", "steelblue", "grey50"), lty = c(1, 2, 2), lwd = 2)
-
+addPlot()
 # Plot 3: min–max envelope across the cycle
 plot(w, n_fp_spec, type = "n", log = "xy",
      xlab = "Body mass w (g)", ylab = "Number density n(w)",
