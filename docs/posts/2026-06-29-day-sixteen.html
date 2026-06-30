@@ -804,7 +804,7 @@ window.Quarto = {
 </section>
 <section id="what-this-tells-us" class="level3">
 <h3 class="anchored" data-anchor-id="what-this-tells-us">What this tells us</h3>
-<p>The ratio plot is the signature of a cohort wave travelling through size space, not a uniform scaling. The limit cycle organises fish into periodic pulses that move from small to large <span class="math inline">\(w\)</span> as the cohort grows. At any given intermediate size, the pulse arrives, passes through quickly, and is gone — those sizes spend most of the cycle nearly empty. The non-monotone ratio pattern follows directly:</p>
+<p>The ratio plot is the signature of a cohort wave travelling through size space, not a uniform scaling. The limit cycle organises fish into periodic pulses that move from small to large <span class="math inline">\(w\)</span> as the cohort grows. At any given intermediate size, the pulse arrives, passes through quickly, and is gone which means those sizes spend most of the cycle nearly empty. The non-monotone ratio pattern follows directly:</p>
 <ul>
 <li>Excess at small<span class="math inline">\(w\)</span> (ratio ~2.5): At the biomass peak, the many large adults spawn more recruits than the fixed-point reproductive output. This burst of small fish shows up as a ~2.5× time-average at the recruitment end.</li>
 <li>Deficit at intermediate<span class="math inline">\(w\)</span> (ratio ~0.5): The cohort wave passes through juvenile sizes rapidly (fish grow quickly at small sizes relative to the cycle period). Between waves, these size classes are nearly empty. The long gaps dominate the time-average.</li>
@@ -960,7 +960,7 @@ Effort 0.50:  mean = 0.09193  max = 0.19960  min = 0.02188  yield = 0.000021</co
 </tr>
 </tbody>
 </table>
-<p>Mean biomass is remarkably robust. From effort 0 to 0.5 the mean falls only from 0.0978 to 0.0919 — a 6% drop. The limit-cycle advantage over the fixed point (ratio ~1.13 at effort 0, declining slightly to ~1.06 at effort 0.5) is gradually eroded by fishing but never eliminated within this effort range.</p>
+<p>Mean biomass is remarkably robust. From effort 0 to 0.5 the mean falls only from 0.0978 to 0.0919, a 6% drop. The limit-cycle advantage over the fixed point (ratio ~1.13 at effort 0, declining slightly to ~1.06 at effort 0.5) is gradually eroded by fishing but never eliminated within this effort range.</p>
 <p>Peak biomass increases with effort. The maximum rises from 0.182 to 0.200 as effort increases. This is self-compensation: fishing removes large mature fish, which lightens resource consumption during the peak. The resource recovers more strongly during troughs, fuelling higher peaks in the next cohort wave. The gain in peak height roughly cancels the direct mortality loss, keeping the mean nearly constant.</p>
 <p>Yield scales approximately linearly with effort. Since the biomass above <span class="math inline">\(w_\text{mat}\)</span> barely changes across the effort range, yield <span class="math inline">\(\approx\)</span> effort <span class="math inline">\(\times\)</span> constant. There is no sign of a yield maximum (MSY) in this range; the system is not yet being stressed enough to reduce the harvestable stock.</p>
 <p>The yield values are small in absolute terms because the knife-edge gear at <span class="math inline">\(w_\text{mat} = 10\text{g}\)</span> fishes only the top of the size spectrum, and, as the spectrum comparison showed, most biomass is in small fish. The fraction of total biomass above maturation size is small, so even high effort produces modest absolute yield.</p>
@@ -969,7 +969,7 @@ Effort 0.50:  mean = 0.09193  max = 0.19960  min = 0.02188  yield = 0.000021</co
 <section id="whats-next" class="level2">
 <h2 class="anchored" data-anchor-id="whats-next">What’s Next</h2>
 <ul>
-<li><strong>Peak-only fishing:</strong> Does concentrating effort at biomass peaks change yield or biomass compared to spreading the same total effort evenly? The motivation has changed — since constant fishing does not kill the cycle, the question is no longer about preserving the oscillation, but about whether the <em>timing</em> of mortality within a cycle matters at all.</li>
+<li><strong>Peak-only fishing:</strong> Does concentrating effort at biomass peaks change yield or biomass compared to spreading the same total effort evenly? The motivation has changed since constant fishing does not kill the cycle, the question is no longer about preserving the oscillation, but about whether the <em>timing</em> of mortality within a cycle matters at all.</li>
 <li><strong>Find the actual collapse threshold:</strong> At what effort does the population eventually collapse? The self-compensation mechanism keeps the mean almost constant up to effort = 0.5, but there must be a limit.</li>
 <li><strong>Step-by-step model building:</strong> Return to the simplified transport equation and build up mechanisms one at a time (linear model → reproduction → feedback loop → resource depletion) as outlined at the end of Days 14–15.</li>
 </ul>

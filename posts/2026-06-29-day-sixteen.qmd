@@ -400,7 +400,7 @@ The min–max envelope widens progressively with body size. At the smallest size
 
 ### What this tells us
 
-The ratio plot is the signature of a cohort wave travelling through size space, not a uniform scaling. The limit cycle organises fish into periodic pulses that move from small to large $w$ as the cohort grows. At any given intermediate size, the pulse arrives, passes through quickly, and is gone — those sizes spend most of the cycle nearly empty. The non-monotone ratio pattern follows directly:
+The ratio plot is the signature of a cohort wave travelling through size space, not a uniform scaling. The limit cycle organises fish into periodic pulses that move from small to large $w$ as the cohort grows. At any given intermediate size, the pulse arrives, passes through quickly, and is gone which means those sizes spend most of the cycle nearly empty. The non-monotone ratio pattern follows directly:
 
 - Excess at small$w$ (ratio \~2.5): At the biomass peak, the many large adults spawn more recruits than the fixed-point reproductive output. This burst of small fish shows up as a \~2.5× time-average at the recruitment end.
 - Deficit at intermediate$w$ (ratio \~0.5): The cohort wave passes through juvenile sizes rapidly (fish grow quickly at small sizes relative to the cycle period). Between waves, these size classes are nearly empty. The long gaps dominate the time-average.
@@ -494,7 +494,7 @@ The limit cycle persists at every tested effort level. There is no effort thresh
 | 0.30   | 0.0949       | 0.1982 | 0.0225 | 1.4×10⁻⁵ |
 | 0.50   | 0.0919       | 0.1996 | 0.0219 | 2.1×10⁻⁵ |
 
-Mean biomass is remarkably robust. From effort 0 to 0.5 the mean falls only from 0.0978 to 0.0919 — a 6% drop. The limit-cycle advantage over the fixed point (ratio \~1.13 at effort 0, declining slightly to \~1.06 at effort 0.5) is gradually eroded by fishing but never eliminated within this effort range.
+Mean biomass is remarkably robust. From effort 0 to 0.5 the mean falls only from 0.0978 to 0.0919, a 6% drop. The limit-cycle advantage over the fixed point (ratio \~1.13 at effort 0, declining slightly to \~1.06 at effort 0.5) is gradually eroded by fishing but never eliminated within this effort range.
 
 Peak biomass increases with effort. The maximum rises from 0.182 to 0.200 as effort increases. This is self-compensation: fishing removes large mature fish, which lightens resource consumption during the peak. The resource recovers more strongly during troughs, fuelling higher peaks in the next cohort wave. The gain in peak height roughly cancels the direct mortality loss, keeping the mean nearly constant.
 
@@ -506,6 +506,6 @@ The yield values are small in absolute terms because the knife-edge gear at $w_\
 
 ## What's Next
 
-- **Peak-only fishing:** Does concentrating effort at biomass peaks change yield or biomass compared to spreading the same total effort evenly? The motivation has changed — since constant fishing does not kill the cycle, the question is no longer about preserving the oscillation, but about whether the *timing* of mortality within a cycle matters at all.
+- **Peak-only fishing:** Does concentrating effort at biomass peaks change yield or biomass compared to spreading the same total effort evenly? The motivation has changed since constant fishing does not kill the cycle, the question is no longer about preserving the oscillation, but about whether the *timing* of mortality within a cycle matters at all.
 - **Find the actual collapse threshold:** At what effort does the population eventually collapse? The self-compensation mechanism keeps the mean almost constant up to effort = 0.5, but there must be a limit.
 - **Step-by-step model building:** Return to the simplified transport equation and build up mechanisms one at a time (linear model → reproduction → feedback loop → resource depletion) as outlined at the end of Days 14–15.
