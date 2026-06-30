@@ -1,0 +1,191 @@
+---
+title: "Day 17: Where Fishing Finally Kills the Oscillations"
+author: "Samia"
+date: "2026-06-30"
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    theme: flatly
+    code-fold: true
+categories: [research, mizer, bifurcation, limit-cycle, fishing, collapse, blog]
+description: "Pushing effort far beyond realistic levels reveals a second bifurcation: the limit cycle dies at around effort ≈ 8, via damped oscillations rather than a sudden collapse. The stabilisation is real but ecologically irrelevant — it requires effort an order of magnitude above the range tested in Day 16."
+---
+
+## Where Day 16 Left Us
+
+Day 16 ended with one outstanding question: constant fishing effort up to 0.5 barely touches the limit cycle (mean biomass drops only 6%, the oscillations persist at every effort level tested). The self-compensation mechanism — fishing removes large adults → resource recovers more strongly → next cohort wave peaks higher — keeps the cycle alive across the whole biologically relevant range. But there must be a limit. At what effort does the population finally stabilise, or collapse?
+
+Today answers that by scanning much higher effort levels: 6, 7, 8, 9, 10, 15, and 20.
+
+```{r}
+#| message: false
+#| warning: false
+#| output: false
+library(mizer)
+library(patchwork)
+library(reshape2)
+library(plotly)
+library(dplyr)
+library(mizerExperimental)
+library(tidyverse)
+library(glue)
+library(ggplot2)
+```
+
+------------------------------------------------------------------------
+
+## Setup
+
+The same helpers from Day 16 are used throughout.
+
+```{r}
+#| message: false
+#| warning: false
+#| output: false
+make_params <- function(lambda = 2.05, resource_decrease = 0.001) {
+  a0    <- 100
+  kappa <- a0 * exp(-6.9 * (lambda - 1))
+  no_w  <- round(log(66.5 / 0.0003) / 0.1)
+
+  params <- newSingleSpeciesParams(
+    species_name = "Anchovy",
+    w_min = 0.0003, w_max = 66.5, w_mat = 10,
+    no_w = no_w, lambda = lambda, kappa = kappa,
+    alpha = 0.1, gamma = 750, ks = 0
+  )
+  r      <- getResourceRate(params) * resource_decrease
+  params <- setResource(params, resource_rate = r,
+                        resource_dynamics = "resource_semichemostat")
+  params
+}
+
+make_limit_cycle_sim <- function(params, t_total = 600, effort = 0) {
+  params@initial_n_pp[] <- params@cc_pp * 0.1
+
+  sim_init <- project(params, t_max = 10, dt = 0.1, t_save = 0.2,
+                      progress_bar = FALSE, effort = 0,
+                      method = "predictor-corrector")
+  idx  <- params@w >= 10 & params@w <= 100
+  last <- dim(sim_init@n)[1]
+  sim_init@n[last, , idx] <- sim_init@n[last, , idx] / 1e3
+
+  project(sim_init, t_max = t_total - 10, dt = 0.1, t_save = 0.2,
+          progress_bar = FALSE, effort = effort,
+          method = "predictor-corrector")
+}
+```
+
+------------------------------------------------------------------------
+
+## Scanning High Effort Levels
+
+The same `test_constant_fishing` setup from Day 16 (knife-edge gear at $w_\text{mat}$, predictor-corrector, $t = 600$ years) is run at effort values of 6, 7, 8, 9, 10, 15, and 20. The red dashed line in each panel is the unstable fixed-point biomass located by `steadyNewton()` at λ = 2.05; the blue dashed line is the mean over $t > 400$.
+
+```{r}
+#| message: false
+#| warning: false
+#| output: false
+test_constant_fishing <- function(effort, lambda = 2.05, t_total = 600) {
+  p  <- make_params(lambda = lambda)
+  gp <- p@gear_params
+  gp$sel_func        <- "knife_edge"
+  gp$knife_edge_size <- p@species_params$w_mat
+  gp$catchability    <- 1
+  gear_params(p)     <- gp
+
+  sim <- make_limit_cycle_sim(p, t_total = t_total, effort = effort)
+  bm  <- getBiomass(sim)[, "Anchovy"]
+  t   <- as.numeric(names(bm))
+  list(sim = sim, bm = bm, t = t)
+}
+
+efforts_fishing <- c(6, 7, 8, 9, 10, 15, 20)
+results_fishing <- lapply(efforts_fishing, test_constant_fishing)
+
+p_ref     <- make_params(lambda = 2.05)
+ss_ref    <- steadyNewton(p_ref)
+bm_fp_ref <- sum(getBiomass(ss_ref))
+```
+
+```{r}
+#| message: false
+#| warning: false
+par(mfrow = c(2, 4), mar = c(3, 3, 2, 1))
+for (i in seq_along(efforts_fishing)) {
+  r       <- results_fishing[[i]]
+  bm_mean <- mean(r$bm[r$t > 400])
+  plot(r$t, r$bm, type = "l",
+       xlab = "Time (years)", ylab = "Biomass",
+       main = paste0("Effort = ", efforts_fishing[i]))
+  abline(h = bm_fp_ref, col = "firebrick", lty = 2)
+  abline(h = bm_mean,   col = "steelblue", lty = 2)
+}
+par(mfrow = c(1, 1), mar = c(5, 4, 4, 2) + 0.1)
+```
+
+```{r}
+#| message: false
+#| warning: false
+cat("Exp 7 — Constant fishing summary (lambda = 2.05):\n")
+for (i in seq_along(efforts_fishing)) {
+  r       <- results_fishing[[i]]
+  settled <- r$bm[r$t > 400]
+  y       <- getYield(r$sim)[, "Anchovy"]
+  t_y     <- as.numeric(rownames(getYield(r$sim)))
+  cat(sprintf("  Effort %.2f:  mean = %.5f  max = %.5f  min = %.5f  yield = %.6f\n",
+              efforts_fishing[i],
+              mean(settled), max(settled), min(settled),
+              mean(y[t_y > 400])))
+}
+```
+
+------------------------------------------------------------------------
+
+## What the Plot Shows
+
+The transition is clear and gradual:
+
+| Effort | Dynamics |
+|--------|----------|
+| 6–7    | Sustained limit cycle; wide-amplitude oscillations persist for the full 600 years |
+| 8–9    | Damped oscillations; the amplitude decays visibly and the trajectory spirals inward toward a fixed point |
+| 10+    | Stable fixed point; oscillations die within ~100–200 years and the trajectory settles |
+
+The bifurcation from limit cycle back to stable fixed point is therefore located at around effort ≈ 8. This is a reverse Hopf bifurcation: the same type of transition as the one at λ ≈ 2.08 in the lambda scan (Day 16), but now driven by fishing mortality rather than by the resource exponent.
+
+The damped transient at efforts 8–9 (as opposed to a sudden collapse) is the signature of a supercritical Hopf bifurcation: near the critical point the limit cycle shrinks continuously to zero amplitude and the trajectory spirals into the fixed point rather than jumping discontinuously.
+
+------------------------------------------------------------------------
+
+## A Caveat on the Fixed-Point Reference Line
+
+The red dashed line in each panel comes from `steadyNewton(p_ref)`, which is supposed to mark the unstable fixed point that the limit cycle oscillates around. In several panels — particularly at high effort — this line sits at a biomass that looks implausibly high, and it is worth explaining why.
+
+`steadyNewton()` solves for the steady state using a Newton–Raphson iteration rather than time integration. The problem with doing this on an unstable fixed point is that any deviation from it during the iteration would normally send the system spiralling away toward extinction before the solver converges. To prevent this, `steadyNewton()` internally inflates `R_max` — the Beverton–Holt reproduction ceiling — to an arbitrarily large value. With `R_max → ∞`, the Beverton–Holt function collapses to the density-independent limit (RDD ≈ RDI), and the reproductive floor is high enough that the fish population cannot collapse even when perturbed. The solver then converges to a fixed point under these artificial conditions and returns it.
+
+The consequence is that `bm_fp_ref` is the biomass of a fixed point computed with a reproduction rate that is much higher than the biological parameters actually specify. It is a numerical artefact of the method, not a value derived from the true system. At low effort the inflation matters relatively little because the fixed point location is not sensitive to `R_max` in that regime; at high effort, where the population is being actively suppressed, the inflated reproduction props up the fixed point biomass significantly above where the real biological fixed point would sit. This is why the red line drifts further from the settled blue mean as effort increases, rather than converging to it as one might expect.
+
+The fixed-point reference is therefore best read as a rough qualitative landmark — a marker for the approximate biomass around which the limit-cycle oscillations are centred at zero effort — rather than a precise biological quantity at each effort level.
+
+------------------------------------------------------------------------
+
+## What This Means
+
+The stabilisation is real, but it is not a management outcome — it is the consequence of removing fish so aggressively that the biological mechanism driving the cohort wave is disrupted.
+
+The cohort wave is sustained by a feedback loop: a large cohort of adults spawns a burst of recruits → the cohort grows through the size spectrum → it becomes a large adult cohort → it spawns another burst. At modest fishing effort (0–0.5, the biologically realistic range from Day 16), enough adults survive to close this loop. At effort ≥ 8, the adult stock is suppressed so severely that the reproductive pulse is insufficient to sustain the wave. The oscillation starves for recruits and damps out.
+
+The system does settle to a fixed point at high effort, but it is a lower-biomass fixed point than the limit-cycle mean. The self-compensation that kept the mean nearly constant up to effort = 0.5 is overwhelmed: fishing removes adults faster than the resource-recovery mechanism can compensate. The red dashed line (unstable fixed point at effort = 0) converges with the blue dashed line (settled mean) at high effort, but both are lower than the limit-cycle mean from Day 16.
+
+**The practical upshot:** within any biologically plausible effort range, a population in the limit-cycle regime stays there. Fishing does not stabilise the cohort wave — it either leaves it intact (low effort) or destroys it alongside much of the fish stock (effort ≈ 8+). There is no intermediate regime where fishing gently damps the oscillations while maintaining the biomass advantage.
+
+------------------------------------------------------------------------
+
+## What's Next
+
+Three natural extensions follow from the current picture:
+
+- **Two-parameter bifurcation diagram (λ vs effort).** The bifurcation point is known in λ alone (~2.08) and in effort alone (~8 at λ = 2.05). Mapping the full stability boundary in (λ, E) space would give the complete regime diagram — which combinations of resource productivity and fishing pressure produce a limit cycle versus a stable fixed point.
+- **Hopf bifurcation scaling.** Near the critical effort, oscillation amplitude should scale as $\sqrt{E_c - E}$. Measuring this would confirm the bifurcation type and give an analytical handle on how quickly the cycle dies as effort approaches the threshold.
+- **Stochastic recruitment.** Real populations have noisy recruitment. Adding lognormal recruitment noise asks whether noise blurs the bifurcation, shifts the effective threshold, or sustains oscillations even below the deterministic critical effort — the most ecologically realistic extension of the current analysis.
