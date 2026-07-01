@@ -367,7 +367,7 @@ legend("bottomright",
 The ratio is not flat it has a clear non-monotone structure:
 
 | Size range | Ratio | Interpretation |
-|------------------------|------------------------|------------------------|
+|----|----|----|
 | Smallest sizes (\~5×10⁻⁴ g) | \~2.5 | Reproduction pulses greatly exceed fixed-point rate |
 | Juvenile intermediate sizes (\~10⁻³–10⁻¹ g) | \~0.5 (below 1) | Wave passes through quickly; these sizes depleted on average |
 | Large adults (\>0.1 g to $w_\text{max}$) | \~1.5–1.6 | Wave bunches up near maximum size; elevated on average |

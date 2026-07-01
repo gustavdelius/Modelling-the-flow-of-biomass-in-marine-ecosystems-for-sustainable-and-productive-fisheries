@@ -47,10 +47,7 @@ make_limit_cycle_sim <- function(params, t_total = 600, effort = 0) {
 }
 
 
-
 ############# Experiment 1: Finding where the species goes extinct ############
-
-
 
 test_constant_fishing <- function(effort, lambda = 2.05, t_total = 600) {
   p  <- make_params(lambda = lambda)
