@@ -276,6 +276,6 @@ This result is consistent with what the effort scans in Days 16–17 suggested: 
 
 - **Try a different perturbation type** to see whether the same convergence-to-attractor result holds no matter what form the perturbation takes, rather than relying solely on the mature-stock knock-down used so far.
 
-- **Run with `balance = FALSE` in `project`.** The effects should be more realistic, since the model is not inflating some rates to compensate for others.
+- **Run with `balance = FALSE` in setResource.** The effects should be more realistic, since the model is not inflating some rates to compensate for others.
 
 - **Plot maximum and minimum separately** instead of plotting max − min, to get a bifurcation-diagram look at the amplitude data rather than a single collapsed amplitude curve.

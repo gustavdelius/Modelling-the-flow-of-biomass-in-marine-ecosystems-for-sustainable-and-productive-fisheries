@@ -1,0 +1,444 @@
+---
+title: "Day 19: balance = FALSE Doesn't Kill the Oscillation, It Starves the Population"
+author: "Samia"
+date: "2026-07-02"
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    theme: flatly
+    code-fold: true
+categories: [research, mizer, limit-cycle, resource-balance, bifurcation, blog]
+description: "Re-running the resource_decrease sweep from Day 18 with balance = FALSE in setResource() first looked like it simply killed the oscillation. A controlled A/B (same r_d grid, same solvers, toggling only balance) instead shows balance = FALSE chronically underfeeding the population across the entire range tested, collapsing it toward near-extinction at small resource_decrease rather than reaching either a stable fixed point or the limit cycle. The two settings were never producing comparable resource availability at the 'same' resource_decrease value."
+---
+
+## Where Day 18 Left Us
+
+Day 18 confirmed two things: the limit cycle is a stable global attractor (trajectories from perturbations spanning three orders of magnitude all converge to the same orbit), and the bifurcation into that limit cycle is supercritical (no hysteresis, amplitude grows continuously from zero). Its "What's Next" list left three threads open:
+
+- Try a different perturbation type to see whether the same convergence result holds regardless of how the system is kicked off the fixed point.
+- Run with `balance = FALSE` in the resource-setting step, since the default behaviour changes more of the model than intended.
+- Plot maximum and minimum separately instead of max − min, to get an actual bifurcation-diagram look at the amplitude data.
+
+Today tackles the second item, and it took three separate checks to actually understand what's going on.
+
+```{r}
+#| message: false
+#| warning: false
+#| output: false
+library(mizer)
+library(patchwork)
+library(reshape2)
+library(plotly)
+library(dplyr)
+library(mizerExperimental)
+library(tidyverse)
+library(glue)
+library(ggplot2)
+library(colorRamps)
+library(future.apply)
+```
+
+------------------------------------------------------------------------
+
+## Setup
+
+```{r}
+#| message: false
+#| warning: false
+#| output: false
+make_params <- function(lambda = 2.05, resource_decrease = 0.001,
+                        beta = NULL, sigma = NULL, balance = FALSE) {
+  a0    <- 100
+  kappa <- a0 * exp(-6.9 * (lambda - 1))
+  no_w  <- round(log(66.5 / 0.0003) / 0.1)
+
+  args <- list(
+    species_name = "Anchovy",
+    w_min = 0.0003, w_max = 66.5, w_mat = 10,
+    no_w = no_w, lambda = lambda, kappa = kappa,
+    alpha = 0.1, gamma = 750, ks = 0
+  )
+  if (!is.null(beta))  args$beta  <- beta
+  if (!is.null(sigma)) args$sigma <- sigma
+
+  params <- do.call(newSingleSpeciesParams, args)
+  r      <- getResourceRate(params) * resource_decrease
+  setResource(params, resource_rate = r,
+             resource_dynamics = "resource_semichemostat", balance = balance)
+}
+
+make_limit_cycle_sim <- function(params, t_total = 600, effort = 0, perturbation = 1e3) {
+  params@initial_n_pp[] <- params@cc_pp * 0.1
+
+  sim_init <- project(params, t_max = 10, dt = 0.1, t_save = 0.2,
+                      progress_bar = FALSE, effort = 0,
+                      method = "predictor-corrector")
+  idx  <- params@w >= 10 & params@w <= 100
+  last <- dim(sim_init@n)[1]
+  sim_init@n[last, , idx] <- sim_init@n[last, , idx] / perturbation
+
+  project(sim_init, t_max = t_total - 10, dt = 0.1, t_save = 0.2,
+          progress_bar = FALSE, effort = effort,
+          method = "tr_bdf2")
+}
+
+test_effort <- function(r_d, lambda = 2.05, t_total = 600, balance = FALSE) {
+  p   <- make_params(lambda = lambda, resource_decrease = r_d, balance = balance)
+  sim <- make_limit_cycle_sim(p, t_total = t_total)
+  bm  <- getBiomass(sim)[, "Anchovy"]
+  t   <- as.numeric(names(bm))
+  list(sim = sim, bm = bm, t = t)
+}
+
+r_d <- exp(seq(log(0.001), log(0.3), length.out = 10))
+```
+
+`balance` is now an explicit argument, defaulting to `FALSE`, and `r_d` is the same log-spaced grid from 0.001 to 0.3 used in Day 18's hysteresis sweep — it brackets the bifurcation point found there (`rd ≈ 0.008`), so every value tested produced clear oscillation under the default `balance = TRUE` setting.
+
+------------------------------------------------------------------------
+
+## First Pass: `balance = FALSE` Looks Like It Kills the Oscillation
+
+```{r}
+#| message: false
+#| warning: false
+#| output: false
+plan(multisession)
+results_fishing <- future_lapply(r_d, test_effort, future.seed = TRUE)
+```
+
+```{r}
+#| message: false
+#| warning: false
+plot(NULL, xlim = c(550, 600),
+     ylim = range(sapply(results_fishing, function(r) range(r$bm[r$t > 550]))),
+     xlab = "Time (years)", ylab = "Biomass", main = "Biomass trajectories (t > 550), balance = FALSE")
+cols <- colorRampPalette(c("blue", "red"))(length(r_d))
+for (i in seq_along(results_fishing)) {
+  r    <- results_fishing[[i]]
+  mask <- r$t > 550
+  lines(r$t[mask], r$bm[mask], col = cols[i])
+}
+legend("topright", legend = paste0("r_d = ", r_d), col = cols, lty = 1, cex = 0.8)
+```
+
+Every trajectory is flat by $t = 550$, across the entire range that produced clear oscillation under the default `balance = TRUE` setting. Read at face value, this says `balance = FALSE` removes the oscillatory mechanism. That reading turns out to be wrong.
+
+------------------------------------------------------------------------
+
+## Checking `resource_capacity` Directly (A Dead End)
+
+Per [setResource()'s documentation](https://sizespectrum.org/mizer/reference/setResource.html), `balance = TRUE` is supposed to back-solve `resource_capacity` (`cc_pp`) from `resource_rate` so that "the resource replenishes at the same rate at which it is consumed." The first hypothesis was that `balance = TRUE` was depleting `cc_pp` alongside `resource_rate`, and `balance = FALSE` was leaving the ceiling untouched. This checks it directly, on a freshly built `params` object, before any consumption dynamics have run:
+
+```{r}
+#| message: false
+#| warning: false
+check_balance_effect <- function(resource_decrease, lambda = 2.05) {
+  a0    <- 100
+  kappa <- a0 * exp(-6.9 * (lambda - 1))
+  no_w  <- round(log(66.5 / 0.0003) / 0.1)
+
+  base <- newSingleSpeciesParams(
+    species_name = "Anchovy",
+    w_min = 0.0003, w_max = 66.5, w_mat = 10,
+    no_w = no_w, lambda = lambda, kappa = kappa,
+    alpha = 0.1, gamma = 750, ks = 0
+  )
+  r <- getResourceRate(base) * resource_decrease
+
+  p_balanced   <- setResource(base, resource_rate = r,
+                              resource_dynamics = "resource_semichemostat", balance = TRUE)
+  p_unbalanced <- setResource(base, resource_rate = r,
+                              resource_dynamics = "resource_semichemostat", balance = FALSE)
+
+  data.frame(
+    resource_decrease    = resource_decrease,
+    cc_pp_default_max    = max(base@cc_pp),
+    cc_pp_balanced_max   = max(p_balanced@cc_pp),
+    cc_pp_unbalanced_max = max(p_unbalanced@cc_pp)
+  )
+}
+
+balance_check <- bind_rows(lapply(c(0.001, 0.01, 0.1, 0.3), check_balance_effect))
+knitr::kable(balance_check)
+```
+
+`cc_pp` comes back identical across all three columns, for every `resource_decrease` tested — `balance` isn't touching the capacity here at all. This looked like it ruled capacity out entirely. It doesn't: this check runs `setResource()` on a `params` object that has never been projected, so there's no consumption yet for `balance` to compensate for. Its real effect only shows up once the model actually runs, as the next two passes confirm.
+
+------------------------------------------------------------------------
+
+## Second Pass: A Controlled A/B Isolating Just `balance`
+
+The first pass only ran `balance = FALSE`. Before concluding anything, the same grid was run with `balance = TRUE` too, holding every other setting (solvers, perturbation, `t_total`) identical, so `balance` is the only thing that differs between the two runs.
+
+```{r}
+#| message: false
+#| warning: false
+#| output: false
+plan(multisession)
+results_balance_true  <- future_lapply(r_d, test_effort, balance = TRUE,  future.seed = TRUE)
+results_balance_false <- future_lapply(r_d, test_effort, balance = FALSE, future.seed = TRUE)
+
+amp_by_balance <- data.frame(
+  r_d = r_d,
+  amp_balance_true  = sapply(results_balance_true,  function(r) {
+    late <- r$bm[r$t > 550]; max(late) - min(late)
+  }),
+  amp_balance_false = sapply(results_balance_false, function(r) {
+    late <- r$bm[r$t > 550]; max(late) - min(late)
+  })
+)
+```
+
+```{r}
+#| message: false
+#| warning: false
+knitr::kable(amp_by_balance, digits = 20)
+```
+
+`amp_balance_true` reproduces Day 18's bifurcation exactly: large amplitude (0.05–0.16) for `r_d` below about 0.008–0.02, then a hard drop to `1e-16`-scale floating-point noise above it — a genuine stable fixed point. `amp_balance_false` never gets anywhere near that amplitude, but it doesn't look like flat noise either: it climbs *smoothly across roughly sixteen orders of magnitude*, from `4.5e-20` at `r_d = 0.001` up to `1e-4` at `r_d = 0.3`. Floating-point noise around a fixed point doesn't behave like that. Numerical noise that scales with the magnitude of the underlying quantity does — which is what it looks like if the actual biomass itself is climbing steadily across the grid rather than sitting at a fixed non-oscillating level.
+
+------------------------------------------------------------------------
+
+## Third Pass: Checking Biomass Level, Not Just Amplitude
+
+```{r}
+#| message: false
+#| warning: false
+bm_final_balance <- data.frame(
+  r_d            = r_d,
+  bm_final_true  = sapply(results_balance_true,  function(r) tail(r$bm, 1)),
+  bm_final_false = sapply(results_balance_false, function(r) tail(r$bm, 1))
+)
+knitr::kable(bm_final_balance, digits = 20)
+```
+
+This confirms it. At `r_d = 0.001`, `bm_final_false` is `1.6e-17` — the population is extinct — against `bm_final_true`'s real biomass of `0.025`. And it isn't just the smallest `r_d`: even at `r_d = 0.3`, the top of the entire tested range, `bm_final_false` (`1.1e-3`) is still roughly **76 times smaller** than `bm_final_true`'s stable-fixed-point plateau (`0.087`). The population under `balance = FALSE` never reaches a biomass comparable to the `balance = TRUE` case anywhere in this grid, let alone the level needed to destabilise into a limit cycle.
+
+**`balance = FALSE` doesn't remove the oscillatory mechanism. It chronically underfeeds the population across the whole `resource_decrease` range, and drives it toward extinction at the low end.** The two settings were never testing comparable resource availability at the "same" `resource_decrease` value — `resource_decrease = 0.3` under `balance = FALSE` leaves the population worse off than `resource_decrease = 0.001` does under `balance = TRUE`.
+
+This also resolves an earlier dead end. A direct check of `resource_capacity` (`cc_pp`) on a freshly built, never-projected `params` object found it identical between `balance = TRUE` and `balance = FALSE` — which seemed to rule out capacity as the explanation. But that check ran before any consumption dynamics existed to compensate for, so `balance` had nothing to act on yet. The biomass comparison here shows its downstream effect once the model actually runs: without `balance`'s adjustment, the resource supply can't keep up with the population's demand once `resource_rate` is throttled down, and the population starves. The mechanism was real; it just wasn't visible in a static, pre-simulation snapshot.
+
+It also explains why the beta/sigma feeding-kernel sweep from the earlier draft of this post found nothing. The working hypothesis at the time was that `balance = FALSE` might need a more extreme feeding kernel (`beta`, the preferred predator:prey mass ratio, and `sigma`, the width of the selectivity around it) to restore the missing destabilisation, so `resource_decrease` was held fixed at `0.001` while `beta`/`sigma` were scanned over a grid:
+
+```{r}
+#| message: false
+#| warning: false
+#| output: false
+test_beta_sigma <- function(beta, sigma, r_d = 0.001, lambda = 2.05, t_total = 600) {
+  p   <- make_params(lambda = lambda, resource_decrease = r_d, beta = beta, sigma = sigma)
+  sim <- make_limit_cycle_sim(p, t_total = t_total)
+  bm  <- getBiomass(sim)[, "Anchovy"]
+  t   <- as.numeric(names(bm))
+  list(sim = sim, bm = bm, t = t, beta = beta, sigma = sigma)
+}
+
+beta_seq  <- c(50, 100, 200, 400)
+sigma_seq <- c(0.8, 1.3, 1.8, 2.3)
+grid      <- expand.grid(beta = beta_seq, sigma = sigma_seq)
+
+plan(multisession)
+results_beta_sigma <- future_lapply(seq_len(nrow(grid)), function(i) {
+  test_beta_sigma(beta = grid$beta[i], sigma = grid$sigma[i], r_d = 0.001)
+}, future.seed = TRUE)
+
+amp_df <- data.frame(
+  beta  = grid$beta,
+  sigma = grid$sigma,
+  amp   = sapply(results_beta_sigma, function(r) {
+    late <- r$bm[r$t > 550]
+    max(late) - min(late)
+  })
+)
+```
+
+```{r}
+#| message: false
+#| warning: false
+ggplot(amp_df, aes(x = factor(beta), y = factor(sigma), fill = amp)) +
+  geom_tile() +
+  scale_fill_viridis_c() +
+  labs(x = "beta", y = "sigma",
+       fill = "Amplitude\n(max - min, t > 550)",
+       title = "Oscillation amplitude across beta/sigma grid (balance = FALSE, r_d = 0.001)") +
+  theme_minimal()
+```
+
+The colour scale spans roughly `1e-12` to `4e-12` — every cell, including the brightest one, is essentially zero relative to the biomass values elsewhere in this study. No feeding-kernel shape revived the oscillation, which makes sense in hindsight: it was run at `r_d = 0.001` under `balance = FALSE`, deep in the near-extinct regime confirmed above. No feeding-kernel shape can matter when there's essentially no population left to feed.
+
+One loose end this does close off: the mismatched solver in `make_limit_cycle_sim` (`predictor-corrector` for stage 1, `tr_bdf2` for stage 2) was a candidate confound for the earlier flat result. Since `balance = TRUE` reproduced Day 18's bifurcation cleanly using that exact same solver setup, the mismatch isn't the explanation here — though it's still worth fixing for consistency with Day 18's methodology.
+
+------------------------------------------------------------------------
+
+## Fourth Pass: Fixing `resource_rate`/`resource_capacity` at the Best-Oscillating Values, Then Varying `beta`/`sigma`
+
+The beta/sigma sweep above failed for a specific, now-understood reason: it was run at a resource baseline that was already starving the population, so no feeding-kernel shape had a chance. This repeats it properly — `resource_rate` and `resource_capacity` are pulled directly from the run that produced the strongest oscillation (`r_d = 0.001` under `balance = TRUE`, amplitude `0.159` in `amp_balance_true` above), fixed explicitly, and `beta`/`sigma` are varied on top of that known-good baseline instead of a starved one.
+
+```{r}
+#| message: false
+#| warning: false
+#| output: false
+best_params   <- make_params(resource_decrease = r_d[1], balance = TRUE)
+best_rate     <- best_params@rr_pp
+best_capacity <- best_params@cc_pp
+
+# Supplying both resource_rate and resource_capacity leaves nothing for
+# balance to back-solve, so balance = FALSE here just sets them directly.
+make_params_fixed_resource <- function(lambda = 2.05, resource_rate, resource_capacity,
+                                       beta = NULL, sigma = NULL) {
+  a0    <- 100
+  kappa <- a0 * exp(-6.9 * (lambda - 1))
+  no_w  <- round(log(66.5 / 0.0003) / 0.1)
+
+  args <- list(
+    species_name = "Anchovy",
+    w_min = 0.0003, w_max = 66.5, w_mat = 10,
+    no_w = no_w, lambda = lambda, kappa = kappa,
+    alpha = 0.1, gamma = 750, ks = 0
+  )
+  if (!is.null(beta))  args$beta  <- beta
+  if (!is.null(sigma)) args$sigma <- sigma
+
+  params <- do.call(newSingleSpeciesParams, args)
+  setResource(params, resource_rate = resource_rate, resource_capacity = resource_capacity,
+             resource_dynamics = "resource_semichemostat", balance = FALSE)
+}
+
+test_beta_sigma_fixed <- function(beta, sigma, resource_rate, resource_capacity,
+                                  lambda = 2.05, t_total = 600) {
+  p   <- make_params_fixed_resource(lambda = lambda, resource_rate = resource_rate,
+                                    resource_capacity = resource_capacity,
+                                    beta = beta, sigma = sigma)
+  sim <- make_limit_cycle_sim(p, t_total = t_total)
+  bm  <- getBiomass(sim)[, "Anchovy"]
+  t   <- as.numeric(names(bm))
+  list(sim = sim, bm = bm, t = t, beta = beta, sigma = sigma)
+}
+
+# newSingleSpeciesParams() defaults to beta = 100, sigma = 1.3, so the grid
+# is centred on those defaults with room to move in both directions.
+beta_seq_fixed  <- c(50, 75, 100, 150, 200, 300)
+sigma_seq_fixed <- c(0.8, 1.0, 1.3, 1.6, 2.0)
+grid_fixed      <- expand.grid(beta = beta_seq_fixed, sigma = sigma_seq_fixed)
+
+plan(multisession)
+results_beta_sigma_fixed <- future_lapply(seq_len(nrow(grid_fixed)), function(i) {
+  test_beta_sigma_fixed(beta = grid_fixed$beta[i], sigma = grid_fixed$sigma[i],
+                        resource_rate = best_rate, resource_capacity = best_capacity)
+}, future.seed = TRUE)
+
+amp_df_fixed <- data.frame(
+  beta  = grid_fixed$beta,
+  sigma = grid_fixed$sigma,
+  amp   = sapply(results_beta_sigma_fixed, function(r) {
+    late <- r$bm[r$t > 550]
+    max(late) - min(late)
+  })
+)
+```
+
+```{r}
+#| message: false
+#| warning: false
+ggplot(amp_df_fixed, aes(x = factor(beta), y = factor(sigma), fill = amp)) +
+  geom_tile() +
+  geom_point(data = subset(amp_df_fixed, beta == 100 & sigma == 1.3),
+             aes(x = factor(beta), y = factor(sigma)),
+             shape = 4, size = 4, color = "red") +
+  scale_fill_viridis_c() +
+  labs(x = "beta", y = "sigma",
+       fill = "Amplitude\n(max - min, t > 550)",
+       title = "Oscillation amplitude across beta/sigma grid",
+       subtitle = "resource_rate/capacity fixed at the best-oscillating balance = TRUE values; red x = defaults (beta=100, sigma=1.3)") +
+  theme_minimal()
+```
+
+The red-marked cell is the default kernel (`beta = 100, sigma = 1.3`), which is the same combination behind every oscillation characterised in Days 10–18. Unlike the earlier beta/sigma attempt, this heatmap has real structure: amplitude ranges smoothly from around `0.05` (dark, top-right) up to over `0.5` (bright yellow, `beta = 50, sigma = 0.8`), with the default sitting in the mid-range around `0.25`–`0.3`. Narrower, more concentrated feeding kernels (lower `beta`, lower `sigma`) sustain a noticeably larger-amplitude oscillation than the default; wider ones damp it down. This is the comparison the earlier attempt couldn't make, because everything was flat at the starved baseline regardless of kernel shape.
+
+The amplitude number alone doesn't say whether the dark, low-amplitude corner is a genuine stable fixed point or another case of starvation, and it says nothing about whether the waveform shape or period changes across the grid. Both are worth checking directly against the actual biomass trajectories.
+
+------------------------------------------------------------------------
+
+## Fifth Pass: Checking the Actual Biomass, Not Just the Amplitude Summary
+
+First, every trajectory in the grid, plotted directly rather than reduced to a single amplitude number:
+
+```{r}
+#| message: false
+#| warning: false
+par(mfrow = c(5, 6), mar = c(2, 2, 2, 1))
+for (i in seq_along(results_beta_sigma_fixed)) {
+  r    <- results_beta_sigma_fixed[[i]]
+  mask <- r$t > 500
+  plot(r$t[mask], r$bm[mask], type = "l", xlab = "", ylab = "",
+       main = paste0(r$beta, ", ", r$sigma), cex.main = 0.7)
+}
+par(mfrow = c(1, 1), mar = c(5, 4, 4, 2) + 0.1)
+```
+
+Then a direct overlay of the highest-amplitude cell, the default, and the lowest-amplitude cell, to compare waveform shape and period rather than just amplitude:
+
+```{r}
+#| message: false
+#| warning: false
+compare_spec <- list(
+  list(beta = 50,  sigma = 0.8, label = "beta=50, sigma=0.8 (highest amp)",  col = "firebrick"),
+  list(beta = 100, sigma = 1.3, label = "beta=100, sigma=1.3 (default)",     col = "black"),
+  list(beta = 300, sigma = 2.0, label = "beta=300, sigma=2.0 (lowest amp)",  col = "steelblue")
+)
+compare_idx <- sapply(compare_spec, function(s) {
+  which(grid_fixed$beta == s$beta & grid_fixed$sigma == s$sigma)
+})
+compare_runs <- results_beta_sigma_fixed[compare_idx]
+
+plot(NULL, xlim = c(550, 600),
+     ylim = range(sapply(compare_runs, function(r) range(r$bm[r$t > 550]))),
+     xlab = "Time (years)", ylab = "Biomass",
+     main = "Biomass trajectories: highest-amp vs default vs lowest-amp (t > 550)")
+for (j in seq_along(compare_runs)) {
+  r    <- compare_runs[[j]]
+  mask <- r$t > 550
+  lines(r$t[mask], r$bm[mask], col = compare_spec[[j]]$col, lwd = 2)
+}
+legend("topright", legend = sapply(compare_spec, `[[`, "label"),
+       col = sapply(compare_spec, `[[`, "col"), lwd = 2, cex = 0.8)
+```
+
+Finally, the biomass *level* across the whole grid, not just its amplitude — this is the check that tells apart a genuine stable fixed point (healthy nonzero biomass, no oscillation) from starvation (near-zero biomass), the same distinction that mattered for `bm_final_balance` earlier:
+
+```{r}
+#| message: false
+#| warning: false
+bm_level_fixed <- data.frame(
+  beta         = grid_fixed$beta,
+  sigma        = grid_fixed$sigma,
+  bm_mean_late = sapply(results_beta_sigma_fixed, function(r) mean(r$bm[r$t > 550])),
+  bm_final     = sapply(results_beta_sigma_fixed, function(r) tail(r$bm, 1))
+)
+
+ggplot(bm_level_fixed, aes(x = factor(beta), y = factor(sigma), fill = bm_mean_late)) +
+  geom_tile() +
+  geom_point(data = subset(bm_level_fixed, beta == 100 & sigma == 1.3),
+             aes(x = factor(beta), y = factor(sigma)),
+             shape = 4, size = 4, color = "red") +
+  scale_fill_viridis_c() +
+  labs(x = "beta", y = "sigma", fill = "Mean biomass\n(t > 550)",
+       title = "Mean late-time biomass across beta/sigma grid",
+       subtitle = "Low here + low amplitude = starvation; healthy biomass + low amplitude = genuine stable fixed point") +
+  theme_minimal()
+```
+
+If the low-amplitude cells in the top-right of the amplitude heatmap have `bm_mean_late` comparable to `bm_final_true`'s `~0.087` plateau from the Third Pass (not collapsed toward zero), that confirms they're real stable fixed points produced by kernel shape alone, not another starvation case. If they're collapsed instead, the same starvation mechanism from earlier is still at play, just triggered by kernel shape rather than `resource_decrease` this time.
+
+------------------------------------------------------------------------
+
+## What's Next
+
+- **Read the Fifth Pass output above** once it's run: do the trajectory panels confirm genuine sustained oscillation (not a still-decaying transient) across the brighter cells, does the period visibly shift between the highest-amp, default, and lowest-amp overlays, and does the biomass-level heatmap show the dark corner as a healthy fixed point or another starvation case?
+
+- **Find the `balance = FALSE` regime that's actually comparable to Day 18's oscillatory window**, rather than comparing at matched `resource_decrease` values that turn out not to represent matched resource availability. That likely means testing much larger `resource_decrease` (less depletion) than 0.3, to first find where the population under `balance = FALSE` reaches a healthy biomass at all, and only then ask whether a further decrease destabilises it.
+
+- **Re-run with `tr_bdf2` used consistently for both stages of `make_limit_cycle_sim`**, for methodological consistency with Day 18, even though it wasn't the cause of today's result.
+
+- Carried over from Day 18, still open: try a different perturbation type to check whether the global-attractor result is specific to the mature-stock knock-down, and plot maximum and minimum separately instead of max − min to get a genuine bifurcation-diagram view of the amplitude data.

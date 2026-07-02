@@ -74,7 +74,7 @@
     "href": "posts/2026-07-01-day-eighteen.html#whats-next",
     "title": "Day 18: Confirming the Limit Cycle Is a Global Attractor and the Bifurcation Is Supercritical",
     "section": "What’s Next",
-    "text": "What’s Next\n\nTry a different perturbation type to see whether the same convergence-to-attractor result holds no matter what form the perturbation takes, rather than relying solely on the mature-stock knock-down used so far.\nRun with balance = FALSE in project. The effects should be more realistic, since the model is not inflating some rates to compensate for others.\nPlot maximum and minimum separately instead of plotting max − min, to get a bifurcation-diagram look at the amplitude data rather than a single collapsed amplitude curve."
+    "text": "What’s Next\n\nTry a different perturbation type to see whether the same convergence-to-attractor result holds no matter what form the perturbation takes, rather than relying solely on the mature-stock knock-down used so far.\nRun with balance = FALSE in setResource. The effects should be more realistic, since the model is not inflating some rates to compensate for others.\nPlot maximum and minimum separately instead of plotting max − min, to get a bifurcation-diagram look at the amplitude data rather than a single collapsed amplitude curve."
   },
   {
     "objectID": "posts/2026-06-29-day-sixteen.html",
