@@ -246,3 +246,4 @@ sim3 <- project(add_bump(ss3), t_max = 200, dt = 0.01, t_save = 0.1,
                 method = "predictor-corrector", progress_bar = FALSE)
 
 animateSpectra(sim3,power=2,log="xy",tlim=c(150,200),resource=FALSE)
+

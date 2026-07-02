@@ -147,7 +147,7 @@ for (i in seq_along(efforts_fishing)) {
 The transition is clear and gradual:
 
 | Effort | Dynamics |
-|------------------------------------|------------------------------------|
+|----|----|
 | 6–7 | Sustained limit cycle; wide-amplitude oscillations persist for the full 600 years |
 | 8–9 | Damped oscillations; the amplitude decays visibly and the trajectory spirals inward toward a fixed point |
 | 10+ | Stable fixed point; oscillations die within \~100–200 years and the trajectory settles |
