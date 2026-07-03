@@ -1,5 +1,5 @@
 ---
-title: "Day 18: Confirming the Limit Cycle Is a Global Attractor and the Bifurcation Is Supercritical"
+title: "Day 18: The Limit Cycle Is a Global Attractor, but Supercritical vs Subcritical Is Still Open"
 author: "Samia"
 date: "2026-07-01"
 format:
@@ -9,7 +9,7 @@ format:
     theme: flatly
     code-fold: true
 categories: [research, mizer, limit-cycle, stability, perturbation, bifurcation, hysteresis, hopf, blog]
-description: "Two experiments today. First: five perturbation magnitudes spanning three orders of magnitude are applied to the mature stock; all converge to the same oscillatory orbit by t = 550, confirming the limit cycle is a stable global attractor. Second: a forward-backward sweep through resource_decrease with diffusion switched off tests for hysteresis. The two curves are indistinguishable within numerical error and the amplitude grows continuously from zero at the transition, confirming the bifurcation is supercritical Hopf."
+description: "Two experiments today. First: five perturbation magnitudes spanning three orders of magnitude are applied to the mature stock; all converge to the same oscillatory orbit by t = 550, confirming the limit cycle is a stable global attractor. Second: a forward-backward sweep through resource_decrease with diffusion switched off tests for hysteresis. Amplitude grows continuously from zero on the forward sweep, a supercritical signature, but the backward sweep sustains oscillation to a noticeably higher resource_decrease than the forward onset — a gap too large to write off as a sweep-start artefact alone, so a purely supercritical Hopf bifurcation can't yet be confirmed."
 ---
 
 ## Where Day 17 Left Us
@@ -100,27 +100,6 @@ Five perturbation levels are tested: 1, 5, 10, 100, and 1000. A perturbation of 
 perturbation    <- c(1e3, 1e2, 1e1, 5, 1)
 results_fishing <- lapply(perturbation, test_perturbation)
 ```
-
-------------------------------------------------------------------------
-
-## Trajectory Panels (Full Run)
-
-Each panel shows the full 600-year biomass trajectory for one perturbation level.
-
-```{r}
-#| message: false
-#| warning: false
-par(mfrow = c(2, 4), mar = c(3, 3, 2, 1))
-for (i in seq_along(results_fishing)) {
-  r <- results_fishing[[i]]
-  plot(r$t, r$bm, type = "l",
-       xlab = "Time (years)", ylab = "Biomass",
-       main = paste0("Perturbation = ", perturbation[i]))
-}
-par(mfrow = c(1, 1), mar = c(5, 4, 4, 2) + 0.1)
-```
-
-The panels already suggest convergence: all five trajectories settle into qualitatively similar oscillations well before $t = 600$. Early transients differ in shape (the larger perturbations take longer to recover their first oscillation peak) but the long-run behaviour is indistinguishable by eye.
 
 ------------------------------------------------------------------------
 
@@ -218,7 +197,7 @@ run_rd_sweep <- function(rd_seq, init_n = NULL, init_n_pp = NULL,
   list(df = out, n_final = state_n, npp_final = state_npp)
 }
 
-rd_seq <- exp(seq(log(0.001), log(1), length.out = 50))
+rd_seq <- seq(0.001, 0.01, length.out = 10)
 
 fwd <- run_rd_sweep(rd_seq, label = "FWD")
 bwd <- run_rd_sweep(rev(rd_seq),
@@ -258,17 +237,13 @@ legend("topleft",
 
 ## What the Hysteresis Plot Shows
 
-The forward and backward curves trace essentially the same path. Both drop continuously and smoothly to zero at the same transition point and there is no visible gap between them, and no discontinuous jump in amplitude at the bifurcation. The small difference between the two dashed lines (forward onset detected at the start of the sweep, backward offset at $\text{rd} \approx 0.008$) is a detection artefact rather than real hysteresis: the forward "onset" is flagged at rd = 0.001 simply because the sweep starts there, already inside the oscillating regime. The meaningful comparison is where each curve drops to zero, and those values agree within the resolution of the sweep.
+The forward and backward curves both drop toward zero amplitude in roughly the same region, and neither jumps discontinuously — encouraging signs for a supercritical bifurcation. But they don't fully coincide either. The backward curve keeps oscillating down to $\text{rd} \approx 0.008$, while the forward curve's amplitude has already fallen toward the noise floor well before that point. Read at face value, that gap is exactly what a subcritical bifurcation with a small bistability window would look like: the limit cycle outliving its own forward onset on the way back down.
 
-Near the bifurcation point, convergence to the attractor slows (critical slowing down), so a 300-year run does not fully settle before the next step is taken. This contributes a small asymmetry between the two directions but nothing that would indicate bistability.
+The obvious objection is that the forward "onset" detector is contaminated: it's flagged at rd = 0.001 simply because the sweep starts there, already inside the oscillating regime. That's true, but it only explains away half the gap — it means the forward transition point isn't well measured by `fwd_onset`, not that the gap itself isn't real. The backward offset at $\text{rd} \approx 0.008$ is a direct, uncontaminated measurement, and the forward curve's amplitude is visibly near zero below that value on the plot. Critical slowing down near the bifurcation is a real confound too: a 300-year run may not fully settle before the next step is taken, which would inflate the backward curve's apparent transition point without any true hysteresis behind it. But at this sweep resolution and run length, that explanation can't be distinguished from genuine bistability.
 
-Two signatures together confirm a supercritical Hopf bifurcation:
+So the two signatures don't agree. Continuous, square-root-like amplitude growth on the forward sweep ($A \propto \sqrt{|r - r_c|}$, no discontinuous jump) is a supercritical signature. The unresolved gap between the forward and backward transition points is what a subcritical bifurcation with a bistable window would produce. **Given that, this data can't yet confirm the bifurcation is supercritical.** It may be subcritical with a narrow bistable region that a coarse 10-point sweep and 300-year runs aren't resolving cleanly, or it may be supercritical with the whole gap explained by critical slowing down. Distinguishing the two needs either much longer per-step runs (to let slow convergence fully resolve) or a finer `rd` grid around 0.008 to see whether the gap holds up or recedes. That's left open rather than settled here.
 
-For a subcritical bifurcation the backward curve would remain above zero well into parameter values where the forward curve had already stabilised as well as a bistability window where both the fixed point and the limit cycle coexist as stable attractors. No such window is present here. The forward and backward paths are mostly indistinguishable.
-
-The limit cycle amplitude shrinks smoothly to zero as `resource_decrease` decreases toward the bifurcation point rather than jumping discontinuously from a finite value to zero. This continuous, square-root-like growth of amplitude away from the critical point ($A \propto \sqrt{|r - r_c|}$) is the defining signature of a supercritical Hopf bifurcation.
-
-This result is consistent with what the effort scans in Days 16–17 suggested: the transition back to a stable fixed point at high fishing effort also showed damped spiralling (not a discontinuous jump), which is likewise characteristic of a supercritical bifurcation.
+The effort scans in Days 16–17 are sometimes read as a second confirmation of the same picture: the transition back to a stable fixed point at high fishing effort also showed damped spiralling rather than a discontinuous jump. But calling that "consistent with supercritical" is a weaker claim than it sounds, and it's now doubly so given the hysteresis gap above. The spiral there persists for a good number of cycles before settling, longer than critical slowing down alone would predict, and it isn't a numerical-integration artefact either, since the same solver and timestep produce clean, non-decaying oscillation everywhere else in this post. Asserting consistency glosses over that persistence rather than explaining it. Rather than a blanket statement, this needs a closer look: plotting the maximum and minimum of each cycle separately as effort increases (see What's Next) rather than the collapsed max − min amplitude used so far.
 
 ------------------------------------------------------------------------
 
@@ -279,3 +254,5 @@ This result is consistent with what the effort scans in Days 16–17 suggested: 
 - **Run with `balance = FALSE` in setResource.** The effects should be more realistic, since the model is not inflating some rates to compensate for others.
 
 - **Plot maximum and minimum separately** instead of plotting max − min, to get a bifurcation-diagram look at the amplitude data rather than a single collapsed amplitude curve.
+
+- **Resolve whether the forward/backward gap at `rd ≈ 0.008` is real hysteresis or a run-length artefact.** Rerun the sweep with much longer per-step runs (to let critical slowing down fully settle) and a finer `resource_decrease` grid around 0.008, since the current 10-point, 300-year sweep can't distinguish a genuinely subcritical bifurcation with a narrow bistable window from a supercritical one confounded by slow convergence.

@@ -8,9 +8,9 @@
 
 <meta name="author" content="Samia">
 <meta name="dcterms.date" content="2026-07-01">
-<meta name="description" content="Two experiments today. First: five perturbation magnitudes spanning three orders of magnitude are applied to the mature stock; all converge to the same oscillatory orbit by t = 550, confirming the limit cycle is a stable global attractor. Second: a forward-backward sweep through resource_decrease with diffusion switched off tests for hysteresis. The two curves are indistinguishable within numerical error and the amplitude grows continuously from zero at the transition, confirming the bifurcation is supercritical Hopf.">
+<meta name="description" content="Two experiments today. First: five perturbation magnitudes spanning three orders of magnitude are applied to the mature stock; all converge to the same oscillatory orbit by t = 550, confirming the limit cycle is a stable global attractor. Second: a forward-backward sweep through resource_decrease with diffusion switched off tests for hysteresis. Amplitude grows continuously from zero on the forward sweep, a supercritical signature, but the backward sweep sustains oscillation to a noticeably higher resource_decrease than the forward onset — a gap too large to write off as a sweep-start artefact alone, so a purely supercritical Hopf bifurcation can’t yet be confirmed.">
 
-<title>Day 18: Confirming the Limit Cycle Is a Global Attractor and the Bifurcation Is Supercritical – Modelling-the-flow-of-biomass</title>
+<title>Day 18: The Limit Cycle Is a Global Attractor, but Supercritical vs Subcritical Is Still Open – Modelling-the-flow-of-biomass</title>
 <style>
 /* Default styles provided by pandoc.
 ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
@@ -186,7 +186,6 @@ window.Quarto = {
   <li><a href="#where-day-17-left-us" id="toc-where-day-17-left-us" class="nav-link active" data-scroll-target="#where-day-17-left-us">Where Day 17 Left Us</a></li>
   <li><a href="#setup" id="toc-setup" class="nav-link" data-scroll-target="#setup">Setup</a></li>
   <li><a href="#experiment-varying-the-perturbation-magnitude" id="toc-experiment-varying-the-perturbation-magnitude" class="nav-link" data-scroll-target="#experiment-varying-the-perturbation-magnitude">Experiment: Varying the Perturbation Magnitude</a></li>
-  <li><a href="#trajectory-panels-full-run" id="toc-trajectory-panels-full-run" class="nav-link" data-scroll-target="#trajectory-panels-full-run">Trajectory Panels (Full Run)</a></li>
   <li><a href="#late-time-overlay-t-550" id="toc-late-time-overlay-t-550" class="nav-link" data-scroll-target="#late-time-overlay-t-550">Late-Time Overlay (<span class="math inline">\(t &gt; 550\)</span>)</a></li>
   <li><a href="#what-the-plot-shows" id="toc-what-the-plot-shows" class="nav-link" data-scroll-target="#what-the-plot-shows">What the Plot Shows</a></li>
   <li><a href="#what-this-means-for-the-initialisation-procedure" id="toc-what-this-means-for-the-initialisation-procedure" class="nav-link" data-scroll-target="#what-this-means-for-the-initialisation-procedure">What This Means for the Initialisation Procedure</a></li>
@@ -201,7 +200,7 @@ window.Quarto = {
 
 <header id="title-block-header" class="quarto-title-block default">
 <div class="quarto-title">
-<h1 class="title">Day 18: Confirming the Limit Cycle Is a Global Attractor and the Bifurcation Is Supercritical</h1>
+<h1 class="title">Day 18: The Limit Cycle Is a Global Attractor, but Supercritical vs Subcritical Is Still Open</h1>
   <div class="quarto-categories">
     <div class="quarto-category">research</div>
     <div class="quarto-category">mizer</div>
@@ -217,7 +216,7 @@ window.Quarto = {
 
 <div>
   <div class="description">
-    Two experiments today. First: five perturbation magnitudes spanning three orders of magnitude are applied to the mature stock; all converge to the same oscillatory orbit by t = 550, confirming the limit cycle is a stable global attractor. Second: a forward-backward sweep through resource_decrease with diffusion switched off tests for hysteresis. The two curves are indistinguishable within numerical error and the amplitude grows continuously from zero at the transition, confirming the bifurcation is supercritical Hopf.
+    Two experiments today. First: five perturbation magnitudes spanning three orders of magnitude are applied to the mature stock; all converge to the same oscillatory orbit by t = 550, confirming the limit cycle is a stable global attractor. Second: a forward-backward sweep through resource_decrease with diffusion switched off tests for hysteresis. Amplitude grows continuously from zero on the forward sweep, a supercritical signature, but the backward sweep sustains oscillation to a noticeably higher resource_decrease than the forward onset — a gap too large to write off as a sweep-start artefact alone, so a purely supercritical Hopf bifurcation can’t yet be confirmed.
   </div>
 </div>
 
@@ -329,57 +328,31 @@ window.Quarto = {
 </div>
 <hr>
 </section>
-<section id="trajectory-panels-full-run" class="level2">
-<h2 class="anchored" data-anchor-id="trajectory-panels-full-run">Trajectory Panels (Full Run)</h2>
-<p>Each panel shows the full 600-year biomass trajectory for one perturbation level.</p>
-<div class="cell">
-<details class="code-fold">
-<summary>Code</summary>
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="fu">par</span>(<span class="at">mfrow =</span> <span class="fu">c</span>(<span class="dv">2</span>, <span class="dv">4</span>), <span class="at">mar =</span> <span class="fu">c</span>(<span class="dv">3</span>, <span class="dv">3</span>, <span class="dv">2</span>, <span class="dv">1</span>))</span>
-<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> (i <span class="cf">in</span> <span class="fu">seq_along</span>(results_fishing)) {</span>
-<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>  r <span class="ot">&lt;-</span> results_fishing[[i]]</span>
-<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">plot</span>(r<span class="sc">$</span>t, r<span class="sc">$</span>bm, <span class="at">type =</span> <span class="st">"l"</span>,</span>
-<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>       <span class="at">xlab =</span> <span class="st">"Time (years)"</span>, <span class="at">ylab =</span> <span class="st">"Biomass"</span>,</span>
-<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>       <span class="at">main =</span> <span class="fu">paste0</span>(<span class="st">"Perturbation = "</span>, perturbation[i]))</span>
-<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>}</span>
-<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a><span class="fu">par</span>(<span class="at">mfrow =</span> <span class="fu">c</span>(<span class="dv">1</span>, <span class="dv">1</span>), <span class="at">mar =</span> <span class="fu">c</span>(<span class="dv">5</span>, <span class="dv">4</span>, <span class="dv">4</span>, <span class="dv">2</span>) <span class="sc">+</span> <span class="fl">0.1</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-</details>
-<div class="cell-output-display">
-<div>
-<figure class="figure">
-<p><img src="2026-07-01-day-eighteen_files/figure-html/unnamed-chunk-4-1.png" class="img-fluid figure-img" width="672"></p>
-</figure>
-</div>
-</div>
-</div>
-<p>The panels already suggest convergence: all five trajectories settle into qualitatively similar oscillations well before <span class="math inline">\(t = 600\)</span>. Early transients differ in shape (the larger perturbations take longer to recover their first oscillation peak) but the long-run behaviour is indistinguishable by eye.</p>
-<hr>
-</section>
 <section id="late-time-overlay-t-550" class="level2">
 <h2 class="anchored" data-anchor-id="late-time-overlay-t-550">Late-Time Overlay (<span class="math inline">\(t &gt; 550\)</span>)</h2>
 <p>To make the convergence precise, the trajectories are overlaid for <span class="math inline">\(t &gt; 550\)</span> only. By this point any transient from the initial condition should have decayed, leaving only the attractor.</p>
 <div class="cell">
 <details class="code-fold">
 <summary>Code</summary>
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(<span class="cn">NULL</span>,</span>
-<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>     <span class="at">xlim =</span> <span class="fu">c</span>(<span class="dv">550</span>, <span class="dv">600</span>),</span>
-<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>     <span class="at">ylim =</span> <span class="fu">range</span>(<span class="fu">sapply</span>(results_fishing, <span class="cf">function</span>(r) <span class="fu">range</span>(r<span class="sc">$</span>bm[r<span class="sc">$</span>t <span class="sc">&gt;</span> <span class="dv">550</span>]))),</span>
-<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>     <span class="at">xlab =</span> <span class="st">"Time (years)"</span>, <span class="at">ylab =</span> <span class="st">"Biomass"</span>,</span>
-<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>     <span class="at">main =</span> <span class="st">"Biomass trajectories (t &gt; 550)"</span>)</span>
-<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>cols <span class="ot">&lt;-</span> <span class="fu">colorRampPalette</span>(<span class="fu">c</span>(<span class="st">"blue"</span>, <span class="st">"red"</span>))(<span class="fu">length</span>(perturbation))</span>
-<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> (i <span class="cf">in</span> <span class="fu">seq_along</span>(results_fishing)) {</span>
-<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>  r    <span class="ot">&lt;-</span> results_fishing[[i]]</span>
-<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a>  mask <span class="ot">&lt;-</span> r<span class="sc">$</span>t <span class="sc">&gt;</span> <span class="dv">550</span></span>
-<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">lines</span>(r<span class="sc">$</span>t[mask], r<span class="sc">$</span>bm[mask], <span class="at">col =</span> cols[i])</span>
-<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a>}</span>
-<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a><span class="fu">legend</span>(<span class="st">"topright"</span>,</span>
-<span id="cb5-13"><a href="#cb5-13" aria-hidden="true" tabindex="-1"></a>       <span class="at">legend =</span> <span class="fu">paste0</span>(<span class="st">"Perturb = "</span>, perturbation),</span>
-<span id="cb5-14"><a href="#cb5-14" aria-hidden="true" tabindex="-1"></a>       <span class="at">col =</span> cols, <span class="at">lty =</span> <span class="dv">1</span>, <span class="at">cex =</span> <span class="fl">0.8</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(<span class="cn">NULL</span>,</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>     <span class="at">xlim =</span> <span class="fu">c</span>(<span class="dv">550</span>, <span class="dv">600</span>),</span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>     <span class="at">ylim =</span> <span class="fu">range</span>(<span class="fu">sapply</span>(results_fishing, <span class="cf">function</span>(r) <span class="fu">range</span>(r<span class="sc">$</span>bm[r<span class="sc">$</span>t <span class="sc">&gt;</span> <span class="dv">550</span>]))),</span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>     <span class="at">xlab =</span> <span class="st">"Time (years)"</span>, <span class="at">ylab =</span> <span class="st">"Biomass"</span>,</span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>     <span class="at">main =</span> <span class="st">"Biomass trajectories (t &gt; 550)"</span>)</span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>cols <span class="ot">&lt;-</span> <span class="fu">colorRampPalette</span>(<span class="fu">c</span>(<span class="st">"blue"</span>, <span class="st">"red"</span>))(<span class="fu">length</span>(perturbation))</span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> (i <span class="cf">in</span> <span class="fu">seq_along</span>(results_fishing)) {</span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>  r    <span class="ot">&lt;-</span> results_fishing[[i]]</span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a>  mask <span class="ot">&lt;-</span> r<span class="sc">$</span>t <span class="sc">&gt;</span> <span class="dv">550</span></span>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">lines</span>(r<span class="sc">$</span>t[mask], r<span class="sc">$</span>bm[mask], <span class="at">col =</span> cols[i])</span>
+<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a><span class="fu">legend</span>(<span class="st">"topright"</span>,</span>
+<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a>       <span class="at">legend =</span> <span class="fu">paste0</span>(<span class="st">"Perturb = "</span>, perturbation),</span>
+<span id="cb4-14"><a href="#cb4-14" aria-hidden="true" tabindex="-1"></a>       <span class="at">col =</span> cols, <span class="at">lty =</span> <span class="dv">1</span>, <span class="at">cex =</span> <span class="fl">0.8</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </details>
 <div class="cell-output-display">
 <div>
 <figure class="figure">
-<p><img src="2026-07-01-day-eighteen_files/figure-html/unnamed-chunk-5-1.png" class="img-fluid figure-img" width="672"></p>
+<p><img src="2026-07-01-day-eighteen_files/figure-html/unnamed-chunk-4-1.png" class="img-fluid figure-img" width="672"></p>
 </figure>
 </div>
 </div>
@@ -407,8 +380,8 @@ window.Quarto = {
 <div class="cell">
 <details class="code-fold">
 <summary>Code</summary>
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>p_check <span class="ot">&lt;-</span> <span class="fu">make_params</span>(<span class="at">lambda =</span> <span class="fl">2.05</span>)</span>
-<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a><span class="fu">range</span>(<span class="fu">getDiffusion</span>(p_check))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>p_check <span class="ot">&lt;-</span> <span class="fu">make_params</span>(<span class="at">lambda =</span> <span class="fl">2.05</span>)</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="fu">range</span>(<span class="fu">getDiffusion</span>(p_check))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </details>
 <div class="cell-output cell-output-stdout">
 <pre><code>[1] 0 0</code></pre>
@@ -419,73 +392,73 @@ window.Quarto = {
 <div class="cell">
 <details class="code-fold">
 <summary>Code</summary>
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb8"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>run_rd_sweep <span class="ot">&lt;-</span> <span class="cf">function</span>(rd_seq, <span class="at">init_n =</span> <span class="cn">NULL</span>, <span class="at">init_n_pp =</span> <span class="cn">NULL</span>,</span>
-<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>                         <span class="at">t_run =</span> <span class="dv">300</span>, <span class="at">lambda =</span> <span class="fl">2.05</span>, <span class="at">label =</span> <span class="st">""</span>) {</span>
-<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>  out       <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(<span class="at">rd =</span> rd_seq, <span class="at">amp =</span> <span class="cn">NA_real_</span>, <span class="at">bm_mean =</span> <span class="cn">NA_real_</span>)</span>
-<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>  state_n   <span class="ot">&lt;-</span> init_n</span>
-<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a>  state_npp <span class="ot">&lt;-</span> init_n_pp</span>
-<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a>  <span class="cf">for</span> (i <span class="cf">in</span> <span class="fu">seq_along</span>(rd_seq)) {</span>
-<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a>    p <span class="ot">&lt;-</span> <span class="fu">make_params</span>(<span class="at">lambda =</span> lambda, <span class="at">resource_decrease =</span> rd_seq[i])</span>
-<span id="cb8-9"><a href="#cb8-9" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> (<span class="sc">!</span><span class="fu">is.null</span>(state_n)) {</span>
-<span id="cb8-10"><a href="#cb8-10" aria-hidden="true" tabindex="-1"></a>      p<span class="sc">@</span>initial_n[]    <span class="ot">&lt;-</span> state_n</span>
-<span id="cb8-11"><a href="#cb8-11" aria-hidden="true" tabindex="-1"></a>      p<span class="sc">@</span>initial_n_pp[] <span class="ot">&lt;-</span> state_npp</span>
-<span id="cb8-12"><a href="#cb8-12" aria-hidden="true" tabindex="-1"></a>    }</span>
-<span id="cb8-13"><a href="#cb8-13" aria-hidden="true" tabindex="-1"></a>    sim <span class="ot">&lt;-</span> <span class="fu">project</span>(p, <span class="at">t_max =</span> t_run, <span class="at">dt =</span> <span class="fl">0.1</span>, <span class="at">t_save =</span> <span class="fl">0.5</span>,</span>
-<span id="cb8-14"><a href="#cb8-14" aria-hidden="true" tabindex="-1"></a>                   <span class="at">progress_bar =</span> <span class="cn">FALSE</span>, <span class="at">effort =</span> <span class="dv">0</span>, <span class="at">method =</span> <span class="st">"tr_bdf2"</span>)</span>
-<span id="cb8-15"><a href="#cb8-15" aria-hidden="true" tabindex="-1"></a>    bm   <span class="ot">&lt;-</span> <span class="fu">getBiomass</span>(sim)[, <span class="st">"Anchovy"</span>]</span>
-<span id="cb8-16"><a href="#cb8-16" aria-hidden="true" tabindex="-1"></a>    tv   <span class="ot">&lt;-</span> <span class="fu">as.numeric</span>(<span class="fu">names</span>(bm))</span>
-<span id="cb8-17"><a href="#cb8-17" aria-hidden="true" tabindex="-1"></a>    late <span class="ot">&lt;-</span> bm[tv <span class="sc">&gt;</span> t_run <span class="sc">*</span> <span class="fl">0.6</span>]</span>
-<span id="cb8-18"><a href="#cb8-18" aria-hidden="true" tabindex="-1"></a>    last <span class="ot">&lt;-</span> <span class="fu">dim</span>(sim<span class="sc">@</span>n)[<span class="dv">1</span>]</span>
-<span id="cb8-19"><a href="#cb8-19" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-20"><a href="#cb8-20" aria-hidden="true" tabindex="-1"></a>    state_n   <span class="ot">&lt;-</span> sim<span class="sc">@</span>n[last, , ]</span>
-<span id="cb8-21"><a href="#cb8-21" aria-hidden="true" tabindex="-1"></a>    state_npp <span class="ot">&lt;-</span> sim<span class="sc">@</span>n_pp[last, ]</span>
-<span id="cb8-22"><a href="#cb8-22" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-23"><a href="#cb8-23" aria-hidden="true" tabindex="-1"></a>    out<span class="sc">$</span>amp[i]     <span class="ot">&lt;-</span> <span class="fu">max</span>(late) <span class="sc">-</span> <span class="fu">min</span>(late)</span>
-<span id="cb8-24"><a href="#cb8-24" aria-hidden="true" tabindex="-1"></a>    out<span class="sc">$</span>bm_mean[i] <span class="ot">&lt;-</span> <span class="fu">mean</span>(late)</span>
-<span id="cb8-25"><a href="#cb8-25" aria-hidden="true" tabindex="-1"></a>  }</span>
-<span id="cb8-26"><a href="#cb8-26" aria-hidden="true" tabindex="-1"></a>  <span class="fu">list</span>(<span class="at">df =</span> out, <span class="at">n_final =</span> state_n, <span class="at">npp_final =</span> state_npp)</span>
-<span id="cb8-27"><a href="#cb8-27" aria-hidden="true" tabindex="-1"></a>}</span>
-<span id="cb8-28"><a href="#cb8-28" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-29"><a href="#cb8-29" aria-hidden="true" tabindex="-1"></a>rd_seq <span class="ot">&lt;-</span> <span class="fu">exp</span>(<span class="fu">seq</span>(<span class="fu">log</span>(<span class="fl">0.001</span>), <span class="fu">log</span>(<span class="dv">1</span>), <span class="at">length.out =</span> <span class="dv">50</span>))</span>
-<span id="cb8-30"><a href="#cb8-30" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-31"><a href="#cb8-31" aria-hidden="true" tabindex="-1"></a>fwd <span class="ot">&lt;-</span> <span class="fu">run_rd_sweep</span>(rd_seq, <span class="at">label =</span> <span class="st">"FWD"</span>)</span>
-<span id="cb8-32"><a href="#cb8-32" aria-hidden="true" tabindex="-1"></a>bwd <span class="ot">&lt;-</span> <span class="fu">run_rd_sweep</span>(<span class="fu">rev</span>(rd_seq),</span>
-<span id="cb8-33"><a href="#cb8-33" aria-hidden="true" tabindex="-1"></a>                    <span class="at">init_n    =</span> fwd<span class="sc">$</span>n_final,</span>
-<span id="cb8-34"><a href="#cb8-34" aria-hidden="true" tabindex="-1"></a>                    <span class="at">init_n_pp =</span> fwd<span class="sc">$</span>npp_final,</span>
-<span id="cb8-35"><a href="#cb8-35" aria-hidden="true" tabindex="-1"></a>                    <span class="at">label     =</span> <span class="st">"BWD"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>run_rd_sweep <span class="ot">&lt;-</span> <span class="cf">function</span>(rd_seq, <span class="at">init_n =</span> <span class="cn">NULL</span>, <span class="at">init_n_pp =</span> <span class="cn">NULL</span>,</span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>                         <span class="at">t_run =</span> <span class="dv">300</span>, <span class="at">lambda =</span> <span class="fl">2.05</span>, <span class="at">label =</span> <span class="st">""</span>) {</span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>  out       <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(<span class="at">rd =</span> rd_seq, <span class="at">amp =</span> <span class="cn">NA_real_</span>, <span class="at">bm_mean =</span> <span class="cn">NA_real_</span>)</span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>  state_n   <span class="ot">&lt;-</span> init_n</span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a>  state_npp <span class="ot">&lt;-</span> init_n_pp</span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a>  <span class="cf">for</span> (i <span class="cf">in</span> <span class="fu">seq_along</span>(rd_seq)) {</span>
+<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a>    p <span class="ot">&lt;-</span> <span class="fu">make_params</span>(<span class="at">lambda =</span> lambda, <span class="at">resource_decrease =</span> rd_seq[i])</span>
+<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> (<span class="sc">!</span><span class="fu">is.null</span>(state_n)) {</span>
+<span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a>      p<span class="sc">@</span>initial_n[]    <span class="ot">&lt;-</span> state_n</span>
+<span id="cb7-11"><a href="#cb7-11" aria-hidden="true" tabindex="-1"></a>      p<span class="sc">@</span>initial_n_pp[] <span class="ot">&lt;-</span> state_npp</span>
+<span id="cb7-12"><a href="#cb7-12" aria-hidden="true" tabindex="-1"></a>    }</span>
+<span id="cb7-13"><a href="#cb7-13" aria-hidden="true" tabindex="-1"></a>    sim <span class="ot">&lt;-</span> <span class="fu">project</span>(p, <span class="at">t_max =</span> t_run, <span class="at">dt =</span> <span class="fl">0.1</span>, <span class="at">t_save =</span> <span class="fl">0.5</span>,</span>
+<span id="cb7-14"><a href="#cb7-14" aria-hidden="true" tabindex="-1"></a>                   <span class="at">progress_bar =</span> <span class="cn">FALSE</span>, <span class="at">effort =</span> <span class="dv">0</span>, <span class="at">method =</span> <span class="st">"tr_bdf2"</span>)</span>
+<span id="cb7-15"><a href="#cb7-15" aria-hidden="true" tabindex="-1"></a>    bm   <span class="ot">&lt;-</span> <span class="fu">getBiomass</span>(sim)[, <span class="st">"Anchovy"</span>]</span>
+<span id="cb7-16"><a href="#cb7-16" aria-hidden="true" tabindex="-1"></a>    tv   <span class="ot">&lt;-</span> <span class="fu">as.numeric</span>(<span class="fu">names</span>(bm))</span>
+<span id="cb7-17"><a href="#cb7-17" aria-hidden="true" tabindex="-1"></a>    late <span class="ot">&lt;-</span> bm[tv <span class="sc">&gt;</span> t_run <span class="sc">*</span> <span class="fl">0.6</span>]</span>
+<span id="cb7-18"><a href="#cb7-18" aria-hidden="true" tabindex="-1"></a>    last <span class="ot">&lt;-</span> <span class="fu">dim</span>(sim<span class="sc">@</span>n)[<span class="dv">1</span>]</span>
+<span id="cb7-19"><a href="#cb7-19" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-20"><a href="#cb7-20" aria-hidden="true" tabindex="-1"></a>    state_n   <span class="ot">&lt;-</span> sim<span class="sc">@</span>n[last, , ]</span>
+<span id="cb7-21"><a href="#cb7-21" aria-hidden="true" tabindex="-1"></a>    state_npp <span class="ot">&lt;-</span> sim<span class="sc">@</span>n_pp[last, ]</span>
+<span id="cb7-22"><a href="#cb7-22" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-23"><a href="#cb7-23" aria-hidden="true" tabindex="-1"></a>    out<span class="sc">$</span>amp[i]     <span class="ot">&lt;-</span> <span class="fu">max</span>(late) <span class="sc">-</span> <span class="fu">min</span>(late)</span>
+<span id="cb7-24"><a href="#cb7-24" aria-hidden="true" tabindex="-1"></a>    out<span class="sc">$</span>bm_mean[i] <span class="ot">&lt;-</span> <span class="fu">mean</span>(late)</span>
+<span id="cb7-25"><a href="#cb7-25" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb7-26"><a href="#cb7-26" aria-hidden="true" tabindex="-1"></a>  <span class="fu">list</span>(<span class="at">df =</span> out, <span class="at">n_final =</span> state_n, <span class="at">npp_final =</span> state_npp)</span>
+<span id="cb7-27"><a href="#cb7-27" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb7-28"><a href="#cb7-28" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-29"><a href="#cb7-29" aria-hidden="true" tabindex="-1"></a>rd_seq <span class="ot">&lt;-</span> <span class="fu">seq</span>(<span class="fl">0.001</span>, <span class="fl">0.01</span>, <span class="at">length.out =</span> <span class="dv">10</span>)</span>
+<span id="cb7-30"><a href="#cb7-30" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-31"><a href="#cb7-31" aria-hidden="true" tabindex="-1"></a>fwd <span class="ot">&lt;-</span> <span class="fu">run_rd_sweep</span>(rd_seq, <span class="at">label =</span> <span class="st">"FWD"</span>)</span>
+<span id="cb7-32"><a href="#cb7-32" aria-hidden="true" tabindex="-1"></a>bwd <span class="ot">&lt;-</span> <span class="fu">run_rd_sweep</span>(<span class="fu">rev</span>(rd_seq),</span>
+<span id="cb7-33"><a href="#cb7-33" aria-hidden="true" tabindex="-1"></a>                    <span class="at">init_n    =</span> fwd<span class="sc">$</span>n_final,</span>
+<span id="cb7-34"><a href="#cb7-34" aria-hidden="true" tabindex="-1"></a>                    <span class="at">init_n_pp =</span> fwd<span class="sc">$</span>npp_final,</span>
+<span id="cb7-35"><a href="#cb7-35" aria-hidden="true" tabindex="-1"></a>                    <span class="at">label     =</span> <span class="st">"BWD"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </details>
 </div>
 <div class="cell">
 <details class="code-fold">
 <summary>Code</summary>
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb9"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>fwd_df <span class="ot">&lt;-</span> fwd<span class="sc">$</span>df</span>
-<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>bwd_df <span class="ot">&lt;-</span> bwd<span class="sc">$</span>df[<span class="fu">order</span>(bwd<span class="sc">$</span>df<span class="sc">$</span>rd), ]</span>
-<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a>thresh     <span class="ot">&lt;-</span> <span class="fl">0.005</span></span>
-<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a>fwd_onset  <span class="ot">&lt;-</span> fwd_df<span class="sc">$</span>rd[<span class="fu">which</span>(fwd_df<span class="sc">$</span>amp  <span class="sc">&gt;</span> thresh)[<span class="dv">1</span>]]</span>
-<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a>bwd_offset <span class="ot">&lt;-</span> bwd_df<span class="sc">$</span>rd[<span class="fu">tail</span>(<span class="fu">which</span>(bwd_df<span class="sc">$</span>amp <span class="sc">&gt;</span> thresh), <span class="dv">1</span>)]</span>
-<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-8"><a href="#cb9-8" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(fwd_df<span class="sc">$</span>rd, fwd_df<span class="sc">$</span>amp,</span>
-<span id="cb9-9"><a href="#cb9-9" aria-hidden="true" tabindex="-1"></a>     <span class="at">type =</span> <span class="st">"l"</span>, <span class="at">col =</span> <span class="st">"steelblue"</span>, <span class="at">lwd =</span> <span class="dv">2</span>,</span>
-<span id="cb9-10"><a href="#cb9-10" aria-hidden="true" tabindex="-1"></a>     <span class="at">xlab =</span> <span class="st">"resource_decrease"</span>,</span>
-<span id="cb9-11"><a href="#cb9-11" aria-hidden="true" tabindex="-1"></a>     <span class="at">ylab =</span> <span class="st">"Oscillation amplitude (max − min biomass)"</span>,</span>
-<span id="cb9-12"><a href="#cb9-12" aria-hidden="true" tabindex="-1"></a>     <span class="at">main =</span> <span class="st">"Hysteresis test"</span>,</span>
-<span id="cb9-13"><a href="#cb9-13" aria-hidden="true" tabindex="-1"></a>     <span class="at">ylim =</span> <span class="fu">c</span>(<span class="dv">0</span>, <span class="fu">max</span>(fwd_df<span class="sc">$</span>amp, bwd_df<span class="sc">$</span>amp) <span class="sc">*</span> <span class="fl">1.1</span>))</span>
-<span id="cb9-14"><a href="#cb9-14" aria-hidden="true" tabindex="-1"></a><span class="fu">lines</span>(bwd_df<span class="sc">$</span>rd, bwd_df<span class="sc">$</span>amp, <span class="at">col =</span> <span class="st">"firebrick"</span>, <span class="at">lwd =</span> <span class="dv">2</span>)</span>
-<span id="cb9-15"><a href="#cb9-15" aria-hidden="true" tabindex="-1"></a><span class="fu">abline</span>(<span class="at">v =</span> fwd_onset,  <span class="at">lty =</span> <span class="dv">2</span>, <span class="at">col =</span> <span class="st">"steelblue"</span>)</span>
-<span id="cb9-16"><a href="#cb9-16" aria-hidden="true" tabindex="-1"></a><span class="fu">abline</span>(<span class="at">v =</span> bwd_offset, <span class="at">lty =</span> <span class="dv">2</span>, <span class="at">col =</span> <span class="st">"firebrick"</span>)</span>
-<span id="cb9-17"><a href="#cb9-17" aria-hidden="true" tabindex="-1"></a><span class="fu">legend</span>(<span class="st">"topleft"</span>,</span>
-<span id="cb9-18"><a href="#cb9-18" aria-hidden="true" tabindex="-1"></a>       <span class="at">legend =</span> <span class="fu">c</span>(</span>
-<span id="cb9-19"><a href="#cb9-19" aria-hidden="true" tabindex="-1"></a>         <span class="fu">sprintf</span>(<span class="st">"Forward  — onset  rd ≈ %.4f"</span>, fwd_onset),</span>
-<span id="cb9-20"><a href="#cb9-20" aria-hidden="true" tabindex="-1"></a>         <span class="fu">sprintf</span>(<span class="st">"Backward — offset rd ≈ %.4f"</span>, bwd_offset)</span>
-<span id="cb9-21"><a href="#cb9-21" aria-hidden="true" tabindex="-1"></a>       ),</span>
-<span id="cb9-22"><a href="#cb9-22" aria-hidden="true" tabindex="-1"></a>       <span class="at">col =</span> <span class="fu">c</span>(<span class="st">"steelblue"</span>, <span class="st">"firebrick"</span>), <span class="at">lwd =</span> <span class="dv">2</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb8"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>fwd_df <span class="ot">&lt;-</span> fwd<span class="sc">$</span>df</span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>bwd_df <span class="ot">&lt;-</span> bwd<span class="sc">$</span>df[<span class="fu">order</span>(bwd<span class="sc">$</span>df<span class="sc">$</span>rd), ]</span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>thresh     <span class="ot">&lt;-</span> <span class="fl">0.005</span></span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a>fwd_onset  <span class="ot">&lt;-</span> fwd_df<span class="sc">$</span>rd[<span class="fu">which</span>(fwd_df<span class="sc">$</span>amp  <span class="sc">&gt;</span> thresh)[<span class="dv">1</span>]]</span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a>bwd_offset <span class="ot">&lt;-</span> bwd_df<span class="sc">$</span>rd[<span class="fu">tail</span>(<span class="fu">which</span>(bwd_df<span class="sc">$</span>amp <span class="sc">&gt;</span> thresh), <span class="dv">1</span>)]</span>
+<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(fwd_df<span class="sc">$</span>rd, fwd_df<span class="sc">$</span>amp,</span>
+<span id="cb8-9"><a href="#cb8-9" aria-hidden="true" tabindex="-1"></a>     <span class="at">type =</span> <span class="st">"l"</span>, <span class="at">col =</span> <span class="st">"steelblue"</span>, <span class="at">lwd =</span> <span class="dv">2</span>,</span>
+<span id="cb8-10"><a href="#cb8-10" aria-hidden="true" tabindex="-1"></a>     <span class="at">xlab =</span> <span class="st">"resource_decrease"</span>,</span>
+<span id="cb8-11"><a href="#cb8-11" aria-hidden="true" tabindex="-1"></a>     <span class="at">ylab =</span> <span class="st">"Oscillation amplitude (max − min biomass)"</span>,</span>
+<span id="cb8-12"><a href="#cb8-12" aria-hidden="true" tabindex="-1"></a>     <span class="at">main =</span> <span class="st">"Hysteresis test"</span>,</span>
+<span id="cb8-13"><a href="#cb8-13" aria-hidden="true" tabindex="-1"></a>     <span class="at">ylim =</span> <span class="fu">c</span>(<span class="dv">0</span>, <span class="fu">max</span>(fwd_df<span class="sc">$</span>amp, bwd_df<span class="sc">$</span>amp) <span class="sc">*</span> <span class="fl">1.1</span>))</span>
+<span id="cb8-14"><a href="#cb8-14" aria-hidden="true" tabindex="-1"></a><span class="fu">lines</span>(bwd_df<span class="sc">$</span>rd, bwd_df<span class="sc">$</span>amp, <span class="at">col =</span> <span class="st">"firebrick"</span>, <span class="at">lwd =</span> <span class="dv">2</span>)</span>
+<span id="cb8-15"><a href="#cb8-15" aria-hidden="true" tabindex="-1"></a><span class="fu">abline</span>(<span class="at">v =</span> fwd_onset,  <span class="at">lty =</span> <span class="dv">2</span>, <span class="at">col =</span> <span class="st">"steelblue"</span>)</span>
+<span id="cb8-16"><a href="#cb8-16" aria-hidden="true" tabindex="-1"></a><span class="fu">abline</span>(<span class="at">v =</span> bwd_offset, <span class="at">lty =</span> <span class="dv">2</span>, <span class="at">col =</span> <span class="st">"firebrick"</span>)</span>
+<span id="cb8-17"><a href="#cb8-17" aria-hidden="true" tabindex="-1"></a><span class="fu">legend</span>(<span class="st">"topleft"</span>,</span>
+<span id="cb8-18"><a href="#cb8-18" aria-hidden="true" tabindex="-1"></a>       <span class="at">legend =</span> <span class="fu">c</span>(</span>
+<span id="cb8-19"><a href="#cb8-19" aria-hidden="true" tabindex="-1"></a>         <span class="fu">sprintf</span>(<span class="st">"Forward  — onset  rd ≈ %.4f"</span>, fwd_onset),</span>
+<span id="cb8-20"><a href="#cb8-20" aria-hidden="true" tabindex="-1"></a>         <span class="fu">sprintf</span>(<span class="st">"Backward — offset rd ≈ %.4f"</span>, bwd_offset)</span>
+<span id="cb8-21"><a href="#cb8-21" aria-hidden="true" tabindex="-1"></a>       ),</span>
+<span id="cb8-22"><a href="#cb8-22" aria-hidden="true" tabindex="-1"></a>       <span class="at">col =</span> <span class="fu">c</span>(<span class="st">"steelblue"</span>, <span class="st">"firebrick"</span>), <span class="at">lwd =</span> <span class="dv">2</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </details>
 <div class="cell-output-display">
 <div>
 <figure class="figure">
-<p><img src="2026-07-01-day-eighteen_files/figure-html/unnamed-chunk-8-1.png" class="img-fluid figure-img" width="672"></p>
+<p><img src="2026-07-01-day-eighteen_files/figure-html/unnamed-chunk-7-1.png" class="img-fluid figure-img" width="672"></p>
 </figure>
 </div>
 </div>
@@ -494,12 +467,10 @@ window.Quarto = {
 </section>
 <section id="what-the-hysteresis-plot-shows" class="level2">
 <h2 class="anchored" data-anchor-id="what-the-hysteresis-plot-shows">What the Hysteresis Plot Shows</h2>
-<p>The forward and backward curves trace essentially the same path. Both drop continuously and smoothly to zero at the same transition point and there is no visible gap between them, and no discontinuous jump in amplitude at the bifurcation. The small difference between the two dashed lines (forward onset detected at the start of the sweep, backward offset at <span class="math inline">\(\text{rd} \approx 0.008\)</span>) is a detection artefact rather than real hysteresis: the forward “onset” is flagged at rd = 0.001 simply because the sweep starts there, already inside the oscillating regime. The meaningful comparison is where each curve drops to zero, and those values agree within the resolution of the sweep.</p>
-<p>Near the bifurcation point, convergence to the attractor slows (critical slowing down), so a 300-year run does not fully settle before the next step is taken. This contributes a small asymmetry between the two directions but nothing that would indicate bistability.</p>
-<p>Two signatures together confirm a supercritical Hopf bifurcation:</p>
-<p>For a subcritical bifurcation the backward curve would remain above zero well into parameter values where the forward curve had already stabilised as well as a bistability window where both the fixed point and the limit cycle coexist as stable attractors. No such window is present here. The forward and backward paths are mostly indistinguishable.</p>
-<p>The limit cycle amplitude shrinks smoothly to zero as <code>resource_decrease</code> decreases toward the bifurcation point rather than jumping discontinuously from a finite value to zero. This continuous, square-root-like growth of amplitude away from the critical point (<span class="math inline">\(A \propto \sqrt{|r - r_c|}\)</span>) is the defining signature of a supercritical Hopf bifurcation.</p>
-<p>This result is consistent with what the effort scans in Days 16–17 suggested: the transition back to a stable fixed point at high fishing effort also showed damped spiralling (not a discontinuous jump), which is likewise characteristic of a supercritical bifurcation.</p>
+<p>The forward and backward curves both drop toward zero amplitude in roughly the same region, and neither jumps discontinuously — encouraging signs for a supercritical bifurcation. But they don’t fully coincide either. The backward curve keeps oscillating down to <span class="math inline">\(\text{rd} \approx 0.008\)</span>, while the forward curve’s amplitude has already fallen toward the noise floor well before that point. Read at face value, that gap is exactly what a subcritical bifurcation with a small bistability window would look like: the limit cycle outliving its own forward onset on the way back down.</p>
+<p>The obvious objection is that the forward “onset” detector is contaminated: it’s flagged at rd = 0.001 simply because the sweep starts there, already inside the oscillating regime. That’s true, but it only explains away half the gap — it means the forward transition point isn’t well measured by <code>fwd_onset</code>, not that the gap itself isn’t real. The backward offset at <span class="math inline">\(\text{rd} \approx 0.008\)</span> is a direct, uncontaminated measurement, and the forward curve’s amplitude is visibly near zero below that value on the plot. Critical slowing down near the bifurcation is a real confound too: a 300-year run may not fully settle before the next step is taken, which would inflate the backward curve’s apparent transition point without any true hysteresis behind it. But at this sweep resolution and run length, that explanation can’t be distinguished from genuine bistability.</p>
+<p>So the two signatures don’t agree. Continuous, square-root-like amplitude growth on the forward sweep (<span class="math inline">\(A \propto \sqrt{|r - r_c|}\)</span>, no discontinuous jump) is a supercritical signature. The unresolved gap between the forward and backward transition points is what a subcritical bifurcation with a bistable window would produce. <strong>Given that, this data can’t yet confirm the bifurcation is supercritical.</strong> It may be subcritical with a narrow bistable region that a coarse 10-point sweep and 300-year runs aren’t resolving cleanly, or it may be supercritical with the whole gap explained by critical slowing down. Distinguishing the two needs either much longer per-step runs (to let slow convergence fully resolve) or a finer <code>rd</code> grid around 0.008 to see whether the gap holds up or recedes. That’s left open rather than settled here.</p>
+<p>The effort scans in Days 16–17 are sometimes read as a second confirmation of the same picture: the transition back to a stable fixed point at high fishing effort also showed damped spiralling rather than a discontinuous jump. But calling that “consistent with supercritical” is a weaker claim than it sounds, and it’s now doubly so given the hysteresis gap above. The spiral there persists for a good number of cycles before settling, longer than critical slowing down alone would predict, and it isn’t a numerical-integration artefact either, since the same solver and timestep produce clean, non-decaying oscillation everywhere else in this post. Asserting consistency glosses over that persistence rather than explaining it. Rather than a blanket statement, this needs a closer look: plotting the maximum and minimum of each cycle separately as effort increases (see What’s Next) rather than the collapsed max − min amplitude used so far.</p>
 <hr>
 </section>
 <section id="whats-next" class="level2">
@@ -508,6 +479,7 @@ window.Quarto = {
 <li><p><strong>Try a different perturbation type</strong> to see whether the same convergence-to-attractor result holds no matter what form the perturbation takes, rather than relying solely on the mature-stock knock-down used so far.</p></li>
 <li><p><strong>Run with <code>balance = FALSE</code> in setResource.</strong> The effects should be more realistic, since the model is not inflating some rates to compensate for others.</p></li>
 <li><p><strong>Plot maximum and minimum separately</strong> instead of plotting max − min, to get a bifurcation-diagram look at the amplitude data rather than a single collapsed amplitude curve.</p></li>
+<li><p><strong>Resolve whether the forward/backward gap at <code>rd ≈ 0.008</code> is real hysteresis or a run-length artefact.</strong> Rerun the sweep with much longer per-step runs (to let critical slowing down fully settle) and a finer <code>resource_decrease</code> grid around 0.008, since the current 10-point, 300-year sweep can’t distinguish a genuinely subcritical bifurcation with a narrow bistable window from a supercritical one confounded by slow convergence.</p></li>
 </ul>
 
 

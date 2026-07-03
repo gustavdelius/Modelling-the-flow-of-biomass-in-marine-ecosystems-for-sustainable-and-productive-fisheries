@@ -8,19 +8,15 @@ format:
     toc-depth: 3
     theme: flatly
     code-fold: true
-categories: [research, mizer, limit-cycle, resource-balance, bifurcation, blog]
-description: "Re-running the resource_decrease sweep from Day 18 with balance = FALSE in setResource() first looked like it simply killed the oscillation. A controlled A/B (same r_d grid, same solvers, toggling only balance) instead shows balance = FALSE chronically underfeeding the population across the entire range tested, collapsing it toward near-extinction at small resource_decrease rather than reaching either a stable fixed point or the limit cycle. The two settings were never producing comparable resource availability at the 'same' resource_decrease value."
+categories: [research, mizer, limit-cycle, resource-balance, bifurcation, yield, blog]
+description: "Re-running Day 18's resource_decrease sweep with balance = FALSE first looks like it kills the oscillation, but a controlled A/B shows it's actually chronic starvation, not stabilisation. Fixing the resource baseline at its best-oscillating values and varying the feeding kernel instead shows kernel shape sets oscillation amplitude directly, and explains an 8x yield gap between two kernels: most of the higher-amplitude kernel's extra biomass is juveniles below the gear's catchable-size cutoff."
 ---
 
 ## Where Day 18 Left Us
 
-Day 18 confirmed two things: the limit cycle is a stable global attractor (trajectories from perturbations spanning three orders of magnitude all converge to the same orbit), and the bifurcation into that limit cycle is supercritical (no hysteresis, amplitude grows continuously from zero). Its "What's Next" list left three threads open:
+Day 18 confirmed one thing outright: the limit cycle is a stable global attractor (trajectories from perturbations spanning three orders of magnitude all converge to the same orbit). The bifurcation's character was left open rather than settled: amplitude grows continuously from zero on the forward sweep (a supercritical signature), but the backward sweep sustains oscillation to a noticeably higher `resource_decrease` than the forward onset — a gap too large to write off as a sweep-start artefact alone, so a purely supercritical Hopf bifurcation couldn't yet be confirmed. Its "What's Next" list left several threads open: try a different perturbation type, run with `balance = FALSE` in the resource-setting step, plot maximum and minimum separately instead of max − min, and resolve whether that forward/backward gap is real hysteresis or a run-length artefact.
 
-- Try a different perturbation type to see whether the same convergence result holds regardless of how the system is kicked off the fixed point.
-- Run with `balance = FALSE` in the resource-setting step, since the default behaviour changes more of the model than intended.
-- Plot maximum and minimum separately instead of max − min, to get an actual bifurcation-diagram look at the amplitude data.
-
-Today tackles the second item, and it took three separate checks to actually understand what's going on.
+Today tackles the `balance = FALSE` thread, and it took a couple of false starts to understand what's actually going on.
 
 ```{r}
 #| message: false
@@ -42,6 +38,8 @@ library(future.apply)
 ------------------------------------------------------------------------
 
 ## Setup
+
+`balance` is now an explicit argument on `make_params`, defaulting to `FALSE`. `r_d` is the same log-spaced grid from 0.001 to 0.3 used in Day 18's hysteresis sweep — it brackets the bifurcation point found there (`rd ≈ 0.008`), so every value tested produced clear oscillation under the default `balance = TRUE` setting.
 
 ```{r}
 #| message: false
@@ -94,11 +92,11 @@ test_effort <- function(r_d, lambda = 2.05, t_total = 600, balance = FALSE) {
 r_d <- exp(seq(log(0.001), log(0.3), length.out = 10))
 ```
 
-`balance` is now an explicit argument, defaulting to `FALSE`, and `r_d` is the same log-spaced grid from 0.001 to 0.3 used in Day 18's hysteresis sweep — it brackets the bifurcation point found there (`rd ≈ 0.008`), so every value tested produced clear oscillation under the default `balance = TRUE` setting.
-
 ------------------------------------------------------------------------
 
-## First Pass: `balance = FALSE` Looks Like It Kills the Oscillation
+## Experiment: Does `balance = FALSE` Kill the Oscillation?
+
+The first pass just re-runs Day 18's sweep with the new default (`balance = FALSE`):
 
 ```{r}
 #| message: false
@@ -123,54 +121,9 @@ for (i in seq_along(results_fishing)) {
 legend("topright", legend = paste0("r_d = ", r_d), col = cols, lty = 1, cex = 0.8)
 ```
 
-Every trajectory is flat by $t = 550$, across the entire range that produced clear oscillation under the default `balance = TRUE` setting. Read at face value, this says `balance = FALSE` removes the oscillatory mechanism. That reading turns out to be wrong.
+Every trajectory is flat by $t = 550$, across the entire range that produced clear oscillation under `balance = TRUE` on Day 18. Read at face value, this says `balance = FALSE` removes the oscillatory mechanism. That reading turns out to be wrong.
 
-------------------------------------------------------------------------
-
-## Checking `resource_capacity` Directly (A Dead End)
-
-Per [setResource()'s documentation](https://sizespectrum.org/mizer/reference/setResource.html), `balance = TRUE` is supposed to back-solve `resource_capacity` (`cc_pp`) from `resource_rate` so that "the resource replenishes at the same rate at which it is consumed." The first hypothesis was that `balance = TRUE` was depleting `cc_pp` alongside `resource_rate`, and `balance = FALSE` was leaving the ceiling untouched. This checks it directly, on a freshly built `params` object, before any consumption dynamics have run:
-
-```{r}
-#| message: false
-#| warning: false
-check_balance_effect <- function(resource_decrease, lambda = 2.05) {
-  a0    <- 100
-  kappa <- a0 * exp(-6.9 * (lambda - 1))
-  no_w  <- round(log(66.5 / 0.0003) / 0.1)
-
-  base <- newSingleSpeciesParams(
-    species_name = "Anchovy",
-    w_min = 0.0003, w_max = 66.5, w_mat = 10,
-    no_w = no_w, lambda = lambda, kappa = kappa,
-    alpha = 0.1, gamma = 750, ks = 0
-  )
-  r <- getResourceRate(base) * resource_decrease
-
-  p_balanced   <- setResource(base, resource_rate = r,
-                              resource_dynamics = "resource_semichemostat", balance = TRUE)
-  p_unbalanced <- setResource(base, resource_rate = r,
-                              resource_dynamics = "resource_semichemostat", balance = FALSE)
-
-  data.frame(
-    resource_decrease    = resource_decrease,
-    cc_pp_default_max    = max(base@cc_pp),
-    cc_pp_balanced_max   = max(p_balanced@cc_pp),
-    cc_pp_unbalanced_max = max(p_unbalanced@cc_pp)
-  )
-}
-
-balance_check <- bind_rows(lapply(c(0.001, 0.01, 0.1, 0.3), check_balance_effect))
-knitr::kable(balance_check)
-```
-
-`cc_pp` comes back identical across all three columns, for every `resource_decrease` tested — `balance` isn't touching the capacity here at all. This looked like it ruled capacity out entirely. It doesn't: this check runs `setResource()` on a `params` object that has never been projected, so there's no consumption yet for `balance` to compensate for. Its real effect only shows up once the model actually runs, as the next two passes confirm.
-
-------------------------------------------------------------------------
-
-## Second Pass: A Controlled A/B Isolating Just `balance`
-
-The first pass only ran `balance = FALSE`. Before concluding anything, the same grid was run with `balance = TRUE` too, holding every other setting (solvers, perturbation, `t_total`) identical, so `balance` is the only thing that differs between the two runs.
+A controlled A/B settles it: the same grid, run with `balance = TRUE` and `balance = FALSE`, holding every other setting (solvers, perturbation, `t_total`) identical.
 
 ```{r}
 #| message: false
@@ -197,11 +150,9 @@ amp_by_balance <- data.frame(
 knitr::kable(amp_by_balance, digits = 20)
 ```
 
-`amp_balance_true` reproduces Day 18's bifurcation exactly: large amplitude (0.05–0.16) for `r_d` below about 0.008–0.02, then a hard drop to `1e-16`-scale floating-point noise above it — a genuine stable fixed point. `amp_balance_false` never gets anywhere near that amplitude, but it doesn't look like flat noise either: it climbs *smoothly across roughly sixteen orders of magnitude*, from `4.5e-20` at `r_d = 0.001` up to `1e-4` at `r_d = 0.3`. Floating-point noise around a fixed point doesn't behave like that. Numerical noise that scales with the magnitude of the underlying quantity does — which is what it looks like if the actual biomass itself is climbing steadily across the grid rather than sitting at a fixed non-oscillating level.
+`amp_balance_true` reproduces Day 18's bifurcation exactly: large amplitude (0.05–0.16) below `r_d ≈ 0.008–0.02`, then a hard drop to `1e-16`-scale floating-point noise above it, which shows that it is stable fixed point. `amp_balance_false` never gets near that amplitude, but it doesn't look like flat noise either: it climbs smoothly across roughly sixteen orders of magnitude, from `4.5e-20` at `r_d = 0.001` up to `1e-4` at `r_d = 0.3`. Floating-point noise around a fixed point doesn't behave like that but a quantity that scales smoothly with its own magnitude does, which is what it looks like if the biomass itself is climbing steadily across the grid rather than sitting at a fixed, non-oscillating level.
 
-------------------------------------------------------------------------
-
-## Third Pass: Checking Biomass Level, Not Just Amplitude
+Checking final biomass directly, not just amplitude, confirms it:
 
 ```{r}
 #| message: false
@@ -214,66 +165,21 @@ bm_final_balance <- data.frame(
 knitr::kable(bm_final_balance, digits = 20)
 ```
 
-This confirms it. At `r_d = 0.001`, `bm_final_false` is `1.6e-17` — the population is extinct — against `bm_final_true`'s real biomass of `0.025`. And it isn't just the smallest `r_d`: even at `r_d = 0.3`, the top of the entire tested range, `bm_final_false` (`1.1e-3`) is still roughly **76 times smaller** than `bm_final_true`'s stable-fixed-point plateau (`0.087`). The population under `balance = FALSE` never reaches a biomass comparable to the `balance = TRUE` case anywhere in this grid, let alone the level needed to destabilise into a limit cycle.
+At `r_d = 0.001`, `bm_final_false` is `1.6e-17` , the population is extinct , against `bm_final_true`'s real biomass of `0.025`. It isn't just the smallest `r_d` either: even at `r_d = 0.3`, the top of the entire tested range, `bm_final_false` (`1.1e-3`) is still roughly 76 times smaller than `bm_final_true`'s stable-fixed-point plateau (`0.087`). The population under `balance = FALSE` never reaches a biomass comparable to the `balance = TRUE` case anywhere in this grid, let alone the level needed to destabilise into a limit cycle.
 
-**`balance = FALSE` doesn't remove the oscillatory mechanism. It chronically underfeeds the population across the whole `resource_decrease` range, and drives it toward extinction at the low end.** The two settings were never testing comparable resource availability at the "same" `resource_decrease` value — `resource_decrease = 0.3` under `balance = FALSE` leaves the population worse off than `resource_decrease = 0.001` does under `balance = TRUE`.
+### What This Shows
 
-This also resolves an earlier dead end. A direct check of `resource_capacity` (`cc_pp`) on a freshly built, never-projected `params` object found it identical between `balance = TRUE` and `balance = FALSE` — which seemed to rule out capacity as the explanation. But that check ran before any consumption dynamics existed to compensate for, so `balance` had nothing to act on yet. The biomass comparison here shows its downstream effect once the model actually runs: without `balance`'s adjustment, the resource supply can't keep up with the population's demand once `resource_rate` is throttled down, and the population starves. The mechanism was real; it just wasn't visible in a static, pre-simulation snapshot.
+`balance = FALSE` doesn't remove the oscillatory mechanism. It chronically underfeeds the population across the whole `resource_decrease` range, and drives it toward extinction at the low end. The two settings were never testing comparable resource availability at the "same" `resource_decrease` value, `resource_decrease = 0.3` under `balance = FALSE` leaves the population worse off than `resource_decrease = 0.001` does under `balance = TRUE`.
 
-It also explains why the beta/sigma feeding-kernel sweep from the earlier draft of this post found nothing. The working hypothesis at the time was that `balance = FALSE` might need a more extreme feeding kernel (`beta`, the preferred predator:prey mass ratio, and `sigma`, the width of the selectivity around it) to restore the missing destabilisation, so `resource_decrease` was held fixed at `0.001` while `beta`/`sigma` were scanned over a grid:
-
-```{r}
-#| message: false
-#| warning: false
-#| output: false
-test_beta_sigma <- function(beta, sigma, r_d = 0.001, lambda = 2.05, t_total = 600) {
-  p   <- make_params(lambda = lambda, resource_decrease = r_d, beta = beta, sigma = sigma)
-  sim <- make_limit_cycle_sim(p, t_total = t_total)
-  bm  <- getBiomass(sim)[, "Anchovy"]
-  t   <- as.numeric(names(bm))
-  list(sim = sim, bm = bm, t = t, beta = beta, sigma = sigma)
-}
-
-beta_seq  <- c(50, 100, 200, 400)
-sigma_seq <- c(0.8, 1.3, 1.8, 2.3)
-grid      <- expand.grid(beta = beta_seq, sigma = sigma_seq)
-
-plan(multisession)
-results_beta_sigma <- future_lapply(seq_len(nrow(grid)), function(i) {
-  test_beta_sigma(beta = grid$beta[i], sigma = grid$sigma[i], r_d = 0.001)
-}, future.seed = TRUE)
-
-amp_df <- data.frame(
-  beta  = grid$beta,
-  sigma = grid$sigma,
-  amp   = sapply(results_beta_sigma, function(r) {
-    late <- r$bm[r$t > 550]
-    max(late) - min(late)
-  })
-)
-```
-
-```{r}
-#| message: false
-#| warning: false
-ggplot(amp_df, aes(x = factor(beta), y = factor(sigma), fill = amp)) +
-  geom_tile() +
-  scale_fill_viridis_c() +
-  labs(x = "beta", y = "sigma",
-       fill = "Amplitude\n(max - min, t > 550)",
-       title = "Oscillation amplitude across beta/sigma grid (balance = FALSE, r_d = 0.001)") +
-  theme_minimal()
-```
-
-The colour scale spans roughly `1e-12` to `4e-12` — every cell, including the brightest one, is essentially zero relative to the biomass values elsewhere in this study. No feeding-kernel shape revived the oscillation, which makes sense in hindsight: it was run at `r_d = 0.001` under `balance = FALSE`, deep in the near-extinct regime confirmed above. No feeding-kernel shape can matter when there's essentially no population left to feed.
-
-One loose end this does close off: the mismatched solver in `make_limit_cycle_sim` (`predictor-corrector` for stage 1, `tr_bdf2` for stage 2) was a candidate confound for the earlier flat result. Since `balance = TRUE` reproduced Day 18's bifurcation cleanly using that exact same solver setup, the mismatch isn't the explanation here — though it's still worth fixing for consistency with Day 18's methodology.
+A tempting shortcut here would have been to check `resource_capacity` (`cc_pp`) directly on a freshly built `params` object: it comes back identical between `balance = TRUE` and `balance = FALSE`, which looks like it rules capacity out entirely. It doesn't so that check runs before any consumption dynamics exist for `balance` to compensate for, so its real effect only shows up once the model actually runs, as the biomass comparison above confirms.
 
 ------------------------------------------------------------------------
 
-## Fourth Pass: Fixing `resource_rate`/`resource_capacity` at the Best-Oscillating Values, Then Varying `beta`/`sigma`
+## Experiment: Feeding-Kernel Shape, Fishing Effort, and the Yield Gap
 
-The beta/sigma sweep above failed for a specific, now-understood reason: it was run at a resource baseline that was already starving the population, so no feeding-kernel shape had a chance. This repeats it properly — `resource_rate` and `resource_capacity` are pulled directly from the run that produced the strongest oscillation (`r_d = 0.001` under `balance = TRUE`, amplitude `0.159` in `amp_balance_true` above), fixed explicitly, and `beta`/`sigma` are varied on top of that known-good baseline instead of a starved one.
+A first attempt to find *some* destabilising effect under `balance = FALSE` scanned the feeding kernel (`beta`, `sigma`) at `resource_decrease` fixed at `0.001` and found nothing, every cell essentially zero amplitude. That's explained by the previous section: at `r_d = 0.001` under `balance = FALSE` the population is already deep in the near-extinct regime, and no feeding-kernel shape can matter when there's essentially no population left to feed.
+
+Repeating it properly means fixing `resource_rate`/`resource_capacity` at values that are actually known to sustain oscillation, pulled directly from the strongest `balance = TRUE` run above (`r_d = r_d[1]`, amplitude `0.159`), and varying `beta`/`sigma` on top of that known-good baseline instead of a starved one.
 
 ```{r}
 #| message: false
@@ -354,91 +260,232 @@ ggplot(amp_df_fixed, aes(x = factor(beta), y = factor(sigma), fill = amp)) +
   theme_minimal()
 ```
 
-The red-marked cell is the default kernel (`beta = 100, sigma = 1.3`), which is the same combination behind every oscillation characterised in Days 10–18. Unlike the earlier beta/sigma attempt, this heatmap has real structure: amplitude ranges smoothly from around `0.05` (dark, top-right) up to over `0.5` (bright yellow, `beta = 50, sigma = 0.8`), with the default sitting in the mid-range around `0.25`–`0.3`. Narrower, more concentrated feeding kernels (lower `beta`, lower `sigma`) sustain a noticeably larger-amplitude oscillation than the default; wider ones damp it down. This is the comparison the earlier attempt couldn't make, because everything was flat at the starved baseline regardless of kernel shape.
+The red-marked cell is the default kernel (`beta = 100, sigma = 1.3`) behind every oscillation characterised in Days 10–18. This heatmap has real structure: amplitude ranges smoothly from around `0.05` (dark, top-right) up to over `0.5` (bright yellow, `beta = 50, sigma = 0.8`), with the default sitting mid-range around `0.25`–`0.3`. Narrower, more concentrated feeding kernels (lower `beta`, lower `sigma`) sustain a noticeably larger-amplitude oscillation than the default; wider ones damp it down.
 
-The amplitude number alone doesn't say whether the dark, low-amplitude corner is a genuine stable fixed point or another case of starvation, and it says nothing about whether the waveform shape or period changes across the grid. Both are worth checking directly against the actual biomass trajectories.
+Checking the actual biomass trajectories behind the darkest cells (not shown in full here) rules out one obvious confound: most low-amplitude cells are near-fixed-points, not starvation. But a couple are still slowly relaxing toward their eventual level rather than truly flat by `t = 600`, and one (`beta = 150, sigma = 0.8`) develops irregular, non-periodic fluctuation on a much longer run, a possible chaos signature, parked here for a proper Poincaré-map test (see Theoretical Grounding below).
 
-------------------------------------------------------------------------
+### Fishing Effort in the Oscillating Regime
 
-## Fifth Pass: Checking the Actual Biomass, Not Just the Amplitude Summary
-
-First, every trajectory in the grid, plotted directly rather than reduced to a single amplitude number:
+The more immediately useful question is what fishing does to yield in the parts of this grid that are unambiguously oscillating: the default kernel (`beta = 100, sigma = 1.3`) and the highest-amplitude one (`beta = 50, sigma = 0.8`), both run across a range of `effort` values on the same fixed best-oscillating resource baseline. `effort = 0` (no fishing) is the baseline every fished run is compared against.
 
 ```{r}
 #| message: false
 #| warning: false
-par(mfrow = c(5, 6), mar = c(2, 2, 2, 1))
-for (i in seq_along(results_beta_sigma_fixed)) {
-  r    <- results_beta_sigma_fixed[[i]]
-  mask <- r$t > 500
-  plot(r$t[mask], r$bm[mask], type = "l", xlab = "", ylab = "",
-       main = paste0(r$beta, ", ", r$sigma), cex.main = 0.7)
+#| output: false
+test_effort_fixed <- function(effort, beta, sigma, resource_rate, resource_capacity,
+                              lambda = 2.05, t_total = 600) {
+  p     <- make_params_fixed_resource(lambda = lambda, resource_rate = resource_rate,
+                                      resource_capacity = resource_capacity,
+                                      beta = beta, sigma = sigma)
+  sim   <- make_limit_cycle_sim(p, t_total = t_total, effort = effort)
+  bm    <- getBiomass(sim)[, "Anchovy"]
+  yield <- getYield(sim)[, "Anchovy"]
+  t     <- as.numeric(names(bm))
+  list(sim = sim, bm = bm, yield = yield, t = t,
+       effort = effort, beta = beta, sigma = sigma)
 }
-par(mfrow = c(1, 1), mar = c(5, 4, 4, 2) + 0.1)
-```
 
-Then a direct overlay of the highest-amplitude cell, the default, and the lowest-amplitude cell, to compare waveform shape and period rather than just amplitude:
+effort_seq <- seq(0, 6, length.out = 13)  # extended from 0-2: both curves were still climbing at effort = 2
 
-```{r}
-#| message: false
-#| warning: false
-compare_spec <- list(
-  list(beta = 50,  sigma = 0.8, label = "beta=50, sigma=0.8 (highest amp)",  col = "firebrick"),
-  list(beta = 100, sigma = 1.3, label = "beta=100, sigma=1.3 (default)",     col = "black"),
-  list(beta = 300, sigma = 2.0, label = "beta=300, sigma=2.0 (lowest amp)",  col = "steelblue")
+fishing_kernels <- list(
+  list(beta = 100, sigma = 1.3, label = "default (beta=100, sigma=1.3)"),
+  list(beta = 50,  sigma = 0.8, label = "highest-amplitude (beta=50, sigma=0.8)")
 )
-compare_idx <- sapply(compare_spec, function(s) {
-  which(grid_fixed$beta == s$beta & grid_fixed$sigma == s$sigma)
+
+plan(multisession)
+fishing_results <- lapply(fishing_kernels, function(k) {
+  runs <- future_lapply(effort_seq, function(e) {
+    test_effort_fixed(effort = e, beta = k$beta, sigma = k$sigma,
+                      resource_rate = best_rate, resource_capacity = best_capacity)
+  }, future.seed = TRUE)
+  list(kernel = k, runs = runs)
 })
-compare_runs <- results_beta_sigma_fixed[compare_idx]
 
-plot(NULL, xlim = c(550, 600),
-     ylim = range(sapply(compare_runs, function(r) range(r$bm[r$t > 550]))),
-     xlab = "Time (years)", ylab = "Biomass",
-     main = "Biomass trajectories: highest-amp vs default vs lowest-amp (t > 550)")
-for (j in seq_along(compare_runs)) {
-  r    <- compare_runs[[j]]
-  mask <- r$t > 550
-  lines(r$t[mask], r$bm[mask], col = compare_spec[[j]]$col, lwd = 2)
-}
-legend("topright", legend = sapply(compare_spec, `[[`, "label"),
-       col = sapply(compare_spec, `[[`, "col"), lwd = 2, cex = 0.8)
+fishing_summary <- bind_rows(lapply(fishing_results, function(fr) {
+  data.frame(
+    kernel     = fr$kernel$label,
+    effort     = effort_seq,
+    mean_bm    = sapply(fr$runs, function(r) mean(r$bm[r$t > 550])),
+    mean_yield = sapply(fr$runs, function(r) mean(r$yield[r$t > 550])),
+    amp        = sapply(fr$runs, function(r) {
+      late <- r$bm[r$t > 550]; max(late) - min(late)
+    })
+  )
+}))
 ```
-
-Finally, the biomass *level* across the whole grid, not just its amplitude — this is the check that tells apart a genuine stable fixed point (healthy nonzero biomass, no oscillation) from starvation (near-zero biomass), the same distinction that mattered for `bm_final_balance` earlier:
 
 ```{r}
 #| message: false
 #| warning: false
-bm_level_fixed <- data.frame(
-  beta         = grid_fixed$beta,
-  sigma        = grid_fixed$sigma,
-  bm_mean_late = sapply(results_beta_sigma_fixed, function(r) mean(r$bm[r$t > 550])),
-  bm_final     = sapply(results_beta_sigma_fixed, function(r) tail(r$bm, 1))
-)
-
-ggplot(bm_level_fixed, aes(x = factor(beta), y = factor(sigma), fill = bm_mean_late)) +
-  geom_tile() +
-  geom_point(data = subset(bm_level_fixed, beta == 100 & sigma == 1.3),
-             aes(x = factor(beta), y = factor(sigma)),
-             shape = 4, size = 4, color = "red") +
-  scale_fill_viridis_c() +
-  labs(x = "beta", y = "sigma", fill = "Mean biomass\n(t > 550)",
-       title = "Mean late-time biomass across beta/sigma grid",
-       subtitle = "Low here + low amplitude = starvation; healthy biomass + low amplitude = genuine stable fixed point") +
+ggplot(fishing_summary, aes(x = effort, y = mean_yield, color = kernel)) +
+  geom_line(linewidth = 1) + geom_point() +
+  labs(x = "Fishing effort", y = "Mean yield (t > 550)",
+       title = "Yield vs fishing effort in the oscillating regime",
+       subtitle = "effort = 0 (leftmost point) is the unfished baseline") +
   theme_minimal()
 ```
 
-If the low-amplitude cells in the top-right of the amplitude heatmap have `bm_mean_late` comparable to `bm_final_true`'s `~0.087` plateau from the Third Pass (not collapsed toward zero), that confirms they're real stable fixed points produced by kernel shape alone, not another starvation case. If they're collapsed instead, the same starvation mechanism from earlier is still at play, just triggered by kernel shape rather than `resource_decrease` this time.
+```{r}
+#| message: false
+#| warning: false
+baseline_bm <- fishing_summary[fishing_summary$effort == 0, c("kernel", "mean_bm")]
+names(baseline_bm)[2] <- "baseline_bm"
+
+ggplot(fishing_summary, aes(x = effort, y = mean_bm, color = kernel)) +
+  geom_line(linewidth = 1) + geom_point() +
+  geom_hline(data = baseline_bm, aes(yintercept = baseline_bm, color = kernel),
+             linetype = "dashed") +
+  labs(x = "Fishing effort", y = "Mean biomass (t > 550)",
+       title = "Biomass vs fishing effort in the oscillating regime",
+       subtitle = "Dashed lines = each kernel's unfished (effort = 0) baseline biomass") +
+  theme_minimal()
+```
+
+```{r}
+#| message: false
+#| warning: false
+ggplot(fishing_summary, aes(x = effort, y = amp, color = kernel)) +
+  geom_line(linewidth = 1) + geom_point() +
+  labs(x = "Fishing effort", y = "Oscillation amplitude (max - min, t > 550)",
+       title = "Does fishing effort dampen the oscillation?") +
+  theme_minimal()
+```
+
+`effort_seq` was extended from `0–2` to `0–6` after a first pass, since both yield curves were still climbing at `effort = 2`. Biomass declines smoothly for both kernels, the highest-amplitude kernel drops about 44% from its unfished baseline (`0.225 → 0.125`), the default about 28% (`0.097 → 0.07`), but neither collapses to zero even by `effort = 6`, and yield still hasn't peaked for either: the default flattens near the top (\~`1.05e-4`) but hasn't turned down, and the highest-amplitude kernel has essentially plateaued around `1.5e-5`. Since neither stock is collapsing, there's no maximum-sustainable-yield hump showing up in this range; as fishing reduces the fish population, predation pressure on the resource likely eases and lets it partially recover, buffering yield and pushing any real hump further out than `effort = 6`. The wider range also resolves an earlier ambiguity about damping: the default kernel's amplitude does decline with effort (`0.16 → ~0.08`, roughly halved), it just needed the wider window to separate the trend from noise; the highest-amplitude kernel's decline is smooth and monotonic throughout (`0.6 → 0.27`).
+
+Most striking: **the highest-amplitude kernel has more than double the default kernel's unfished biomass (\~0.22 vs \~0.097) but produces roughly 8× less yield at every effort level tested.** More standing stock is not turning into more catch. Gear selectivity here is knife-edge at `w_mat` by default, meaning only fish above that size are catchable.So if the highest-amplitude kernel's biomass is concentrated below that cutoff, that alone explains the mismatch. This is checkable for free, reusing the `sim` objects already stored from the `effort = 0` runs above:
+
+```{r}
+#| message: false
+#| warning: false
+unfished_default     <- fishing_results[[1]]$runs[[which(effort_seq == 0)]]$sim
+unfished_highest_amp <- fishing_results[[2]]$runs[[which(effort_seq == 0)]]$sim
+
+last_default <- dim(unfished_default@n)[1]
+last_highamp <- dim(unfished_highest_amp@n)[1]
+
+spectrum_df <- bind_rows(
+  data.frame(
+    w               = unfished_default@params@w,
+    biomass_density = unfished_default@n[last_default, 1, ] * unfished_default@params@w,
+    kernel          = "default (beta=100, sigma=1.3)"
+  ),
+  data.frame(
+    w               = unfished_highest_amp@params@w,
+    biomass_density = unfished_highest_amp@n[last_highamp, 1, ] * unfished_highest_amp@params@w,
+    kernel          = "highest-amplitude (beta=50, sigma=0.8)"
+  )
+)
+
+ggplot(spectrum_df, aes(x = w, y = biomass_density, color = kernel)) +
+  geom_line(linewidth = 1) +
+  geom_vline(xintercept = 10, linetype = "dashed") +
+  scale_x_log10() + scale_y_log10() +
+  labs(x = "Body weight (g)", y = "Biomass density (N x w)",
+       title = "Size spectra at effort = 0",
+       subtitle = "Dashed line = w_mat = 10, the default gear knife-edge selectivity cutoff") +
+  theme_minimal()
+```
+
+Both curves drop steeply right at `w_mat = 10`, but they also cross a couple of times near the cutoff, so it's hard to tell by eye which kernel actually has more catchable biomass. Quantifying it directly (correctly, weighting by the log-spaced bin width `dw`, the same integral `getBiomass()` uses internally):
+
+```{r}
+#| message: false
+#| warning: false
+catchable_fraction <- function(sim, cutoff = 10) {
+  last         <- dim(sim@n)[1]
+  w            <- sim@params@w
+  dw           <- sim@params@dw
+  bm_density   <- sim@n[last, 1, ] * w * dw
+  total_bm     <- sum(bm_density)
+  catchable_bm <- sum(bm_density[w >= cutoff])
+  data.frame(total_bm = total_bm, catchable_bm = catchable_bm,
+             catchable_fraction = catchable_bm / total_bm)
+}
+
+catchable_summary <- rbind(
+  data.frame(kernel = "default (beta=100, sigma=1.3)",
+             catchable_fraction(unfished_default)),
+  data.frame(kernel = "highest-amplitude (beta=50, sigma=0.8)",
+             catchable_fraction(unfished_highest_amp))
+)
+knitr::kable(catchable_summary)
+```
+
+Confirmed. Despite having roughly 7× more total biomass, the highest-amplitude kernel has slightly less absolute catchable biomass than the default (`5.98e-6` vs `7.91e-6`), and its `catchable_fraction` is about 10× lower (`0.0033%` vs `0.031%`). Nearly all of that kernel's extra standing stock is juveniles that never cross the `w_mat = 10` selectivity cutoff.So the "more biomass" seen in the size-spectrum plot is largely fictitious from the fishery's perspective, and is the primary explanation for the yield gap.
+
+### What This Shows
+
+Feeding-kernel shape sets oscillation amplitude directly: narrower, more concentrated kernels sustain larger-amplitude cycles than the default. Fishing effort reduces biomass smoothly in both kernels without finding a maximum-sustainable-yield peak in the tested range, most likely because eased predation pressure lets the resource partially recover as the fish population is fished down. And a striking yield/biomass mismatch between kernels — more standing stock but far less catch — turns out to be a size-selectivity effect: most of the higher-amplitude kernel's extra biomass is juveniles below the catchable-size cutoff, not extra mature stock.
+
+------------------------------------------------------------------------
+
+## Why Are There So Many More Juveniles Than Adults?
+
+Both size spectra above show a steep drop in biomass right at `w_mat = 10` ; several orders of magnitude fewer individuals ever reach a catchable, mature size than exist as juveniles. Going back to the original Day 18-style regime (`balance = TRUE`, `resource_decrease = r_d[1] = 0.001`, default perturbation, reusing the sim already computed in `results_balance_true[[1]]`), the natural first check is whether adults or juveniles oscillate more:
+
+```{r}
+#| message: false
+#| warning: false
+#| output: false
+track_life_stages <- function(sim, w_mat = 10) {
+  bm_juv   <- getBiomass(sim, max_w = w_mat)[, "Anchovy"]
+  bm_adult <- getBiomass(sim, min_w = w_mat)[, "Anchovy"]
+  t        <- as.numeric(names(bm_juv))
+  data.frame(t = t, bm_juv = bm_juv, bm_adult = bm_adult)
+}
+
+day18_sim     <- results_balance_true[[1]]$sim
+life_stage_bm <- track_life_stages(day18_sim)
+mask          <- life_stage_bm$t > 550
+```
+
+```{r}
+#| message: false
+#| warning: false
+plot(NULL, xlim = c(550, 600),
+     ylim = range(c(life_stage_bm$bm_juv[mask], life_stage_bm$bm_adult[mask])),
+     xlab = "Time (years)", ylab = "Biomass",
+     main = "Juvenile vs adult biomass (balance = TRUE, r_d = 0.001)")
+lines(life_stage_bm$t[mask], life_stage_bm$bm_juv[mask],   col = "darkgreen", lwd = 2)
+lines(life_stage_bm$t[mask], life_stage_bm$bm_adult[mask], col = "purple",    lwd = 2)
+legend("topright", legend = c("Juveniles (w < 10)", "Adults (w >= 10)"),
+       col = c("darkgreen", "purple"), lwd = 2)
+```
+
+Juveniles and adults sit at very different biomass scales, so relative amplitude (`amp / mean`) is the fair comparison, not absolute amplitude:
+
+```{r}
+#| message: false
+#| warning: false
+rel_amp <- function(x) (max(x) - min(x)) / mean(x)
+
+life_stage_summary <- data.frame(
+  stage   = c("Juvenile (w < 10)", "Adult (w >= 10)"),
+  mean_bm = c(mean(life_stage_bm$bm_juv[mask]),  mean(life_stage_bm$bm_adult[mask])),
+  amp     = c(max(life_stage_bm$bm_juv[mask]) - min(life_stage_bm$bm_juv[mask]),
+             max(life_stage_bm$bm_adult[mask]) - min(life_stage_bm$bm_adult[mask])),
+  rel_amp = c(rel_amp(life_stage_bm$bm_juv[mask]), rel_amp(life_stage_bm$bm_adult[mask]))
+)
+knitr::kable(life_stage_summary)
+```
+
+The result is the opposite of expected. Adults show higher relative amplitude than juveniles (\~2.11 vs \~1.63) and proportionally, the rare mature fish swing more than the abundant juveniles do, not less. But that answers a different question from the one that actually matters here: how much either life stage oscillates around its own mean says nothing about why the standing-stock ratio between juveniles and adults is so lopsided in the first place. That's a demographic question, more about survivorship through growth, cumulative mortality, and how long an individual takes to grow from `w_min` to `w_mat` and not a dynamical one about oscillation amplitude.
+
+------------------------------------------------------------------------
+
+## Theoretical Grounding: Strogatz, Chapter 8
+
+Alongside the coding, the next stretch of work is going through *Nonlinear Dynamics and Chaos* (Strogatz), sections 8.3–8.7, plus the accompanying exercises. These chapters line up almost exactly with the open questions this project has been circling since Day 18: what kind of bifurcation this is, whether the parked `beta = 150, sigma = 0.8` cell is chaos, quasiperiodicity, or a slow transient, and how to test for hysteresis properly rather than by eye.
 
 ------------------------------------------------------------------------
 
 ## What's Next
 
-- **Read the Fifth Pass output above** once it's run: do the trajectory panels confirm genuine sustained oscillation (not a still-decaying transient) across the brighter cells, does the period visibly shift between the highest-amp, default, and lowest-amp overlays, and does the biomass-level heatmap show the dark corner as a healthy fixed point or another starvation case?
+- **Plot maximum and minimum separately:** Instead of plotting max − min, to get a bifurcation-diagram look at the amplitude data rather than a single collapsed amplitude curve.
 
-- **Find the `balance = FALSE` regime that's actually comparable to Day 18's oscillatory window**, rather than comparing at matched `resource_decrease` values that turn out not to represent matched resource availability. That likely means testing much larger `resource_decrease` (less depletion) than 0.3, to first find where the population under `balance = FALSE` reaches a healthy biomass at all, and only then ask whether a further decrease destabilises it.
+- **Try a different perturbation type:** To see whether the same convergence-to-attractor result holds no matter what form the perturbation takes, rather than relying solely on the mature-stock knock-down used so far.
 
-- **Re-run with `tr_bdf2` used consistently for both stages of `make_limit_cycle_sim`**, for methodological consistency with Day 18, even though it wasn't the cause of today's result.
+- **Working through the Nonlinear Dynamics book:** Continuing Strogatz sections 8.3–8.7 on global bifurcations, hysteresis, quasiperiodicity, and Poincaré maps, to properly ground the bifurcation classification and diagnose the parked chaos-looking cell.
 
-- Carried over from Day 18, still open: try a different perturbation type to check whether the global-attractor result is specific to the mature-stock knock-down, and plot maximum and minimum separately instead of max − min to get a genuine bifurcation-diagram view of the amplitude data.
+- **Think on why there is so much biomass accumulated at juvenile stages:** The survivorship-through-growth question raised above but not resolved.
