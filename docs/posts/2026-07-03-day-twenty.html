@@ -8,9 +8,9 @@
 
 <meta name="author" content="Samia">
 <meta name="dcterms.date" content="2026-07-03">
-<meta name="description" content="Day 18 left the resource_decrease bifurcation looking possibly-but-not-confirmed supercritical, with an unresolved forward/backward gap around rd ≈ 0.008 in a narrow, 10-point linear sweep. Widening that sweep to a 40-point log-spaced grid spanning 0.0001-0.5, and rebuilding it on mizer 3.1’s second-order finite-volume scheme plus external diffusion, makes the forward and backward branches trace the same curve across the whole range: the gap is gone. That result comes with a catch, though: the diffusion was set up as a flat constant across all sizes rather than mizer’s own allometric w^(n+1) shape, so it needs to be redone properly before the hysteresis-gone finding can be trusted.">
+<meta name="description" content="Widening Day 18’s narrow, ambiguous resource_decrease sweep and rebuilding it on mizer 3.1’s second-order scheme reveals a wide hysteresis loop, not a resolved bifurcation - though a flawed diffusion setup means the result needs to be reproduced before it can be trusted.">
 
-<title>Day 20: A Wider Sweep Closes the Hysteresis Gap - But the Diffusion Setup Needs Redoing First – Modelling-the-flow-of-biomass</title>
+<title>Day 20: A Wider Sweep Reveals a Much Bigger Hysteresis Gap - But the Diffusion Setup Needs Redoing First – Modelling-the-flow-of-biomass</title>
 <style>
 /* Default styles provided by pandoc.
 ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
@@ -198,7 +198,7 @@ window.Quarto = {
 
 <header id="title-block-header" class="quarto-title-block default">
 <div class="quarto-title">
-<h1 class="title">Day 20: A Wider Sweep Closes the Hysteresis Gap - But the Diffusion Setup Needs Redoing First</h1>
+<h1 class="title">Day 20: A Wider Sweep Reveals a Much Bigger Hysteresis Gap - But the Diffusion Setup Needs Redoing First</h1>
   <div class="quarto-categories">
     <div class="quarto-category">research</div>
     <div class="quarto-category">mizer</div>
@@ -213,7 +213,7 @@ window.Quarto = {
 
 <div>
   <div class="description">
-    Day 18 left the resource_decrease bifurcation looking possibly-but-not-confirmed supercritical, with an unresolved forward/backward gap around rd ≈ 0.008 in a narrow, 10-point linear sweep. Widening that sweep to a 40-point log-spaced grid spanning 0.0001-0.5, and rebuilding it on mizer 3.1’s second-order finite-volume scheme plus external diffusion, makes the forward and backward branches trace the same curve across the whole range: the gap is gone. That result comes with a catch, though: the diffusion was set up as a flat constant across all sizes rather than mizer’s own allometric w^(n+1) shape, so it needs to be redone properly before the hysteresis-gone finding can be trusted.
+    Widening Day 18’s narrow, ambiguous resource_decrease sweep and rebuilding it on mizer 3.1’s second-order scheme reveals a wide hysteresis loop, not a resolved bifurcation - though a flawed diffusion setup means the result needs to be reproduced before it can be trusted.
   </div>
 </div>
 
@@ -408,8 +408,8 @@ window.Quarto = {
 </section>
 <section id="what-the-wider-sweep-shows" class="level2">
 <h2 class="anchored" data-anchor-id="what-the-wider-sweep-shows">What the Wider Sweep Shows</h2>
-<p>Across the full 0.0001–0.5 range, the forward and backward max/min branches trace the same curve, with no gap, no region where one direction sustains oscillation while the other has already settled. The narrow-window ambiguity from Day 18 (a backward offset that looked like it sat past the forward transition point) doesn’t show up here at all: read at face value, this is what a clean supercritical bifurcation with no hysteresis looks like, once the sweep is widened enough and run on second-order-accurate numerics rather than the default first-order scheme.</p>
-<p>That would resolve Day 18’s open question outright, except for one problem with how today’s sweep was actually built.</p>
+<p>Across the full 0.0001–0.5 range, the forward and backward max/min branches agree at both ends - collapsing onto the same fixed point below rd ≈ 0.005 and tracking similar cycle amplitude through the middle of the range - but they diverge sharply toward the top: the backward branch’s cycle collapses to zero around rd ≈ 0.02, while the forward branch keeps a nonzero cycle going all the way out to rd ≈ 0.15–0.2 before it, too, drops to zero. That’s a wide stretch, nearly a full order of magnitude in rd, where the two directions disagree about whether the system is still oscillating at all. Read at face value, this is a much clearer and much wider hysteresis loop than Day 18’s narrow, ambiguous gap around rd ≈ 0.008, not a resolution of it.</p>
+<p>That widening sharpens Day 18’s open question rather than settling it, and there’s one further problem with how today’s sweep was actually built.</p>
 <hr>
 </section>
 <section id="a-catch-the-external-diffusion-was-set-up-wrong" class="level2">
@@ -417,7 +417,7 @@ window.Quarto = {
 <p><code>make_second_order_params()</code> builds its <code>ext_diffusion</code> array by taking <code>getDiffusion(params)</code>’s shape as a template and filling every single element with the same scalar, <code>ext_diff</code>. That’s not what mizer’s own external diffusion is supposed to look like. mizer’s default formula is</p>
 <p><span class="math display">\[D_{\text{ext},i}(w) = D_{\text{ext},i} \cdot w^{n_i + 1}\]</span></p>
 <p>which is a per-species <em>baseline rate</em> (<code>D_ext</code> in <code>species_params</code>) that gets scaled allometrically across the size spectrum by <code>w</code> raised to the growth exponent plus one. Filling the whole array with one constant instead throws that shape away entirely: rather than a small diffusion term at small <code>w</code> growing smoothly into a much larger one at large <code>w</code> (or vice versa, depending on the exponent), every size class got exactly the same value regardless of body weight. Whatever <code>ext_diff = 0.001</code> produced today is not “external diffusion at a background level of 0.001” in any sense that connects back to mizer’s own model of what diffusion means physically ; it’s closer to an arbitrary, non-physical size-independent forcing term that happened to share a value with the intended baseline rate.</p>
-<p>That means today’s headline result, the hysteresis gap closing under the wider sweep, was generated under a diffusion setup that doesn’t mean what it was intended to mean. It’s a striking result, and the direction (second-order scheme, wider range, gap disappears) is plausible on its own terms. But it needs to be reproduced with <code>ext_diffusion</code> set up properly, editing the baseline <code>D_ext</code> rate in <code>species_params</code> and letting <code>setExtDiffusion()</code> derive the <code>w^(n+1)</code> array itself, rather than constant-filling, before it can be trusted as showing what a <em>physically sensible</em> level of external diffusion actually does to the bifurcation.</p>
+<p>That means today’s headline result, the wide hysteresis loop that opened up under the wider sweep, was generated under a diffusion setup that doesn’t mean what it was intended to mean. It’s a striking result, and the direction (second-order scheme, wider range, gap widens rather than narrows) is plausible on its own terms. But it needs to be reproduced with <code>ext_diffusion</code> set up properly, editing the baseline <code>D_ext</code> rate in <code>species_params</code> and letting <code>setExtDiffusion()</code> derive the <code>w^(n+1)</code> array itself, rather than constant-filling, before it can be trusted as showing what a <em>physically sensible</em> level of external diffusion actually does to the bifurcation.</p>
 <hr>
 </section>
 <section id="theoretical-grounding-continued" class="level2">
@@ -428,7 +428,7 @@ window.Quarto = {
 <section id="whats-next" class="level2">
 <h2 class="anchored" data-anchor-id="whats-next">What’s Next</h2>
 <ul>
-<li><p><strong>Redo the external diffusion setup properly:</strong> Instead of filling <code>ext_diffusion</code> with a flat constant across every size class, edit the baseline <code>D_ext</code> rate in <code>species_params</code> and let <code>setExtDiffusion()</code> derive mizer’s intended <span class="math inline">\(D_{\text{ext},i}(w) = D_{\text{ext},i} \cdot w^{n_i+1}\)</span> shape itself. Then rerun the wide, log-spaced sweep to see whether the hysteresis-gone result survives under a physically sensible diffusion term, rather than the constant-array version used today.</p></li>
+<li><p><strong>Redo the external diffusion setup properly:</strong> Instead of filling <code>ext_diffusion</code> with a flat constant across every size class, edit the baseline <code>D_ext</code> rate in <code>species_params</code> and let <code>setExtDiffusion()</code> derive mizer’s intended <span class="math inline">\(D_{\text{ext},i}(w) = D_{\text{ext},i} \cdot w^{n_i+1}\)</span> shape itself. Then rerun the wide, log-spaced sweep to see whether the wide-hysteresis result survives under a physically sensible diffusion term, rather than the constant-array version used today.</p></li>
 <li><p><strong>Keep working through <em>Nonlinear Dynamics and Chaos:</em></strong> This is to build the background needed to properly characterise the bifurcation (and the parked chaos-looking cell from Day 19), rather than continuing to read these sweep plots at face value.</p></li>
 <li><p><strong>Change the juvenile slope, starting by reducing it:</strong> Investigating the juvenile-biomass conundrum from Day 19: does flattening the size-spectrum slope specifically over the juvenile size range change the juvenile:adult standing-stock ratio, or is the imbalance insensitive to it?</p></li>
 <li><p><strong>Increase the size range of the species:</strong> Investigating the same juvenile phenomenon from a different angle: does giving individuals more room to grow through (a wider <code>w_min</code>–<code>w_max</code> span) change how much biomass piles up at small sizes, or does the same lopsided ratio persist regardless of how much size range is available?</p></li>
