@@ -1,5 +1,5 @@
 ---
-title: "Day 20: A Wider Sweep Closes the Hysteresis Gap — But the Diffusion Setup Needs Redoing First"
+title: "Day 20: A Wider Sweep Closes the Hysteresis Gap - But the Diffusion Setup Needs Redoing First"
 author: "Samia"
 date: "2026-07-03"
 format:
@@ -134,7 +134,7 @@ run_rd_sweep_second_order <- function(rd_seq, init_n = NULL, init_n_pp = NULL,
 
 ## Experiment: A Much Wider, Log-Spaced Hysteresis Sweep
 
-Day 18's forward/backward sweep only covered `resource_decrease` = 0.001–0.01, ten points on a linear grid, and left an unresolved gap between the forward and backward transition points around `rd ≈ 0.008`. Today's sweep widens that considerably: 40 points, log-spaced rather than linear, spanning 0.0001–0.5 — 3.7 orders of magnitude, at roughly the same per-decade resolution as Day 18's narrower grid rather than thinning out at the low end.
+Day 18's forward/backward sweep only covered `resource_decrease` = 0.001–0.01, ten points on a linear grid, and left an unresolved gap between the forward and backward transition points around `rd ≈ 0.008`. Today's sweep widens that considerably: 40 points, log-spaced rather than linear, spanning 0.0001–0.5, which is 3.7 orders of magnitude, at roughly the same per-decade resolution as Day 18's narrower grid rather than thinning out at the low end.
 
 ```{r}
 #| message: false
@@ -178,9 +178,9 @@ ggplot(bifurcation_df, aes(x = rd, y = biomass, color = direction, linetype = br
 
 ## What the Wider Sweep Shows
 
-Across the full 0.0001–0.5 range, the forward and backward max/min branches trace the same curve — no gap, no region where one direction sustains oscillation while the other has already settled. The narrow-window ambiguity from Day 18 (a backward offset that looked like it sat past the forward transition point) doesn't show up here at all: read at face value, this is what a clean supercritical bifurcation with no hysteresis looks like, once the sweep is widened enough and run on second-order-accurate numerics rather than the default first-order scheme.
+Across the full 0.0001–0.5 range, the forward and backward max/min branches trace the same curve, with no gap, no region where one direction sustains oscillation while the other has already settled. The narrow-window ambiguity from Day 18 (a backward offset that looked like it sat past the forward transition point) doesn't show up here at all: read at face value, this is what a clean supercritical bifurcation with no hysteresis looks like, once the sweep is widened enough and run on second-order-accurate numerics rather than the default first-order scheme.
 
-That would resolve Day 18's open question outright — except for one problem with how today's sweep was actually built.
+That would resolve Day 18's open question outright, except for one problem with how today's sweep was actually built.
 
 ------------------------------------------------------------------------
 
@@ -190,24 +190,24 @@ That would resolve Day 18's open question outright — except for one problem wi
 
 $$D_{\text{ext},i}(w) = D_{\text{ext},i} \cdot w^{n_i + 1}$$
 
-— a per-species *baseline rate* (`D_ext` in `species_params`) that gets scaled allometrically across the size spectrum by `w` raised to the growth exponent plus one. Filling the whole array with one constant instead throws that shape away entirely: rather than a small diffusion term at small `w` growing smoothly into a much larger one at large `w` (or vice versa, depending on the exponent), every size class got exactly the same value regardless of body weight. Whatever `ext_diff = 0.001` produced today is not "external diffusion at a background level of 0.001" in any sense that connects back to mizer's own model of what diffusion means physically — it's closer to an arbitrary, non-physical size-independent forcing term that happened to share a value with the intended baseline rate.
+which is a per-species *baseline rate* (`D_ext` in `species_params`) that gets scaled allometrically across the size spectrum by `w` raised to the growth exponent plus one. Filling the whole array with one constant instead throws that shape away entirely: rather than a small diffusion term at small `w` growing smoothly into a much larger one at large `w` (or vice versa, depending on the exponent), every size class got exactly the same value regardless of body weight. Whatever `ext_diff = 0.001` produced today is not "external diffusion at a background level of 0.001" in any sense that connects back to mizer's own model of what diffusion means physically ; it's closer to an arbitrary, non-physical size-independent forcing term that happened to share a value with the intended baseline rate.
 
-That means today's headline result — the hysteresis gap closing under the wider sweep — was generated under a diffusion setup that doesn't mean what it was intended to mean. It's a striking result, and the direction (second-order scheme, wider range, gap disappears) is plausible on its own terms. But it needs to be reproduced with `ext_diffusion` set up properly — editing the baseline `D_ext` rate in `species_params` and letting `setExtDiffusion()` derive the `w^(n+1)` array itself, rather than constant-filling — before it can be trusted as showing what a *physically sensible* level of external diffusion actually does to the bifurcation.
+That means today's headline result, the hysteresis gap closing under the wider sweep, was generated under a diffusion setup that doesn't mean what it was intended to mean. It's a striking result, and the direction (second-order scheme, wider range, gap disappears) is plausible on its own terms. But it needs to be reproduced with `ext_diffusion` set up properly, editing the baseline `D_ext` rate in `species_params` and letting `setExtDiffusion()` derive the `w^(n+1)` array itself, rather than constant-filling, before it can be trusted as showing what a *physically sensible* level of external diffusion actually does to the bifurcation.
 
 ------------------------------------------------------------------------
 
 ## Theoretical Grounding, Continued
 
-Work through Strogatz's *Nonlinear Dynamics and Chaos* is ongoing, still centred on sections 8.3–8.7 (global bifurcations, hysteresis, quasiperiodicity, Poincaré maps) — the exact toolkit needed to properly characterise what today's sweep is showing, rather than reading a collapsed-onto-one-curve plot at face value.
+Work through Strogatz's *Nonlinear Dynamics and Chaos* is ongoing, still centred on sections 8.3–8.7 (global bifurcations, hysteresis, quasiperiodicity, Poincaré maps) which is the exact toolkit needed to properly characterise what today's sweep is showing, rather than reading a collapsed-onto-one-curve plot at face value.
 
 ------------------------------------------------------------------------
 
 ## What's Next
 
-- **Redo the external diffusion setup properly.** Instead of filling `ext_diffusion` with a flat constant across every size class, edit the baseline `D_ext` rate in `species_params` and let `setExtDiffusion()` derive mizer's intended $D_{\text{ext},i}(w) = D_{\text{ext},i} \cdot w^{n_i+1}$ shape itself. Then rerun the wide, log-spaced sweep to see whether the hysteresis-gone result survives under a physically sensible diffusion term, rather than the constant-array version used today.
+- **Redo the external diffusion setup properly:** Instead of filling `ext_diffusion` with a flat constant across every size class, edit the baseline `D_ext` rate in `species_params` and let `setExtDiffusion()` derive mizer's intended $D_{\text{ext},i}(w) = D_{\text{ext},i} \cdot w^{n_i+1}$ shape itself. Then rerun the wide, log-spaced sweep to see whether the hysteresis-gone result survives under a physically sensible diffusion term, rather than the constant-array version used today.
 
-- **Keep working through *Nonlinear Dynamics and Chaos*** to build the background needed to properly characterise the bifurcation (and the parked chaos-looking cell from Day 19), rather than continuing to read these sweep plots at face value.
+- **Keep working through *Nonlinear Dynamics and Chaos:*** This is to build the background needed to properly characterise the bifurcation (and the parked chaos-looking cell from Day 19), rather than continuing to read these sweep plots at face value.
 
-- **Change the juvenile slope, starting by reducing it,** to investigate the juvenile-biomass conundrum from Day 19: does flattening the size-spectrum slope specifically over the juvenile size range change the juvenile:adult standing-stock ratio, or is the imbalance insensitive to it?
+- **Change the juvenile slope, starting by reducing it:** Investigating the juvenile-biomass conundrum from Day 19: does flattening the size-spectrum slope specifically over the juvenile size range change the juvenile:adult standing-stock ratio, or is the imbalance insensitive to it?
 
-- **Increase the size range of the species** to investigate the same juvenile phenomenon from a different angle: does giving individuals more room to grow through (a wider `w_min`–`w_max` span) change how much biomass piles up at small sizes, or does the same lopsided ratio persist regardless of how much size range is available?
+- **Increase the size range of the species:** Investigating the same juvenile phenomenon from a different angle: does giving individuals more room to grow through (a wider `w_min`–`w_max` span) change how much biomass piles up at small sizes, or does the same lopsided ratio persist regardless of how much size range is available?
