@@ -208,6 +208,4 @@ Work through Strogatz's *Nonlinear Dynamics and Chaos* is ongoing, still centred
 
 - **Keep working through *Nonlinear Dynamics and Chaos:*** This is to build the background needed to properly characterise the bifurcation (and the parked chaos-looking cell from Day 19), rather than continuing to read these sweep plots at face value.
 
-- **Change the juvenile slope, starting by reducing it:** Investigating the juvenile-biomass conundrum from Day 19: does flattening the size-spectrum slope specifically over the juvenile size range change the juvenile:adult standing-stock ratio, or is the imbalance insensitive to it?
-
-- **Increase the size range of the species:** Investigating the same juvenile phenomenon from a different angle: does giving individuals more room to grow through (a wider `w_min`–`w_max` span) change how much biomass piles up at small sizes, or does the same lopsided ratio persist regardless of how much size range is available?
+- **Investigate the juvenile-biomass conundrum from Day 19:** Will do this via changing the juvenile slope ad increasing the size range of the species.
