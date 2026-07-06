@@ -65,7 +65,7 @@ make_params <- function(lambda = 2.05, resource_decrease = 0.001,
 }
 
 make_second_order_params <- function(lambda = 2.05, resource_decrease = 0.001,
-                                     second_order = TRUE, ext_diff = 0.001) {
+                                     second_order = TRUE, ext_diff = 0) {
   a0    <- 100
   kappa <- a0 * exp(-6.9 * (lambda - 1))
   no_w  <- round(log(66.5 / 0.0003) / 0.1)
@@ -99,7 +99,7 @@ make_second_order_params <- function(lambda = 2.05, resource_decrease = 0.001,
 
 run_rd_sweep_second_order <- function(rd_seq, init_n = NULL, init_n_pp = NULL,
                                       t_run = 300, lambda = 2.05,
-                                      second_order = TRUE, ext_diff = 0.001, label = "") {
+                                      second_order = TRUE, ext_diff = 0, label = "") {
   out       <- data.frame(rd = rd_seq, max_bm = NA_real_, min_bm = NA_real_,
                           bm_mean = NA_real_)
   state_n   <- init_n
