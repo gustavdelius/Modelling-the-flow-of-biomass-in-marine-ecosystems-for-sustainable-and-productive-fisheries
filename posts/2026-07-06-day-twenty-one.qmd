@@ -9,12 +9,12 @@ format:
     theme: flatly
     code-fold: true
 categories: [research, mizer, limit-cycle, hysteresis, time-series, diffusion, blog]
-description: "Day 20's headline result was corrected first: the wider sweep doesn't close the forward/backward gap, it opens a much bigger one. Today follows that up by watching biomass directly over time instead of only the settled max/min, at a handful of resource_decrease values, run first independently and then as a proper chained forward/backward pair. The chained version shows the hysteresis directly: at resource_decrease = 0.05, forward finds a healthy steady population while backward is still collapsed from a higher value. A few further threads (Beverton-Holt recruitment, a reordered forward/backward chain, a single-point diffusion check) were started but are parked unfinished, with known issues still in the script."
+description: "Following up on Day 20's corrected result, biomass is now tracked over time (not just settled max/min) for a chained forward/backward pair, revealing clear hysteresis at resource_decrease = 0.05. A few further threads were started but left unfinished."
 ---
 
 ## Where Day 20 Left Us
 
-Day 20 widened Day 18's narrow, ambiguous 10-point sweep to a 40-point, log-spaced grid and reran it on mizer 3.1's second-order finite-volume scheme plus external diffusion. The post originally read that result backwards: it said the forward/backward gap closed. Re-reading the actual figure showed the opposite — the backward branch collapses to zero around `resource_decrease ≈ 0.02`, while the forward branch keeps a nonzero cycle out to `≈ 0.15–0.2`, a wide and unambiguous hysteresis loop, much bigger than Day 18's narrow `rd ≈ 0.008` ambiguity. The title, description, and body of that post have all been corrected to say so. The diffusion caveat stands either way: `ext_diffusion` was filled as a flat constant across all sizes rather than mizer's own allometric `w^(n+1)` shape, so the result (now: a wide hysteresis loop, not a closed gap) still needs to be reproduced with diffusion set up properly before it can be trusted.
+Day 20 widened Day 18's narrow, ambiguous 10-point sweep to a 40-point, log-spaced grid and reran it on mizer 3.1's second-order finite-volume scheme plus external diffusion. The post originally read that result backwards: it said the forward/backward gap closed. Re-reading the actual figure showed the opposite - the backward branch collapses to zero around `resource_decrease ≈ 0.02`, while the forward branch keeps a nonzero cycle out to `≈ 0.15–0.2`, a wide and unambiguous hysteresis loop, much bigger than Day 18's narrow `rd ≈ 0.008` ambiguity. The title, description, and body of that post have all been corrected to say so. The diffusion caveat stands either way: `ext_diffusion` was filled as a flat constant across all sizes rather than mizer's own allometric `w^(n+1)` shape, so the result (now: a wide hysteresis loop, not a closed gap) still needs to be reproduced with diffusion set up properly before it can be trusted.
 
 Today picks that fix up directly, and then goes further: instead of only ever looking at each `resource_decrease` value's settled max/min biomass, it looks at biomass over time itself, to see the shape of the oscillation (or its absence) directly, and to watch the hysteresis play out step by step rather than reading it off a summary curve.
 
@@ -199,17 +199,17 @@ A few further ideas got started in `21_experiments.R` today but aren't in a stat
 
 - **Reordering the forward/backward chain:** a draft ran the backward pass first (fresh, no carried-over state) and chained forward from backward's ending, the reverse of the convention used above and in Day 20. Whether that ordering matters for the shape of the loop hasn't been checked, since it hasn't been re-run cleanly since the swap.
 - **Wiring in `setBevertonHolt()` recruitment:** an attempt to add stock-recruitment density dependence into `make_second_order_params()` currently builds the `params` object twice (the first build, including the `given_species_params()$D_ext` assignment, gets discarded before `setBevertonHolt()` runs on a second, fresh build), so as written it isn't actually testing what it looks like it's testing.
-- **A single-point check at `resource_decrease = 0.5`** using `plotHover()` for an interactive look at biomass, referencing `lambda` and `second_order` as loose variables that are never assigned anywhere in the script itself — it only runs if those happen to still be sitting in the R session from something run by hand.
-- There's also a stray syntax error (`run_rd_sweep_second_order(rd_seq_so,,` — a double comma) sitting in the sweep block above these three, which would need fixing before the script can be sourced top-to-bottom at all.
 
 ------------------------------------------------------------------------
 
 ## What's Next
 
-- **Fix the script issues above** before picking any of the three parked threads back up: the syntax error blocking a clean source, the double `params` build in front of `setBevertonHolt()`, and the loose `lambda`/`second_order` variables in the `resource_decrease = 0.5` check.
-
 - **Settle on one forward/backward convention** for future chained comparisons, rather than swapping which direction runs fresh vs chained ad hoc between drafts.
 
 - **Finish the Beverton-Holt attempt properly** once the double-build is fixed, to see whether stock-recruitment density dependence changes the size of the hysteresis loop found on Day 20/21.
 
-- **Extend the time-series overlay beyond five points** — ideally the same 40-point log-spaced grid from Day 20 — to see whether the `rd = 0.05` disagreement found today is an isolated point or part of a wider direction-dependent stretch.
+- **Vary the diffusion rate** to see how the plot changes.
+
+- **Keep working through *Nonlinear Dynamics and Chaos:*** This is to build the background needed to properly characterise the bifurcation (and the parked chaos-looking cell from Day 19), rather than continuing to read these sweep plots at face value.
+
+- **Investigate the juvenile-biomass conundrum from Day 19:** Will do this via changing the juvenile slope ad increasing the size range of the species.
