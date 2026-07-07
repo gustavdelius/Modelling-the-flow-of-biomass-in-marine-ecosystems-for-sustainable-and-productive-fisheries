@@ -8,7 +8,7 @@
 
 <meta name="author" content="Samia">
 <meta name="dcterms.date" content="2026-07-06">
-<meta name="description" content="Following up on Day 20’s corrected result, biomass is now tracked over time (not just settled max/min) for a chained forward/backward pair, revealing clear hysteresis at resource_decrease = 0.05. A few further threads were started but left unfinished.">
+<meta name="description" content="Biomass is tracked over time (not just settled max/min), first independently, then as a chained forward/backward pair that shows clear hysteresis at resource_decrease = 0.05. The independent run also turns up something odd: higher resource_decrease values, where more of the default resource rate survives, are the ones that go extinct. A preliminary, backward-first bifurcation diagram and a couple of other unfinished threads are parked at the end.">
 
 <title>Day 21: Watching Hysteresis Play Out in Time, Not Just in the Bifurcation Diagram – Modelling-the-flow-of-biomass</title>
 <style>
@@ -156,12 +156,18 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <ul>
   <li><a href="#where-day-20-left-us" id="toc-where-day-20-left-us" class="nav-link active" data-scroll-target="#where-day-20-left-us">Where Day 20 Left Us</a></li>
   <li><a href="#setup" id="toc-setup" class="nav-link" data-scroll-target="#setup">Setup</a></li>
-  <li><a href="#experiment-biomass-over-time-run-independently" id="toc-experiment-biomass-over-time-run-independently" class="nav-link" data-scroll-target="#experiment-biomass-over-time-run-independently">Experiment: Biomass Over Time, Run Independently</a></li>
+  <li><a href="#experiment-biomass-over-time-run-independently" id="toc-experiment-biomass-over-time-run-independently" class="nav-link" data-scroll-target="#experiment-biomass-over-time-run-independently">Experiment: Biomass Over Time, Run Independently</a>
+  <ul class="collapse">
+  <li><a href="#a-backwards-signal-read-at-face-value" id="toc-a-backwards-signal-read-at-face-value" class="nav-link" data-scroll-target="#a-backwards-signal-read-at-face-value">A Backwards Signal, Read at Face Value</a></li>
+  </ul></li>
   <li><a href="#experiment-the-same-values-chained-forward-and-backward" id="toc-experiment-the-same-values-chained-forward-and-backward" class="nav-link" data-scroll-target="#experiment-the-same-values-chained-forward-and-backward">Experiment: The Same Values, Chained Forward and Backward</a>
   <ul class="collapse">
   <li><a href="#what-this-shows" id="toc-what-this-shows" class="nav-link" data-scroll-target="#what-this-shows">What This Shows</a></li>
   </ul></li>
-  <li><a href="#parked-unfinished-threads" id="toc-parked-unfinished-threads" class="nav-link" data-scroll-target="#parked-unfinished-threads">Parked, Unfinished Threads</a></li>
+  <li><a href="#parked-unfinished-threads" id="toc-parked-unfinished-threads" class="nav-link" data-scroll-target="#parked-unfinished-threads">Parked, Unfinished Threads</a>
+  <ul class="collapse">
+  <li><a href="#reordering-the-forwardbackward-chain" id="toc-reordering-the-forwardbackward-chain" class="nav-link" data-scroll-target="#reordering-the-forwardbackward-chain">Reordering the Forward/Backward Chain</a></li>
+  </ul></li>
   <li><a href="#whats-next" id="toc-whats-next" class="nav-link" data-scroll-target="#whats-next">What’s Next</a></li>
   </ul>
 </nav>
@@ -185,7 +191,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 
 <div>
   <div class="description">
-    Following up on Day 20’s corrected result, biomass is now tracked over time (not just settled max/min) for a chained forward/backward pair, revealing clear hysteresis at resource_decrease = 0.05. A few further threads were started but left unfinished.
+    Biomass is tracked over time (not just settled max/min), first independently, then as a chained forward/backward pair that shows clear hysteresis at resource_decrease = 0.05. The independent run also turns up something odd: higher resource_decrease values, where more of the default resource rate survives, are the ones that go extinct. A preliminary, backward-first bifurcation diagram and a couple of other unfinished threads are parked at the end.
   </div>
 </div>
 
@@ -238,7 +244,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </section>
 <section id="setup" class="level2">
 <h2 class="anchored" data-anchor-id="setup">Setup</h2>
-<p><code>make_second_order_params()</code> carries over the second-order finite-volume scheme from Day 20, but fixes the diffusion setup that post’s “A Catch” section flagged as wrong. Instead of filling an <code>ext_diffusion</code> array with a flat constant, it now sets the baseline <code>D_ext</code> rate directly in <code>species_params</code> via <code>given_species_params()</code>, and lets mizer derive its own <code>w^(n+1)</code> allometric shape from that rate:</p>
+<p><code>make_second_order_params()</code> carries over the second-order finite-volume scheme from Day 20, but fixes the diffusion setup that post’s “A Catch” section flagged as wrong. Instead of filling an <code>ext_diffusion</code> array with a flat constant, it now sets the baseline <code>D_ext</code> rate directly in <code>species_params</code> via <code>given_species_params()</code>.:</p>
 <div class="cell">
 <details class="code-fold">
 <summary>Code</summary>
@@ -318,8 +324,13 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </div>
 </div>
 </div>
-<p>This is the baseline case: each value is only ever approached one way, from the same default starting point, so it says nothing yet about direction-dependence. It’s the “normal” run the next section compares against.</p>
+<section id="a-backwards-signal-read-at-face-value" class="level3">
+<h3 class="anchored" data-anchor-id="a-backwards-signal-read-at-face-value">A Backwards Signal, Read at Face Value</h3>
+<p>Read left to right in <code>resource_decrease</code>, the direction the plot above should show is backwards from what standard consumer-resource theory would predict: <code>rd = 0.001</code>, the resource growth rate cut to 0.1% of its default value, sustains the strongest, most persistent oscillation of the five, while <code>rd = 0.15</code> and <code>rd = 0.3</code>, where far more of the default resource rate survives, collapse to (near-)zero - the same direction the forward chain below settles into, reported there with actual numbers (<code>~0.055</code> at <code>rd = 0.05</code>, near-zero at <code>rd = 0.15</code>/<code>0.3</code>). More resource driving the population extinct, and a heavily depleted resource sustaining it, is the opposite of what cutting a resource base should do. That doesn’t read like a real ecological result on its face; it reads like a sign or scaling error somewhere in how <code>resource_decrease</code>, the second-order scheme, and the diffusion fix above interact with the resource dynamics.</p>
+<p>Whether that turns out to be a genuine (if backwards-looking) piece of dynamics or a parameterisation bug changes how it should be fixed, but not what needs to happen first: either way it’s the same “characterise the bifurcation properly instead of eyeballing sweep plots” item already on the list under What’s Next, so that’s where this gets tracked down rather than treated as settled here.</p>
+<p>This run also only ever approaches each value one way, from the same default starting point, so on its own it can’t say whether the high-<code>rd</code> collapse is a genuine fixed point or just an artifact of that shared starting condition. It’s the “normal” run the next section, a proper chained forward/backward pair, compares against.</p>
 <hr>
+</section>
 </section>
 <section id="experiment-the-same-values-chained-forward-and-backward" class="level2">
 <h2 class="anchored" data-anchor-id="experiment-the-same-values-chained-forward-and-backward">Experiment: The Same Values, Chained Forward and Backward</h2>
@@ -396,18 +407,96 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </section>
 <section id="parked-unfinished-threads" class="level2">
 <h2 class="anchored" data-anchor-id="parked-unfinished-threads">Parked, Unfinished Threads</h2>
-<p>A few further ideas got started in <code>21_experiments.R</code> today but aren’t in a state to draw conclusions from yet, and are left here as flagged rather than fixed:</p>
-<ul>
-<li><strong>Reordering the forward/backward chain:</strong> a draft ran the backward pass first (fresh, no carried-over state) and chained forward from backward’s ending, the reverse of the convention used above and in Day 20. Whether that ordering matters for the shape of the loop hasn’t been checked, since it hasn’t been re-run cleanly since the swap.</li>
-<li><strong>Wiring in <code>setBevertonHolt()</code> recruitment:</strong> an attempt to add stock-recruitment density dependence into <code>make_second_order_params()</code> currently builds the <code>params</code> object twice (the first build, including the <code>given_species_params()$D_ext</code> assignment, gets discarded before <code>setBevertonHolt()</code> runs on a second, fresh build), so as written it isn’t actually testing what it looks like it’s testing.</li>
-</ul>
-<hr>
+<p>A few further ideas got started in <code>21_experiments.R</code> today but aren’t in a state to draw conclusions from yet, and are left here as flagged rather than fixed.</p>
+<section id="reordering-the-forwardbackward-chain" class="level3">
+<h3 class="anchored" data-anchor-id="reordering-the-forwardbackward-chain">Reordering the Forward/Backward Chain</h3>
+<p>A draft ran the backward pass first (fresh, no carried-over state) and chained forward from backward’s ending, the reverse of the convention used above and in Day 20:</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb8"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>run_rd_sweep_second_order <span class="ot">&lt;-</span> <span class="cf">function</span>(rd_seq, <span class="at">init_n =</span> <span class="cn">NULL</span>, <span class="at">init_n_pp =</span> <span class="cn">NULL</span>,</span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>                                      <span class="at">t_run =</span> <span class="dv">600</span>, <span class="at">lambda =</span> <span class="fl">2.05</span>,</span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>                                      <span class="at">second_order =</span> <span class="cn">TRUE</span>, <span class="at">label =</span> <span class="st">""</span>) {</span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>  out       <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(<span class="at">rd =</span> rd_seq, <span class="at">max_bm =</span> <span class="cn">NA_real_</span>, <span class="at">min_bm =</span> <span class="cn">NA_real_</span>,</span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a>                          <span class="at">bm_mean =</span> <span class="cn">NA_real_</span>)</span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a>  state_n   <span class="ot">&lt;-</span> init_n</span>
+<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a>  state_npp <span class="ot">&lt;-</span> init_n_pp</span>
+<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-9"><a href="#cb8-9" aria-hidden="true" tabindex="-1"></a>  <span class="cf">for</span> (i <span class="cf">in</span> <span class="fu">seq_along</span>(rd_seq)) {</span>
+<span id="cb8-10"><a href="#cb8-10" aria-hidden="true" tabindex="-1"></a>    p <span class="ot">&lt;-</span> <span class="fu">make_second_order_params</span>(<span class="at">lambda =</span> lambda, <span class="at">resource_decrease =</span> rd_seq[i],</span>
+<span id="cb8-11"><a href="#cb8-11" aria-hidden="true" tabindex="-1"></a>                                  <span class="at">second_order =</span> second_order)</span>
+<span id="cb8-12"><a href="#cb8-12" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> (<span class="sc">!</span><span class="fu">is.null</span>(state_n)) {</span>
+<span id="cb8-13"><a href="#cb8-13" aria-hidden="true" tabindex="-1"></a>      p<span class="sc">@</span>initial_n[]    <span class="ot">&lt;-</span> state_n</span>
+<span id="cb8-14"><a href="#cb8-14" aria-hidden="true" tabindex="-1"></a>      p<span class="sc">@</span>initial_n_pp[] <span class="ot">&lt;-</span> state_npp</span>
+<span id="cb8-15"><a href="#cb8-15" aria-hidden="true" tabindex="-1"></a>    }</span>
+<span id="cb8-16"><a href="#cb8-16" aria-hidden="true" tabindex="-1"></a>    sim <span class="ot">&lt;-</span> <span class="fu">project</span>(p, <span class="at">t_max =</span> t_run, <span class="at">dt =</span> <span class="fl">0.1</span>, <span class="at">t_save =</span> <span class="fl">0.5</span>,</span>
+<span id="cb8-17"><a href="#cb8-17" aria-hidden="true" tabindex="-1"></a>                   <span class="at">progress_bar =</span> <span class="cn">FALSE</span>, <span class="at">effort =</span> <span class="dv">0</span>, <span class="at">method =</span> <span class="st">"tr_bdf2"</span>)</span>
+<span id="cb8-18"><a href="#cb8-18" aria-hidden="true" tabindex="-1"></a>    bm   <span class="ot">&lt;-</span> <span class="fu">getBiomass</span>(sim)[, <span class="st">"Anchovy"</span>]</span>
+<span id="cb8-19"><a href="#cb8-19" aria-hidden="true" tabindex="-1"></a>    tv   <span class="ot">&lt;-</span> <span class="fu">as.numeric</span>(<span class="fu">names</span>(bm))</span>
+<span id="cb8-20"><a href="#cb8-20" aria-hidden="true" tabindex="-1"></a>    late <span class="ot">&lt;-</span> bm[tv <span class="sc">&gt;</span> t_run <span class="sc">*</span> <span class="fl">0.6</span>]  <span class="co"># last 40% of the run -- the "settled down" window</span></span>
+<span id="cb8-21"><a href="#cb8-21" aria-hidden="true" tabindex="-1"></a>    last <span class="ot">&lt;-</span> <span class="fu">dim</span>(sim<span class="sc">@</span>n)[<span class="dv">1</span>]</span>
+<span id="cb8-22"><a href="#cb8-22" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-23"><a href="#cb8-23" aria-hidden="true" tabindex="-1"></a>    state_n   <span class="ot">&lt;-</span> sim<span class="sc">@</span>n[last, , ]</span>
+<span id="cb8-24"><a href="#cb8-24" aria-hidden="true" tabindex="-1"></a>    state_npp <span class="ot">&lt;-</span> sim<span class="sc">@</span>n_pp[last, ]</span>
+<span id="cb8-25"><a href="#cb8-25" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-26"><a href="#cb8-26" aria-hidden="true" tabindex="-1"></a>    out<span class="sc">$</span>max_bm[i]  <span class="ot">&lt;-</span> <span class="fu">max</span>(late)</span>
+<span id="cb8-27"><a href="#cb8-27" aria-hidden="true" tabindex="-1"></a>    out<span class="sc">$</span>min_bm[i]  <span class="ot">&lt;-</span> <span class="fu">min</span>(late)</span>
+<span id="cb8-28"><a href="#cb8-28" aria-hidden="true" tabindex="-1"></a>    out<span class="sc">$</span>bm_mean[i] <span class="ot">&lt;-</span> <span class="fu">mean</span>(late)</span>
+<span id="cb8-29"><a href="#cb8-29" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb8-30"><a href="#cb8-30" aria-hidden="true" tabindex="-1"></a>  <span class="fu">list</span>(<span class="at">df =</span> out, <span class="at">n_final =</span> state_n, <span class="at">npp_final =</span> state_npp)</span>
+<span id="cb8-31"><a href="#cb8-31" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb8-32"><a href="#cb8-32" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-33"><a href="#cb8-33" aria-hidden="true" tabindex="-1"></a><span class="co"># Same log-spaced grid as Day 20's wide sweep on the x-axis, but not a</span></span>
+<span id="cb8-34"><a href="#cb8-34" aria-hidden="true" tabindex="-1"></a><span class="co"># like-for-like rerun of it: this uses the fixed, allometric D_ext diffusion</span></span>
+<span id="cb8-35"><a href="#cb8-35" aria-hidden="true" tabindex="-1"></a><span class="co"># setup from this post's Setup section (Day 20's sweep used the flat-constant</span></span>
+<span id="cb8-36"><a href="#cb8-36" aria-hidden="true" tabindex="-1"></a><span class="co"># ext_diffusion fill) and a longer t_run = 600 rather than 300.</span></span>
+<span id="cb8-37"><a href="#cb8-37" aria-hidden="true" tabindex="-1"></a>rd_seq_so <span class="ot">&lt;-</span> <span class="fu">exp</span>(<span class="fu">seq</span>(<span class="fu">log</span>(<span class="fl">0.0001</span>), <span class="fu">log</span>(<span class="fl">0.5</span>), <span class="at">length.out =</span> <span class="dv">40</span>))</span>
+<span id="cb8-38"><a href="#cb8-38" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-39"><a href="#cb8-39" aria-hidden="true" tabindex="-1"></a>bwd_so <span class="ot">&lt;-</span> <span class="fu">run_rd_sweep_second_order</span>(<span class="fu">rev</span>(rd_seq_so), <span class="at">label =</span> <span class="st">"BWD (2nd order)"</span>)</span>
+<span id="cb8-40"><a href="#cb8-40" aria-hidden="true" tabindex="-1"></a>fwd_so <span class="ot">&lt;-</span> <span class="fu">run_rd_sweep_second_order</span>(rd_seq_so,</span>
+<span id="cb8-41"><a href="#cb8-41" aria-hidden="true" tabindex="-1"></a>                                    <span class="at">init_n    =</span> bwd_so<span class="sc">$</span>n_final,</span>
+<span id="cb8-42"><a href="#cb8-42" aria-hidden="true" tabindex="-1"></a>                                    <span class="at">init_n_pp =</span> bwd_so<span class="sc">$</span>npp_final,</span>
+<span id="cb8-43"><a href="#cb8-43" aria-hidden="true" tabindex="-1"></a>                                    <span class="at">label     =</span> <span class="st">"FWD (2nd order)"</span>)</span>
+<span id="cb8-44"><a href="#cb8-44" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-45"><a href="#cb8-45" aria-hidden="true" tabindex="-1"></a>fwd_so_df <span class="ot">&lt;-</span> fwd_so<span class="sc">$</span>df</span>
+<span id="cb8-46"><a href="#cb8-46" aria-hidden="true" tabindex="-1"></a>bwd_so_df <span class="ot">&lt;-</span> bwd_so<span class="sc">$</span>df[<span class="fu">order</span>(bwd_so<span class="sc">$</span>df<span class="sc">$</span>rd), ]</span>
+<span id="cb8-47"><a href="#cb8-47" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-48"><a href="#cb8-48" aria-hidden="true" tabindex="-1"></a>bifurcation_df_so <span class="ot">&lt;-</span> <span class="fu">bind_rows</span>(</span>
+<span id="cb8-49"><a href="#cb8-49" aria-hidden="true" tabindex="-1"></a>  <span class="fu">data.frame</span>(<span class="at">rd =</span> fwd_so_df<span class="sc">$</span>rd, <span class="at">biomass =</span> fwd_so_df<span class="sc">$</span>max_bm, <span class="at">direction =</span> <span class="st">"Forward"</span>, <span class="at">branch =</span> <span class="st">"max"</span>),</span>
+<span id="cb8-50"><a href="#cb8-50" aria-hidden="true" tabindex="-1"></a>  <span class="fu">data.frame</span>(<span class="at">rd =</span> fwd_so_df<span class="sc">$</span>rd, <span class="at">biomass =</span> fwd_so_df<span class="sc">$</span>min_bm, <span class="at">direction =</span> <span class="st">"Forward"</span>, <span class="at">branch =</span> <span class="st">"min"</span>),</span>
+<span id="cb8-51"><a href="#cb8-51" aria-hidden="true" tabindex="-1"></a>  <span class="fu">data.frame</span>(<span class="at">rd =</span> bwd_so_df<span class="sc">$</span>rd, <span class="at">biomass =</span> bwd_so_df<span class="sc">$</span>max_bm, <span class="at">direction =</span> <span class="st">"Backward"</span>, <span class="at">branch =</span> <span class="st">"max"</span>),</span>
+<span id="cb8-52"><a href="#cb8-52" aria-hidden="true" tabindex="-1"></a>  <span class="fu">data.frame</span>(<span class="at">rd =</span> bwd_so_df<span class="sc">$</span>rd, <span class="at">biomass =</span> bwd_so_df<span class="sc">$</span>min_bm, <span class="at">direction =</span> <span class="st">"Backward"</span>, <span class="at">branch =</span> <span class="st">"min"</span>)</span>
+<span id="cb8-53"><a href="#cb8-53" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+</div>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb9"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(bifurcation_df_so, <span class="fu">aes</span>(<span class="at">x =</span> rd, <span class="at">y =</span> biomass, <span class="at">color =</span> direction, <span class="at">linetype =</span> branch)) <span class="sc">+</span></span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>(<span class="at">linewidth =</span> <span class="dv">1</span>) <span class="sc">+</span></span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_point</span>(<span class="at">size =</span> <span class="fl">1.5</span>) <span class="sc">+</span></span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_x_log10</span>() <span class="sc">+</span></span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"resource_decrease"</span>, <span class="at">y =</span> <span class="st">"Biomass"</span>,</span>
+<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a>       <span class="at">title =</span> <span class="st">"Bifurcation diagram: backward-first chain (reordered convention)"</span>,</span>
+<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a>       <span class="at">subtitle =</span> <span class="st">"Backward run fresh first, forward chained from its ending -- reverse of Day 20/21's usual order"</span>) <span class="sc">+</span></span>
+<span id="cb9-8"><a href="#cb9-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_minimal</span>()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="2026-07-06-day-twenty-one_files/figure-html/unnamed-chunk-9-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>Whether this ordering matters for the shape of the loop hasn’t been checked against the standard forward-first convention used above and in Day 20, so take this figure as a preliminary snapshot of what the swapped order produces, not yet a verified result.</p>
+</section>
 </section>
 <section id="whats-next" class="level2">
 <h2 class="anchored" data-anchor-id="whats-next">What’s Next</h2>
 <ul>
-<li><p><strong>Settle on one forward/backward convention</strong> for future chained comparisons, rather than swapping which direction runs fresh vs chained ad hoc between drafts.</p></li>
-<li><p><strong>Finish the Beverton-Holt attempt properly</strong> once the double-build is fixed, to see whether stock-recruitment density dependence changes the size of the hysteresis loop found on Day 20/21.</p></li>
+<li><p><strong>Finish the Beverton-Holt attempt properly</strong> so as to see whether stock-recruitment density dependence changes the size of the hysteresis loop found on Day 20/21.</p></li>
+<li><p><strong>Vary the diffusion rate</strong> to see how the plot changes.</p></li>
 <li><p><strong>Keep working through <em>Nonlinear Dynamics and Chaos:</em></strong> This is to build the background needed to properly characterise the bifurcation (and the parked chaos-looking cell from Day 19), rather than continuing to read these sweep plots at face value.</p></li>
 <li><p><strong>Investigate the juvenile-biomass conundrum from Day 19:</strong> Will do this via changing the juvenile slope ad increasing the size range of the species.</p></li>
 </ul>

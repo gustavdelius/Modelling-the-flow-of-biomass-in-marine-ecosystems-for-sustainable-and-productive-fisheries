@@ -9,7 +9,7 @@ format:
     theme: flatly
     code-fold: true
 categories: [research, mizer, limit-cycle, hysteresis, time-series, diffusion, blog]
-description: "Following up on Day 20's corrected result, biomass is now tracked over time (not just settled max/min) for a chained forward/backward pair, revealing clear hysteresis at resource_decrease = 0.05. A few further threads were started but left unfinished."
+description: "Biomass is tracked over time (not just settled max/min), first independently, then as a chained forward/backward pair that shows clear hysteresis at resource_decrease = 0.05. The independent run also turns up something odd: higher resource_decrease values, where more of the default resource rate survives, are the ones that go extinct. A preliminary, backward-first bifurcation diagram and a couple of other unfinished threads are parked at the end."
 ---
 
 ## Where Day 20 Left Us
@@ -39,7 +39,7 @@ library(future.apply)
 
 ## Setup
 
-`make_second_order_params()` carries over the second-order finite-volume scheme from Day 20, but fixes the diffusion setup that post's "A Catch" section flagged as wrong. Instead of filling an `ext_diffusion` array with a flat constant, it now sets the baseline `D_ext` rate directly in `species_params` via `given_species_params()`, and lets mizer derive its own `w^(n+1)` allometric shape from that rate:
+`make_second_order_params()` carries over the second-order finite-volume scheme from Day 20, but fixes the diffusion setup that post's "A Catch" section flagged as wrong. Instead of filling an `ext_diffusion` array with a flat constant, it now sets the baseline `D_ext` rate directly in `species_params` via `given_species_params()`.:
 
 ```{r}
 #| message: false
@@ -118,7 +118,13 @@ ggplot(biomass_over_time_df, aes(x = time, y = biomass, color = resource_decreas
   theme_minimal()
 ```
 
-This is the baseline case: each value is only ever approached one way, from the same default starting point, so it says nothing yet about direction-dependence. It's the "normal" run the next section compares against.
+### A Backwards Signal, Read at Face Value
+
+Read left to right in `resource_decrease`, the direction the plot above should show is backwards from what standard consumer-resource theory would predict: `rd = 0.001`, the resource growth rate cut to 0.1% of its default value, sustains the strongest, most persistent oscillation of the five, while `rd = 0.15` and `rd = 0.3`, where far more of the default resource rate survives, collapse to (near-)zero - the same direction the forward chain below settles into, reported there with actual numbers (`~0.055` at `rd = 0.05`, near-zero at `rd = 0.15`/`0.3`). More resource driving the population extinct, and a heavily depleted resource sustaining it, is the opposite of what cutting a resource base should do. That doesn't read like a real ecological result on its face; it reads like a sign or scaling error somewhere in how `resource_decrease`, the second-order scheme, and the diffusion fix above interact with the resource dynamics.
+
+Whether that turns out to be a genuine (if backwards-looking) piece of dynamics or a parameterisation bug changes how it should be fixed, but not what needs to happen first: either way it's the same "characterise the bifurcation properly instead of eyeballing sweep plots" item already on the list under What's Next, so that's where this gets tracked down rather than treated as settled here.
+
+This run also only ever approaches each value one way, from the same default starting point, so on its own it can't say whether the high-`rd` collapse is a genuine fixed point or just an artifact of that shared starting condition. It's the "normal" run the next section, a proper chained forward/backward pair, compares against.
 
 ------------------------------------------------------------------------
 
@@ -195,18 +201,89 @@ The disagreement at `rd = 0.05` is the headline: forward finds a healthy `~0.055
 
 ## Parked, Unfinished Threads
 
-A few further ideas got started in `21_experiments.R` today but aren't in a state to draw conclusions from yet, and are left here as flagged rather than fixed:
+A few further ideas got started in `21_experiments.R` today but aren't in a state to draw conclusions from yet, and are left here as flagged rather than fixed.
 
-- **Reordering the forward/backward chain:** a draft ran the backward pass first (fresh, no carried-over state) and chained forward from backward's ending, the reverse of the convention used above and in Day 20. Whether that ordering matters for the shape of the loop hasn't been checked, since it hasn't been re-run cleanly since the swap.
-- **Wiring in `setBevertonHolt()` recruitment:** an attempt to add stock-recruitment density dependence into `make_second_order_params()` currently builds the `params` object twice (the first build, including the `given_species_params()$D_ext` assignment, gets discarded before `setBevertonHolt()` runs on a second, fresh build), so as written it isn't actually testing what it looks like it's testing.
+### Reordering the Forward/Backward Chain
 
-------------------------------------------------------------------------
+A draft ran the backward pass first (fresh, no carried-over state) and chained forward from backward's ending, the reverse of the convention used above and in Day 20:
+
+```{r}
+#| message: false
+#| warning: false
+#| output: false
+run_rd_sweep_second_order <- function(rd_seq, init_n = NULL, init_n_pp = NULL,
+                                      t_run = 600, lambda = 2.05,
+                                      second_order = TRUE, label = "") {
+  out       <- data.frame(rd = rd_seq, max_bm = NA_real_, min_bm = NA_real_,
+                          bm_mean = NA_real_)
+  state_n   <- init_n
+  state_npp <- init_n_pp
+
+  for (i in seq_along(rd_seq)) {
+    p <- make_second_order_params(lambda = lambda, resource_decrease = rd_seq[i],
+                                  second_order = second_order)
+    if (!is.null(state_n)) {
+      p@initial_n[]    <- state_n
+      p@initial_n_pp[] <- state_npp
+    }
+    sim <- project(p, t_max = t_run, dt = 0.1, t_save = 0.5,
+                   progress_bar = FALSE, effort = 0, method = "tr_bdf2")
+    bm   <- getBiomass(sim)[, "Anchovy"]
+    tv   <- as.numeric(names(bm))
+    late <- bm[tv > t_run * 0.6]  # last 40% of the run -- the "settled down" window
+    last <- dim(sim@n)[1]
+
+    state_n   <- sim@n[last, , ]
+    state_npp <- sim@n_pp[last, ]
+
+    out$max_bm[i]  <- max(late)
+    out$min_bm[i]  <- min(late)
+    out$bm_mean[i] <- mean(late)
+  }
+  list(df = out, n_final = state_n, npp_final = state_npp)
+}
+
+# Same log-spaced grid as Day 20's wide sweep on the x-axis, but not a
+# like-for-like rerun of it: this uses the fixed, allometric D_ext diffusion
+# setup from this post's Setup section (Day 20's sweep used the flat-constant
+# ext_diffusion fill) and a longer t_run = 600 rather than 300.
+rd_seq_so <- exp(seq(log(0.0001), log(0.5), length.out = 40))
+
+bwd_so <- run_rd_sweep_second_order(rev(rd_seq_so), label = "BWD (2nd order)")
+fwd_so <- run_rd_sweep_second_order(rd_seq_so,
+                                    init_n    = bwd_so$n_final,
+                                    init_n_pp = bwd_so$npp_final,
+                                    label     = "FWD (2nd order)")
+
+fwd_so_df <- fwd_so$df
+bwd_so_df <- bwd_so$df[order(bwd_so$df$rd), ]
+
+bifurcation_df_so <- bind_rows(
+  data.frame(rd = fwd_so_df$rd, biomass = fwd_so_df$max_bm, direction = "Forward", branch = "max"),
+  data.frame(rd = fwd_so_df$rd, biomass = fwd_so_df$min_bm, direction = "Forward", branch = "min"),
+  data.frame(rd = bwd_so_df$rd, biomass = bwd_so_df$max_bm, direction = "Backward", branch = "max"),
+  data.frame(rd = bwd_so_df$rd, biomass = bwd_so_df$min_bm, direction = "Backward", branch = "min")
+)
+```
+
+```{r}
+#| message: false
+#| warning: false
+ggplot(bifurcation_df_so, aes(x = rd, y = biomass, color = direction, linetype = branch)) +
+  geom_line(linewidth = 1) +
+  geom_point(size = 1.5) +
+  scale_x_log10() +
+  labs(x = "resource_decrease", y = "Biomass",
+       title = "Bifurcation diagram: backward-first chain (reordered convention)",
+       subtitle = "Backward run fresh first, forward chained from its ending -- reverse of Day 20/21's usual order") +
+  theme_minimal()
+```
+
+Whether this ordering matters for the shape of the loop hasn't been checked against the standard forward-first convention used above and in Day 20, so take this figure as a preliminary snapshot of what the swapped order produces, not yet a verified result.
 
 ## What's Next
 
-- **Settle on one forward/backward convention** for future chained comparisons, rather than swapping which direction runs fresh vs chained ad hoc between drafts.
-
-- **Finish the Beverton-Holt attempt properly** once the double-build is fixed, to see whether stock-recruitment density dependence changes the size of the hysteresis loop found on Day 20/21.
+- **Finish the Beverton-Holt attempt properly** so as to see whether stock-recruitment density dependence changes the size of the hysteresis loop found on Day 20/21.
 
 - **Vary the diffusion rate** to see how the plot changes.
 
