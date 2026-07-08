@@ -203,6 +203,7 @@ ggplot(biomass_over_time_df, aes(x = time, y = biomass, color = resource_decreas
        subtitle = "Flat line = settled fixed point; oscillating = limit cycle",
        color = "resource_decrease") +
   theme_minimal()
+rd_seq <- exp(seq(log(0.0001), log(0.5), length.out = 40))
 
 ################################################################################
 # Same rd_time_series values, but now run as a proper forward/backward pair --
