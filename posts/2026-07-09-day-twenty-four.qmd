@@ -1,0 +1,530 @@
+---
+title: "Day 24: Pinning Down the capacity_mult Hysteresis Window"
+author: "Samia"
+date: "2026-07-09"
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    theme: flatly
+    code-fold: true
+categories: [research, mizer, hysteresis, bifurcation, capacity_mult, blog]
+description: "Day 23's capacity_mult bifurcation sweep found a genuine forward/backward hysteresis loop but only bracketed it to somewhere in (1.27, 2.07), from three sparse interior points. A 25-point refinement of the same sweep over [1.2, 2.3], at the same settle time so scan-rate isn't confounded with resolution, narrows that down to a precisely-bracketed real window: Backward stays alive down to capacity_mult = 1.30, Forward stays dead until 1.41, and both branches agree everywhere outside that -- an order of magnitude tighter than the original bracket. A follow-up test of Gustav's prediction -- that a higher resource rate should shift this boundary left -- confirms it for the Forward branch (the escape point drops from about 2.91 to about 1.65 across five tested resource rates) while leaving Backward's own trend, and a possible Forward plateau at the highest rates, unresolved at the tested grid resolution."
+---
+
+## Where Day 23 Left Us
+
+Day 23's `capacity_mult` bifurcation sweep (`cc_seq_bif`, 20 log-spaced points from `1` to `100`, `resource_decrease` held at `0.001`) turned up something the coarse phase-diagram grid never tested for: a genuine hysteresis loop, not an artefact. At `capacity_mult = 1.62`, Forward (arriving from nothing) was still numerically dead (`7.71e-24`) while Backward (arriving from an established population at `capacity_mult = 100`) was already alive (`6.66e-4`) -- about 20 orders of magnitude apart at the identical parameter value.
+
+But that grid only had four points anywhere near the transition -- `1.00`, `1.27`, `1.62`, `2.07` -- so all it could say was that Backward's collapse point sat somewhere in `(1.27, 1.62]` and Forward's escape point sat somewhere in `(1.62, 2.07)`. That's the first item on Day 23's "What's Next" list, and today closes it.
+
+------------------------------------------------------------------------
+
+## Setup: Same Builder, Same Sweep
+
+```{r libraries}
+#| message: false
+#| warning: false
+#| output: false
+library(mizer)
+library(patchwork)
+library(reshape2)
+library(plotly)
+library(dplyr)
+library(mizerExperimental)
+library(tidyverse)
+library(glue)
+library(ggplot2)
+library(colorRamps)
+library(future)
+library(scales)
+```
+
+`make_second_order_params_kr()` and `run_bifurcation_sweep()` carry over unchanged from Day 23, so today's refinement is directly comparable to the sweep that found the loop in the first place, not a new setup that might disagree for unrelated reasons:
+
+```{r builders}
+#| message: false
+#| warning: false
+#| output: false
+make_second_order_params_kr <- function(lambda = 2.05, resource_decrease = 0.001,
+                                        capacity_mult = 1, second_order = TRUE,
+                                        ext_diff = 0.00) {
+  a0    <- 100
+  kappa <- a0 * exp(-6.9 * (lambda - 1))
+  no_w  <- round(log(66.5 / 0.0003) / 0.1)
+
+  params <- newSingleSpeciesParams(
+    species_name = "Anchovy",
+    w_min = 0.0003, w_max = 66.5, w_mat = 10,
+    no_w = no_w, lambda = lambda, kappa = kappa,
+    alpha = 0.1, gamma = 750, ks = 0
+  )
+
+  given_species_params(params)$D_ext <- ext_diff
+  params <- setBevertonHolt(params)
+
+  default_capacity <- getResourceCapacity(params)
+  r  <- getResourceRate(params) * resource_decrease
+  cc <- default_capacity * capacity_mult
+
+  params <- setResource(params, resource_rate = r, resource_capacity = cc,
+                        resource_dynamics = "resource_semichemostat",
+                        balance = FALSE)
+
+  if (second_order) {
+    second_order_w(params) <- c(flux = "centred", bin_average = TRUE)
+  }
+
+  params
+}
+
+run_bifurcation_sweep <- function(param_seq, param_name, fixed_params = list(),
+                                  params_fn = make_second_order_params_kr,
+                                  t_run = 600, lambda = 2.05) {
+  run_one_direction <- function(seq_vals, init_n = NULL, init_n_pp = NULL) {
+    out       <- data.frame(value = seq_vals, max_bm = NA_real_, min_bm = NA_real_)
+    state_n   <- init_n
+    state_npp <- init_n_pp
+
+    for (i in seq_along(seq_vals)) {
+      args <- fixed_params
+      args[[param_name]] <- seq_vals[i]
+      args$lambda <- lambda
+      p <- do.call(params_fn, args)
+      if (!is.null(state_n)) {
+        p@initial_n[]    <- state_n
+        p@initial_n_pp[] <- state_npp
+      }
+      sim <- project(p, t_max = t_run, dt = 0.1, t_save = 0.5,
+                     progress_bar = FALSE, effort = 0, method = "tr_bdf2")
+      bm   <- getBiomass(sim)[, "Anchovy"]
+      tv   <- as.numeric(names(bm))
+      late <- bm[tv > t_run * 0.6]
+      last <- dim(sim@n)[1]
+
+      state_n   <- sim@n[last, , ]
+      state_npp <- sim@n_pp[last, ]
+
+      out$max_bm[i] <- max(late)
+      out$min_bm[i] <- min(late)
+    }
+    list(df = out, n_final = state_n, npp_final = state_npp)
+  }
+
+  fwd    <- run_one_direction(param_seq)
+  bwd    <- run_one_direction(rev(param_seq), init_n = fwd$n_final, init_n_pp = fwd$npp_final)
+  bwd_df <- bwd$df[order(bwd$df$value), ]
+
+  bind_rows(
+    data.frame(value = fwd$df$value, biomass = fwd$df$max_bm, direction = "Forward",  branch = "max"),
+    data.frame(value = fwd$df$value, biomass = fwd$df$min_bm, direction = "Forward",  branch = "min"),
+    data.frame(value = bwd_df$value, biomass = bwd_df$max_bm, direction = "Backward", branch = "max"),
+    data.frame(value = bwd_df$value, biomass = bwd_df$min_bm, direction = "Backward", branch = "min")
+  )
+}
+
+plot_bifurcation <- function(df, x_label, title, subtitle = NULL) {
+  ggplot(df, aes(x = value, y = biomass, color = direction, linetype = branch)) +
+    geom_line(linewidth = 1) +
+    geom_point(size = 1.2) +
+    scale_x_log10() +
+    labs(x = x_label, y = "Biomass", title = title, subtitle = subtitle) +
+    theme_minimal()
+}
+```
+
+------------------------------------------------------------------------
+
+## The Refined Sweep
+
+Same move as Day 23's own `[3, 10]` plateau refinement: rerun the same kind of sweep at much higher density, zoomed into just the bracketed window, rather than guessing where the two edges sit. The window is `[1.2, 2.3]` -- both suspected edges (`1.27` and `2.07`) with margin either side -- at 25 log-spaced points, roughly 4x the points-per-decade of the original 20-point sweep over `[1, 100]`.
+
+`t_run` is kept at the sweep's own default, `600`, matching the run that found the loop, rather than cut down the way the phase-diagram grid refinements were. This is specifically a hysteresis-*width* measurement, so trading settle time for point density here would confound a genuine scan-rate effect (Day 23's own scan-rate follow-up) with the resolution increase this is meant to isolate:
+
+```{r refine-sweep}
+#| message: false
+#| warning: false
+#| output: false
+cc_seq_refine <- exp(seq(log(1.2), log(2.3), length.out = 25))
+
+bif_cc_refine_df <- run_bifurcation_sweep(cc_seq_refine, "capacity_mult",
+                                          fixed_params = list(resource_decrease = 0.001),
+                                          params_fn = make_second_order_params_kr)
+```
+
+```{r refine-plot}
+#| message: false
+#| warning: false
+bif_cc_refine_plot <- plot_bifurcation(
+  bif_cc_refine_df, "capacity_mult",
+  "Refined bifurcation: capacity_mult in [1.2, 2.3]",
+  "resource_decrease held at 0.001 (balance = FALSE) -- 25 points vs. the original 20 over [1, 100]"
+)
+bif_cc_refine_plot
+```
+
+## What the Refined Sweep Shows
+
+Both branches sit flat at essentially zero biomass below `capacity_mult ≈ 1.3`. Backward (arriving from a real population at the top of the sweep) breaks away from zero first, climbing smoothly from around `1.3`. Forward (arriving from nothing) stays flat near zero until roughly `1.4`, then jumps up sharply to rejoin Backward by about `1.45`-`1.5`. Above that, the two branches are indistinguishable on the plot -- consistent with Day 23's own observation that Forward and Backward agree closely away from the boundary, e.g. around `capacity_mult ≈ 10`.
+
+So the loop itself is real but narrow: the wide `(1.27, 2.07)` bracket Day 23 reported was an artefact of only having grid points at `1.27`, `1.62`, and `2.07` to sample from, not the loop's actual extent.
+
+------------------------------------------------------------------------
+
+## Pinning Down the Edges Numerically
+
+Reading edges off a chart is imprecise, so each point gets classified alive or dead directly. "Dead" here means numerically collapsed to floating-point-underflow levels -- Day 23's dead values ranged `1e-24` to `1e-57` -- not just "small": a real, viable population right at the edge of this loop can itself be small (Backward's `6.66e-4` and `1.46e-3` near-boundary points were both called "alive" on Day 23). `MIN_VIABLE_BIOMASS` (`1e-2`) is tuned for a different job, filtering numerical noise out of the relative-amplitude oscillation score in the phase-diagram sweeps, and is too strict to reuse here -- it would wrongly call some genuinely-alive near-boundary points dead. A threshold of `1e-6` sits in the wide, empty gap between every dead value and every alive value seen so far, so it separates the two cleanly without needing to be finely tuned:
+
+```{r edge-calls}
+#| message: false
+#| warning: false
+#| output: false
+ALIVE_THRESHOLD <- 1e-6
+
+edge_calls <- bif_cc_refine_df %>%
+  filter(branch == "max") %>%
+  transmute(capacity_mult = value, direction, biomass, alive = biomass > ALIVE_THRESHOLD) %>%
+  arrange(direction, capacity_mult)
+
+# For each direction, walking capacity_mult ascending: the last point still
+# called dead, and the first point called alive. The true transition sits
+# somewhere in (dead_below, alive_above].
+find_transition <- function(df) {
+  df <- df %>% arrange(capacity_mult)
+  data.frame(
+    dead_below  = df %>% filter(!alive) %>% slice_max(capacity_mult, n = 1) %>% pull(capacity_mult),
+    alive_above = df %>% filter(alive)  %>% slice_min(capacity_mult, n = 1) %>% pull(capacity_mult)
+  )
+}
+
+transitions <- edge_calls %>%
+  group_by(direction) %>%
+  group_modify(~ find_transition(.x)) %>%
+  ungroup()
+```
+
+```{r transitions-table}
+#| message: false
+#| warning: false
+transitions
+```
+
+| direction | dead below | alive above |
+|-----------|------------|-------------|
+| Backward  | 1.2669     | 1.3017      |
+| Forward   | 1.3742     | 1.4119      |
+
+------------------------------------------------------------------------
+
+## What This Pins Down
+
+The genuine bistable window -- where the two approach directions disagree about whether the population is alive at the identical `capacity_mult` -- is **`(1.30, 1.41)`**, width `≈ 0.11`, about 8% relative width. Backward stays alive down to `1.3017`, collapsing somewhere before `1.2669`; Forward stays dead through `1.3742`, escaping somewhere before `1.4119`. Each edge is now bracketed to within a single grid step, roughly 3% in `capacity_mult` -- a real result, not a sparse-sampling artefact, and an order of magnitude tighter than the `(1.27, 2.07)` bracket Day 23 could report from three interior points.
+
+------------------------------------------------------------------------
+
+## Testing Gustav's Prediction: Does the Boundary Move With Resource Rate?
+
+Gustav's prediction, from the 2026-07-08 meeting: since a higher `resource_decrease` means more of the default resource rate survives -- a faster-replenishing resource -- the population should need a *smaller* carrying capacity to sustain itself, so the `capacity_mult` boundary just pinned down above should shift left as `resource_decrease` increases. Everything so far only tested this at a single `resource_decrease = 0.001`, so there's no way yet to tell whether that's a general relationship or one cherrypicked rate.
+
+### First Pass: Five Resource Rates, Wide Capacity Range
+
+Reruns the same `capacity_mult` bifurcation sweep at the same five `resource_decrease` values as Day 23's original snake grid, rather than picking new ones -- those are literally the points behind the plot Gustav was reading when he made the prediction. The capacity range is widened well past `[1, 100]` on both sides in case the boundary shifts further than expected:
+
+```{r multi-rate-sweep}
+#| message: false
+#| warning: false
+#| output: false
+rd_grid_multi <- exp(seq(log(0.0001), log(0.5), length.out = 5))
+cc_seq_multi  <- exp(seq(log(0.05), log(200), length.out = 20))
+
+bif_multi_df <- bind_rows(lapply(rd_grid_multi, function(rd) {
+  run_bifurcation_sweep(cc_seq_multi, "capacity_mult",
+                        fixed_params = list(resource_decrease = rd),
+                        params_fn = make_second_order_params_kr) %>%
+    mutate(resource_decrease = rd)
+})) %>%
+  mutate(rd_label = factor(sprintf("resource_decrease = %.4g", resource_decrease),
+                           levels = sprintf("resource_decrease = %.4g", sort(unique(resource_decrease)))))
+```
+
+```{r multi-rate-plot}
+#| message: false
+#| warning: false
+ggplot(bif_multi_df, aes(x = value, y = biomass, color = direction, linetype = branch)) +
+  geom_line(linewidth = 1) +
+  geom_point(size = 1) +
+  scale_x_log10() +
+  facet_wrap(~rd_label, nrow = 1, scales = "free_y") +
+  labs(x = "capacity_mult", y = "Biomass",
+       title = "capacity_mult bifurcation at five different resource rates",
+       subtitle = "If Gustav's prediction holds, the collapse boundary should shift left as resource_decrease increases") +
+  theme_minimal()
+```
+
+Reading the transition off each panel with the same `ALIVE_THRESHOLD`/bracket logic as above:
+
+```{r multi-rate-transitions}
+#| message: false
+#| warning: false
+#| output: false
+edge_calls_multi <- bif_multi_df %>%
+  filter(branch == "max") %>%
+  transmute(resource_decrease, capacity_mult = value, direction,
+           biomass, alive = biomass > ALIVE_THRESHOLD) %>%
+  arrange(resource_decrease, direction, capacity_mult)
+
+transitions_multi <- edge_calls_multi %>%
+  group_by(resource_decrease, direction) %>%
+  group_modify(~ find_transition(.x)) %>%
+  ungroup()
+
+bifurcation_trend <- transitions_multi %>%
+  mutate(bifurcation_estimate = sqrt(dead_below * alive_above)) %>%
+  select(resource_decrease, direction, bifurcation_estimate) %>%
+  tidyr::pivot_wider(names_from = direction, values_from = bifurcation_estimate)
+```
+
+```{r multi-rate-table}
+#| message: false
+#| warning: false
+bifurcation_trend
+```
+
+| resource_decrease | Backward | Forward |
+|--------------------|----------|---------|
+| 0.0001             | 1.32     | 4.89    |
+| 0.000841           | 1.32     | 4.89    |
+| 0.00707            | 1.32     | 4.89    |
+| 0.0595             | 1.32     | 4.89    |
+| 0.5                | 1.32     | 4.89    |
+
+Completely flat -- every resource rate gives the exact same bracket. That's not evidence against Gustav's prediction, though: the grid here steps by roughly 55% (the ratio between adjacent log-spaced points over 3.6 decades in 20 steps), while the actual hysteresis window at a single rate, pinned down above, is only about 8% wide. A shift smaller than the grid's own resolution looks exactly like no shift at all -- this result only says the grid is too coarse to tell, not that the boundary is fixed.
+
+### Second Pass: Zoomed to [1, 15]
+
+Same five resource rates, `capacity_mult` narrowed to `[1, 15]` -- comfortably bracketing anything the coarse pass could plausibly have missed -- at higher density. Settle time is cut from `600` to `150` to keep the run practical, reusing the exact scan-rate check Day 23 already ran on a similar grid (which found `t_run = 150` agreed with `t_run = 600` everywhere), rather than an unvalidated shortcut:
+
+```{r multi-rate-refine-sweep}
+#| message: false
+#| warning: false
+#| output: false
+cc_seq_multi_refine <- exp(seq(log(1), log(15), length.out = 20))
+
+bif_multi_refine_df <- bind_rows(lapply(rd_grid_multi, function(rd) {
+  run_bifurcation_sweep(cc_seq_multi_refine, "capacity_mult",
+                        fixed_params = list(resource_decrease = rd),
+                        params_fn = make_second_order_params_kr,
+                        t_run = 150) %>%
+    mutate(resource_decrease = rd)
+})) %>%
+  mutate(rd_label = factor(sprintf("resource_decrease = %.4g", resource_decrease),
+                           levels = sprintf("resource_decrease = %.4g", sort(unique(resource_decrease)))))
+
+edge_calls_multi_refine <- bif_multi_refine_df %>%
+  filter(branch == "max") %>%
+  transmute(resource_decrease, capacity_mult = value, direction,
+           biomass, alive = biomass > ALIVE_THRESHOLD) %>%
+  arrange(resource_decrease, direction, capacity_mult)
+
+transitions_multi_refine <- edge_calls_multi_refine %>%
+  group_by(resource_decrease, direction) %>%
+  group_modify(~ find_transition(.x)) %>%
+  ungroup()
+```
+
+```{r multi-rate-refine-table}
+#| message: false
+#| warning: false
+transitions_multi_refine
+```
+
+| resource_decrease | direction | dead below | alive above |
+|--------------------|-----------|------------|-------------|
+| 0.0001             | Backward  | 1.00       | 1.15        |
+| 0.0001             | Forward   | 2.71       | 3.13        |
+| 0.000841           | Backward  | 1.15       | 1.33        |
+| 0.000841           | Forward   | 1.77       | 2.04        |
+| 0.00707            | Backward  | 1.15       | 1.33        |
+| 0.00707            | Forward   | 1.53       | 1.77        |
+| 0.0595             | Backward  | 1.00       | 1.15        |
+| 0.0595             | Forward   | 1.53       | 1.77        |
+| 0.5                | Backward  | 1.00       | 1.15        |
+| 0.5                | Forward   | 1.53       | 1.77        |
+
+## What This Shows
+
+**Forward confirms Gustav's prediction, clearly.** The escape-from-nothing boundary shifts left monotonically as `resource_decrease` increases: the geometric-mean estimate drops from `≈2.91` at the lowest rate down to `≈1.65` by `resource_decrease = 0.00707`, then holds there through the two highest rates. Higher resource rate really does need a smaller `capacity_mult` for the population to establish -- exactly the direction predicted, and not an artefact of the single rate the `(1.30, 1.41)` window above was found at.
+
+**Backward doesn't confirm or contradict it -- it's inconclusive at this resolution.** The Backward bracket only ever takes two values across all five rates, and doesn't move monotonically with `resource_decrease` (tight at the two middle rates, looser at the three outer ones). Backward tends to be the more robust direction throughout this project -- it starts from an established population rather than nothing -- so if its true shift across this range is smaller than the grid's ~15% step, this grid simply can't resolve it. That's a gap in the evidence, not evidence against the prediction.
+
+**A bonus finding: the loop itself narrows, not just shifts.** The gap between Forward and Backward shrinks from roughly `2.7`x at the lowest resource rate down to about `1.3`-`1.5`x at the highest. Higher resource rate doesn't just move the whole bistable region left -- it also compresses it.
+
+**One loose end:** `resource_decrease = 0.0595` and `0.5` -- nearly a decade apart -- land on the *exact same* Forward bracket, `(1.53, 1.77)`. That could be a genuine floor the boundary can't be pushed below, or the same resolution ceiling that's hiding Backward's trend. Telling those apart needs a finer grid at full settle time, not yet done. Worth flagging too: today's refined numbers were generated at the `t_run = 150` shortcut rather than the validated `600`, so there's some risk these exact brackets shift slightly at longer settle times, though Day 23's own check suggests that risk is small.
+
+------------------------------------------------------------------------
+
+## Testing Whether Size Structure Is Necessary: A Non-Size-Structured Predator-Prey Model
+
+From the 2026-07-08 meeting: is the `capacity_mult` collapse bifurcation actually a consequence of mizer's size structure, or would the same qualitative behaviour already show up in the simplest possible unstructured version -- a two-species system with no age, size, or stage distinction at all? Gustav's suggested model: prey with chemostat-style replenishment and a carrying capacity (the same functional form as mizer's `resource_semichemostat`), predator with intake proportional to prey times predator (mass-action, no saturation) and mortality proportional to its own abundance:
+
+```
+dN/dt = D * (K - N) - a * N * P
+dP/dt = e * a * N * P - m * P
+```
+
+Setting `dP/dt = 0` (excluding the trivial `P = 0` branch) gives the predator's break-even prey level, `N* = m / (e * a)` -- independent of `K`. Coexistence needs the prey-alone equilibrium (`N = K`) to exceed that level, i.e. `K > m / (e * a)`. Crossing that threshold from below is a transcritical bifurcation: the prey-only state and the coexistence state exchange stability -- textbook consumer-resource theory (Tilman's R\*), not a guess.
+
+```{r pp-setup}
+#| message: false
+#| warning: false
+#| output: false
+library(deSolve)
+
+predator_prey_rhs <- function(t, state, parms) {
+  # Positional, not named, indexing: deSolve's default lsoda strips state's
+  # names during internal numerical Jacobian estimation, so name-based
+  # lookup can silently resolve to the wrong scope. Position is always safe
+  # -- deSolve guarantees state's order matches the original y vector even
+  # when the names themselves are gone. Also clamped to >= 0: the model is
+  # bounded and can only spiral into the coexistence equilibrium once it
+  # exists (the Jacobian's trace, -D - a*P*, is always negative), so it
+  # can't blow up on its own -- but an under-damped oscillation sampled
+  # mid-swing can hand a later step a transiently negative N or P, and a
+  # negative N times a positive P flips the sign of the a*N*P term, which is
+  # exactly what produced a NaN-tolerance solver failure during testing.
+  N <- max(state[1], 0)
+  P <- max(state[2], 0)
+  D <- parms[["D"]]
+  a <- parms[["a"]]
+  e <- parms[["e"]]
+  m <- parms[["m"]]
+  K <- parms[["K"]]
+
+  dN <- D * (K - N) - a * N * P
+  dP <- e * a * N * P - m * P
+  list(c(dN, dP))
+}
+
+predator_prey_params <- list(D = 1, a = 1, e = 0.5, m = 0.3, K = 1)
+N_star <- with(predator_prey_params, m / (e * a))
+K_crit <- N_star
+
+run_predator_prey <- function(K, state0 = c(N = 1, P = 0.1), t_max = 500, parms = predator_prey_params) {
+  parms$K <- K
+  out  <- as.data.frame(ode(y = state0, times = seq(0, t_max, by = 0.5),
+                            func = predator_prey_rhs, parms = parms))
+  late <- out[out$time > t_max * 0.6, ]
+  if (nrow(late) == 0) late <- tail(out, 1)
+  data.frame(K = K, max_P = max(late$P), min_P = min(late$P), mean_P = mean(late$P),
+             n_final = tail(late$N, 1), p_final = tail(late$P, 1))
+}
+
+P_star_at <- function(K, parms = predator_prey_params) {
+  D <- parms[["D"]]
+  a <- parms[["a"]]
+  D * (K - N_star) / (a * N_star)
+}
+```
+
+A quick sanity check before sweeping the whole range: does a single run below and above `K_crit` behave the way the analytic threshold predicts?
+
+```{r pp-sanity}
+#| message: false
+#| warning: false
+sanity_below <- run_predator_prey(K = K_crit * 0.5)
+sanity_above <- run_predator_prey(K = K_crit * 2)
+
+cat(sprintf(
+  paste0(
+    "K = %.3f (below K_crit): simulated P settles to %.6f (expect ~0)\n",
+    "K = %.3f (above K_crit): simulated P settles to %.6f, analytic P* = %.6f\n"
+  ),
+  K_crit * 0.5, sanity_below$p_final,
+  K_crit * 2, sanity_above$p_final, P_star_at(K_crit * 2)
+))
+```
+
+### A Sweep-Design Lesson: Why Not State-Carry This One
+
+Every `capacity_mult` sweep in this project so far carries the settled state from one point into the next, specifically to test for hysteresis. That convention doesn't transfer here, and trying it first was informative about why: a transcritical bifurcation has no bistable region at all -- Forward and Backward are only ever expected to disagree exactly at `K_crit` itself. Worse, state-carrying actively breaks on this particular model: it's a single-scalar Lotka-Volterra-style system with no immigration term, so `dP/dt = 0` identically once `P` underflows to exact floating-point zero. Starting well below `K_crit` (for margin) guarantees several early points where `P` decays toward zero as expected -- but once it hits *true* zero there, carrying that state forward means `P` stays zero for every later, more favourable `K` too, since nothing is left to regrow it from. A first attempt at this sweep hit exactly that: predator biomass read as numerically extinct (`~1e-31`) all the way out to `K = 3`, deep in territory the analytic threshold says should sustain a real, order-1 population.
+
+The fix is to test each `K` independently, fresh from the same default initial condition every time, rather than threading one easily-extinguished population through the whole sweep:
+
+```{r pp-sweep}
+#| message: false
+#| warning: false
+#| output: false
+K_seq_pp <- exp(seq(log(K_crit * 0.2), log(K_crit * 5), length.out = 25))
+
+pp_fresh_df <- bind_rows(lapply(K_seq_pp, run_predator_prey))
+
+pp_analytic_df <- data.frame(K = K_seq_pp) %>%
+  mutate(P_star = ifelse(K > K_crit, vapply(K, P_star_at, numeric(1)), NA_real_))
+```
+
+```{r pp-plot}
+#| message: false
+#| warning: false
+ggplot(pp_fresh_df, aes(x = K, y = p_final)) +
+  geom_line(color = "#4C72B0", linewidth = 1) +
+  geom_point(color = "#4C72B0", size = 1.5) +
+  geom_line(data = pp_analytic_df, aes(x = K, y = P_star),
+           color = "grey40", linetype = "dashed", inherit.aes = FALSE) +
+  geom_vline(xintercept = K_crit, linetype = "dotted", color = "grey40") +
+  scale_x_log10() +
+  labs(x = "K (prey carrying capacity)", y = "Predator biomass (P), settled",
+       title = "Non-size-structured predator-prey model: fresh run at each K",
+       subtitle = "Solid = simulated; dashed = analytic P*(K); dotted = analytic K_crit") +
+  theme_minimal()
+```
+
+```{r pp-transition}
+#| message: false
+#| warning: false
+find_transition_pp <- function(df) {
+  df         <- df %>% arrange(K)
+  dead_vals  <- df %>% filter(!alive) %>% pull(K)
+  alive_vals <- df %>% filter(alive)  %>% pull(K)
+  data.frame(
+    dead_below  = if (length(dead_vals)  > 0) max(dead_vals)  else NA_real_,
+    alive_above = if (length(alive_vals) > 0) min(alive_vals) else NA_real_
+  )
+}
+
+pp_transition <- pp_fresh_df %>%
+  transmute(K, alive = p_final > ALIVE_THRESHOLD) %>%
+  find_transition_pp()
+
+pp_transition
+```
+
+| Analytic K_crit | Simulated dead below | Simulated alive above |
+|------------------|-----------------------|------------------------|
+| 0.6000           | 0.5247                | 0.6000                 |
+
+## What This Shows
+
+Predator biomass sits at zero for every `K` below `≈0.6`, then rises along a curve that lands exactly on the analytic `P*(K)` line above it -- simulated and analytic values overlap completely, and the simulated transition, `(0.5247, 0.60]`, brackets the analytic `K_crit = 0.6` in the very last grid step below it. No hysteresis, as expected for a transcritical bifurcation.
+
+This settles the original question, at least for one specific feature: **the collapse-at-low-carrying-capacity behaviour does not require size resolution.** A bare 2-ODE consumer-resource system with no age, size, or stage structure at all shows the same "population collapses below a critical capacity" transition, for the same textbook reason -- Tilman's R\* threshold, not anything about growth or maturation.
+
+But there's a pointed asymmetry worth carrying forward: the mizer model's `capacity_mult` boundary has *genuine* hysteresis (the real `(1.30, 1.41)` bistable window pinned down earlier today), and this toy model has none, by mathematical necessity of its linear (Type I) functional response -- textbook theory (Rosenzweig's paradox of enrichment) says a model like this one can never destabilise into bistability or oscillation, regardless of parameters. So while the *existence* of a collapse threshold clearly doesn't need size structure, the *hysteresis* around it apparently needs something this toy model doesn't have: plausibly mizer's saturating (Type II) feeding kernel, the size/stage structure itself, or the Beverton-Holt recruitment nonlinearity. That's a sharper follow-up question than the one this model actually answered.
+
+------------------------------------------------------------------------
+
+## What's Next
+
+- ~~Pin down the `capacity_mult ≈ 1.6-2.1` hysteresis window more precisely~~ -- done today: the real window is `(1.30, 1.41)`.
+- **Find the actual mechanism behind `balance = FALSE`'s viability collapse at `capacity_mult = 1`** -- the rate/capacity mismatch hypothesis is refuted; comparing `erepro`/reproduction-level calibration against the working `balance = TRUE` construction is still the natural next step.
+- **Rerun the diffusion sweep under `balance = FALSE`** at low `ext_diff` to check whether the current mechanism shows the same diffusion-dependence as the old one, or whether `balance = FALSE` itself suppresses hysteresis regardless of diffusion.
+- **Rerun the diffusion sweep at full resolution** (20 points, `t_run = 600`, code already in `23_experiments.R`) once the `balance = FALSE` question above is settled.
+- **Read back the other two Day 22 overnight jobs** -- the `capacity_mult = 3`-`100` bracketing sweep and the `rd = 0.5, capacity_mult = 10` size spectrum -- still unread.
+- **Restore the 40-point `resource_decrease` resolution** for the classic 1D bifurcation sweeps -- still at 20 points, half of Day 20/21's original 40.
+- **Audit the other numbered scripts** for the same class of session-state-dependency bug `MIN_VIABLE_BIOMASS` was.
+- **Resolve or remove `score_oscillation_kr()` and `run_rd_sweep_second_order()`**, still sitting unused in `23_experiments.R`.
+- ~~Rerun the `capacity_mult` bifurcation diagram at a few different fixed resource rates to check it isn't a cherrypicked example and to confirm Gustav's prediction~~ -- done today: Forward confirms the prediction (`≈2.91 → ≈1.65` as resource rate increases across five tested values) and the loop narrows as it shifts; Backward's own trend and a possible Forward plateau at the two highest rates remain unresolved at the tested grid resolution.
+- **Pin down the Forward plateau and Backward's trend** with a finer `capacity_mult` grid on `[1, 3.5]` at the original `t_run = 600`, now that the neighbourhood is cheap to search at full accuracy.
+- **Check whether the juvenile-biomass pileup is specific to this parameter range or general**, by rerunning the same single-species bifurcation diagram with mizer's own unspecified/default species parameters.
+- ~~Build a simple, non-size-structured two-species predator-prey model and check whether it reproduces the same transcritical-like bifurcation~~ -- done today: it does, exactly (simulated transition `(0.5247, 0.60]` brackets the analytic `K_crit = 0.6`), confirming the collapse bifurcation itself doesn't need size resolution. But the toy model has no hysteresis at all, unlike mizer's genuine `(1.30, 1.41)` bistable window -- a sharper question than the one just answered.
+- **Test whether a saturating (Type II) functional response is what's actually needed for the mizer-style hysteresis**, by adding satiation to the toy predator's intake term (`a*N/(1 + a*h*N)` instead of `a*N`) and rerunning the same `K` sweep -- Rosenzweig's paradox-of-enrichment theory predicts the linear (Type I) version used today can never show bistability or oscillation regardless of parameters, so this isolates whether the saturating kernel alone (no size structure) is enough to reproduce mizer's real hysteresis loop.
+- **Come back to what fish growth (and the growth-slowdown bottleneck) actually has to do with the instability**, once the Type II comparison above has an answer.

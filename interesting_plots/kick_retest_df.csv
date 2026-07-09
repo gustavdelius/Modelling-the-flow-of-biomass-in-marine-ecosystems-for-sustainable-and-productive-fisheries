@@ -1,0 +1,6 @@
+"resource_decrease","capacity_mult","mean_bm","rel_amplitude","phase_after_kick","phase_before_kick"
+0.00707106781186548,3,0.0219792427936953,2.07353163112315e-11,"Fixed point","Fixed point"
+0.0594603557501361,3,0.18482266475248,8.86027134991912e-15,"Fixed point","Fixed point"
+0.5,3,1.55416716248,8.71509913953753e-15,"Fixed point","Fixed point"
+0.000840896415253715,9.6548938460563,0.0137418115605005,0.00053085975723848,"Fixed point","Fixed point"
+1e-04,100,0.0252681154704092,0.003190597576636,"Fixed point","Fixed point"

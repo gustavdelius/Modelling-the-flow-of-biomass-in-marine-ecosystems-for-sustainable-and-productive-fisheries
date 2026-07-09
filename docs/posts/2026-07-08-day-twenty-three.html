@@ -1,0 +1,1561 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.9.38">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="author" content="Samia">
+<meta name="dcterms.date" content="2026-07-08">
+<meta name="description" content="A single day’s work, all appended onto 23_experiments.R: fixing the MIN_VIABLE_BIOMASS bug that kept the overnight phase-diagram run from surviving a fresh session, reading back a clean ‘no path dependence’ result across 20 grid points, then closing out that result’s three open caveats (scan rate, perturbation, grid resolution) – all of which hold up. Then a return to classic forward/backward bifurcation diagrams turns up something the phase-diagram grid never tested: a real hysteresis loop sitting right at the capacity_mult collapse boundary (~1.6-2.1), below where every grid so far started sampling. Chasing why capacity_mult = 1 collapses entirely rules out two plausible mechanisms (an over-extreme starting perturbation, a resource-rate/capacity mismatch) without yet landing on a third. Separately, a diffusion-strength sweep under the old balance = TRUE setup confirms hysteresis is genuinely diffusion-dependent – strong at ext_diff = 0.001, gone by 0.167 – answering, at least for that setup, whether Day 22’s ‘no hysteresis’ result was a diffusion artefact.">
+
+<title>Day 23: Fixing the Overnight Run, Closing Its Open Questions, and a Hysteresis Loop It Missed – Modelling-the-flow-of-biomass</title>
+<style>
+/* Default styles provided by pandoc.
+** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+*/
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../">
+<script src="../site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="../site_libs/quarto-html/popper.min.js"></script>
+<script src="../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-15634bcf2e68342d4ad2dfa704d543f6.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../site_libs/bootstrap/bootstrap-9a9447a135e5b1c05e5522b7712596fa.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "navbar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "end",
+  "type": "overlay",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+
+
+<link rel="stylesheet" href="../styles.css">
+</head>
+
+<body class="nav-fixed quarto-light">
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+    <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container mx-auto">
+    <a class="navbar-brand" href="../index.html">
+    <span class="navbar-title">Modelling-the-flow-of-biomass</span>
+    </a>
+  </div>
+            <div id="quarto-search" class="" title="Search"></div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" role="menu" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll me-auto">
+  <li class="nav-item">
+    <a class="nav-link" href="../index.html"> 
+<span class="menu-text">Home</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../about.html"> 
+<span class="menu-text">About</span></a>
+  </li>  
+</ul>
+          </div> <!-- /navcollapse -->
+            <div class="quarto-navbar-tools">
+</div>
+      </div> <!-- /container-fluid -->
+    </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
+<!-- sidebar -->
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">On this page</h2>
+   
+  <ul>
+  <li><a href="#where-we-started-a-missing-constant" id="toc-where-we-started-a-missing-constant" class="nav-link active" data-scroll-target="#where-we-started-a-missing-constant">Where We Started: A Missing Constant</a></li>
+  <li><a href="#the-params-builder" id="toc-the-params-builder" class="nav-link" data-scroll-target="#the-params-builder">The Params Builder</a></li>
+  <li><a href="#the-phase-diagram-a-snake-sweep-and-three-routes" id="toc-the-phase-diagram-a-snake-sweep-and-three-routes" class="nav-link" data-scroll-target="#the-phase-diagram-a-snake-sweep-and-three-routes">The Phase Diagram: A Snake Sweep and Three Routes</a></li>
+  <li><a href="#closing-three-open-questions" id="toc-closing-three-open-questions" class="nav-link" data-scroll-target="#closing-three-open-questions">Closing Three Open Questions</a>
+  <ul class="collapse">
+  <li><a href="#scan-rate-dependence" id="toc-scan-rate-dependence" class="nav-link" data-scroll-target="#scan-rate-dependence">1. Scan-Rate Dependence</a></li>
+  <li><a href="#a-genuine-perturbation-retest" id="toc-a-genuine-perturbation-retest" class="nav-link" data-scroll-target="#a-genuine-perturbation-retest">2. A Genuine Perturbation Retest</a></li>
+  <li><a href="#grid-resolution" id="toc-grid-resolution" class="nav-link" data-scroll-target="#grid-resolution">3. Grid Resolution</a></li>
+  </ul></li>
+  <li><a href="#bifurcation-sweeps-revisited-a-hysteresis-loop-the-grid-missed" id="toc-bifurcation-sweeps-revisited-a-hysteresis-loop-the-grid-missed" class="nav-link" data-scroll-target="#bifurcation-sweeps-revisited-a-hysteresis-loop-the-grid-missed">Bifurcation Sweeps Revisited: A Hysteresis Loop the Grid Missed</a>
+  <ul class="collapse">
+  <li><a href="#the-resource_decrease-panel-is-an-artefact-not-a-finding" id="toc-the-resource_decrease-panel-is-an-artefact-not-a-finding" class="nav-link" data-scroll-target="#the-resource_decrease-panel-is-an-artefact-not-a-finding">The resource_decrease panel is an artefact, not a finding</a></li>
+  <li><a href="#the-capacity_mult-panel-is-real-and-its-a-hysteresis-loop-the-phase-diagram-never-tested-for" id="toc-the-capacity_mult-panel-is-real-and-its-a-hysteresis-loop-the-phase-diagram-never-tested-for" class="nav-link" data-scroll-target="#the-capacity_mult-panel-is-real-and-its-a-hysteresis-loop-the-phase-diagram-never-tested-for">The capacity_mult panel is real and it’s a hysteresis loop the phase diagram never tested for</a></li>
+  </ul></li>
+  <li><a href="#was-it-diffusion" id="toc-was-it-diffusion" class="nav-link" data-scroll-target="#was-it-diffusion">Was It Diffusion?</a></li>
+  <li><a href="#what-this-all-adds-up-to" id="toc-what-this-all-adds-up-to" class="nav-link" data-scroll-target="#what-this-all-adds-up-to">What This All Adds Up To</a></li>
+  <li><a href="#whats-next" id="toc-whats-next" class="nav-link" data-scroll-target="#whats-next">What’s Next</a></li>
+  </ul>
+</nav>
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title">Day 23: Fixing the Overnight Run, Closing Its Open Questions, and a Hysteresis Loop It Missed</h1>
+  <div class="quarto-categories">
+    <div class="quarto-category">research</div>
+    <div class="quarto-category">mizer</div>
+    <div class="quarto-category">hysteresis</div>
+    <div class="quarto-category">phase-diagram</div>
+    <div class="quarto-category">path-dependence</div>
+    <div class="quarto-category">bifurcation</div>
+    <div class="quarto-category">diffusion</div>
+    <div class="quarto-category">reproducibility</div>
+    <div class="quarto-category">blog</div>
+  </div>
+  </div>
+
+<div>
+  <div class="description">
+    A single day’s work, all appended onto 23_experiments.R: fixing the MIN_VIABLE_BIOMASS bug that kept the overnight phase-diagram run from surviving a fresh session, reading back a clean ‘no path dependence’ result across 20 grid points, then closing out that result’s three open caveats (scan rate, perturbation, grid resolution) – all of which hold up. Then a return to classic forward/backward bifurcation diagrams turns up something the phase-diagram grid never tested: a real hysteresis loop sitting right at the capacity_mult collapse boundary (~1.6-2.1), below where every grid so far started sampling. Chasing why capacity_mult = 1 collapses entirely rules out two plausible mechanisms (an over-extreme starting perturbation, a resource-rate/capacity mismatch) without yet landing on a third. Separately, a diffusion-strength sweep under the old balance = TRUE setup confirms hysteresis is genuinely diffusion-dependent – strong at ext_diff = 0.001, gone by 0.167 – answering, at least for that setup, whether Day 22’s ‘no hysteresis’ result was a diffusion artefact.
+  </div>
+</div>
+
+
+<div class="quarto-title-meta">
+
+    <div>
+    <div class="quarto-title-meta-heading">Author</div>
+    <div class="quarto-title-meta-contents">
+             <p>Samia </p>
+          </div>
+  </div>
+    
+    <div>
+    <div class="quarto-title-meta-heading">Published</div>
+    <div class="quarto-title-meta-contents">
+      <p class="date">July 8, 2026</p>
+    </div>
+  </div>
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<section id="where-we-started-a-missing-constant" class="level2">
+<h2 class="anchored" data-anchor-id="where-we-started-a-missing-constant">Where We Started: A Missing Constant</h2>
+<p>Running <code>23_experiments.R</code> fresh came back with:</p>
+<pre><code>Error in `mutate()`:
+ℹ In argument: `collapsed = mean_bm &lt; MIN_VIABLE_BIOMASS`.
+Caused by error:
+! object 'MIN_VIABLE_BIOMASS' not found</code></pre>
+<p><code>MIN_VIABLE_BIOMASS</code> - the biomass floor introduced on Day 22 to stop numerically-collapsed populations from winning the “most oscillatory” ranking on floating-point noise - was never actually defined in <code>23_experiments.R</code>. It only ever worked because <code>22_experiments.R</code>’s session was still open in the same RStudio instance. Source <code>23_experiments.R</code> alone, in a fresh session, and it has nothing to check the floor against.</p>
+<p>The fix is one line, added where the constant is actually needed:</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Same threshold as Day 22's baseline sweep -- filters out numerical noise</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="co"># masquerading as a viable population. Defined here, not inherited from</span></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="co"># 22_experiments.R's session state, so this file runs standalone.</span></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>MIN_VIABLE_BIOMASS <span class="ot">&lt;-</span> <span class="fl">1e-2</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+</div>
+<p>Every script since Day 20 redefines <code>make_second_order_params()</code> from scratch specifically so each day’s file is self-contained, but that discipline slipped for this one constant.</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(mizer)</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(patchwork)</span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(reshape2)</span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(plotly)</span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(dplyr)</span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(mizerExperimental)</span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(tidyverse)</span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(glue)</span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(ggplot2)</span>
+<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(colorRamps)</span>
+<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(future)</span>
+<span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(scales)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+</div>
+<hr>
+</section>
+<section id="the-params-builder" class="level2">
+<h2 class="anchored" data-anchor-id="the-params-builder">The Params Builder</h2>
+<p><code>make_second_order_params_kr()</code> , carrying capacity and resource rate set independently, both as multipliers on mizer’s own <code>kappa</code>/<code>lambda</code>-derived defaults, <code>balance = FALSE</code> so neither gets silently recomputed from the other , carries over unchanged from Day 22’s “take two”:</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>make_second_order_params_kr <span class="ot">&lt;-</span> <span class="cf">function</span>(<span class="at">lambda =</span> <span class="fl">2.05</span>, <span class="at">resource_decrease =</span> <span class="fl">0.001</span>,</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>                                        <span class="at">capacity_mult =</span> <span class="dv">1</span>, <span class="at">second_order =</span> <span class="cn">TRUE</span>,</span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>                                        <span class="at">ext_diff =</span> <span class="fl">0.00</span>) {</span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>  a0    <span class="ot">&lt;-</span> <span class="dv">100</span></span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>  kappa <span class="ot">&lt;-</span> a0 <span class="sc">*</span> <span class="fu">exp</span>(<span class="sc">-</span><span class="fl">6.9</span> <span class="sc">*</span> (lambda <span class="sc">-</span> <span class="dv">1</span>))</span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>  no_w  <span class="ot">&lt;-</span> <span class="fu">round</span>(<span class="fu">log</span>(<span class="fl">66.5</span> <span class="sc">/</span> <span class="fl">0.0003</span>) <span class="sc">/</span> <span class="fl">0.1</span>)</span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>  params <span class="ot">&lt;-</span> <span class="fu">newSingleSpeciesParams</span>(</span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a>    <span class="at">species_name =</span> <span class="st">"Anchovy"</span>,</span>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a>    <span class="at">w_min =</span> <span class="fl">0.0003</span>, <span class="at">w_max =</span> <span class="fl">66.5</span>, <span class="at">w_mat =</span> <span class="dv">10</span>,</span>
+<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a>    <span class="at">no_w =</span> no_w, <span class="at">lambda =</span> lambda, <span class="at">kappa =</span> kappa,</span>
+<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a>    <span class="at">alpha =</span> <span class="fl">0.1</span>, <span class="at">gamma =</span> <span class="dv">750</span>, <span class="at">ks =</span> <span class="dv">0</span></span>
+<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb4-14"><a href="#cb4-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-15"><a href="#cb4-15" aria-hidden="true" tabindex="-1"></a>  <span class="fu">given_species_params</span>(params)<span class="sc">$</span>D_ext <span class="ot">&lt;-</span> ext_diff</span>
+<span id="cb4-16"><a href="#cb4-16" aria-hidden="true" tabindex="-1"></a>  params <span class="ot">&lt;-</span> <span class="fu">setBevertonHolt</span>(params)</span>
+<span id="cb4-17"><a href="#cb4-17" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-18"><a href="#cb4-18" aria-hidden="true" tabindex="-1"></a>  default_capacity <span class="ot">&lt;-</span> <span class="fu">getResourceCapacity</span>(params)</span>
+<span id="cb4-19"><a href="#cb4-19" aria-hidden="true" tabindex="-1"></a>  r  <span class="ot">&lt;-</span> <span class="fu">getResourceRate</span>(params) <span class="sc">*</span> resource_decrease</span>
+<span id="cb4-20"><a href="#cb4-20" aria-hidden="true" tabindex="-1"></a>  cc <span class="ot">&lt;-</span> default_capacity <span class="sc">*</span> capacity_mult</span>
+<span id="cb4-21"><a href="#cb4-21" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-22"><a href="#cb4-22" aria-hidden="true" tabindex="-1"></a>  params <span class="ot">&lt;-</span> <span class="fu">setResource</span>(params, <span class="at">resource_rate =</span> r, <span class="at">resource_capacity =</span> cc,</span>
+<span id="cb4-23"><a href="#cb4-23" aria-hidden="true" tabindex="-1"></a>                        <span class="at">resource_dynamics =</span> <span class="st">"resource_semichemostat"</span>,</span>
+<span id="cb4-24"><a href="#cb4-24" aria-hidden="true" tabindex="-1"></a>                        <span class="at">balance =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb4-25"><a href="#cb4-25" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-26"><a href="#cb4-26" aria-hidden="true" tabindex="-1"></a>  <span class="cf">if</span> (second_order) {</span>
+<span id="cb4-27"><a href="#cb4-27" aria-hidden="true" tabindex="-1"></a>    <span class="fu">second_order_w</span>(params) <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="at">flux =</span> <span class="st">"centred"</span>, <span class="at">bin_average =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb4-28"><a href="#cb4-28" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb4-29"><a href="#cb4-29" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-30"><a href="#cb4-30" aria-hidden="true" tabindex="-1"></a>  params</span>
+<span id="cb4-31"><a href="#cb4-31" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+</div>
+<hr>
+</section>
+<section id="the-phase-diagram-a-snake-sweep-and-three-routes" class="level2">
+<h2 class="anchored" data-anchor-id="the-phase-diagram-a-snake-sweep-and-three-routes">The Phase Diagram: A Snake Sweep and Three Routes</h2>
+<p>Rather than sweeping <code>resource_decrease</code> independently at each <code>capacity_mult</code> row , restarting from mizer’s default state every time , the whole grid gets traced as one continuous boustrophedon path, carrying the settled state from each point into its immediate neighbour, including across the row-to-row step:</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>run_snake_grid <span class="ot">&lt;-</span> <span class="cf">function</span>(rd_grid, cc_grid, <span class="at">lambda =</span> <span class="fl">2.05</span>, <span class="at">t_run =</span> <span class="dv">600</span>) {</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>  out       <span class="ot">&lt;-</span> <span class="fu">vector</span>(<span class="st">"list"</span>, <span class="fu">length</span>(rd_grid) <span class="sc">*</span> <span class="fu">length</span>(cc_grid))</span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>  state_n   <span class="ot">&lt;-</span> <span class="cn">NULL</span></span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>  state_npp <span class="ot">&lt;-</span> <span class="cn">NULL</span></span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>  k <span class="ot">&lt;-</span> <span class="dv">1</span></span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>  <span class="cf">for</span> (j <span class="cf">in</span> <span class="fu">seq_along</span>(cc_grid)) {</span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>    rd_order <span class="ot">&lt;-</span> <span class="cf">if</span> (j <span class="sc">%%</span> <span class="dv">2</span> <span class="sc">==</span> <span class="dv">1</span>) rd_grid <span class="cf">else</span> <span class="fu">rev</span>(rd_grid)</span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> (rd <span class="cf">in</span> rd_order) {</span>
+<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a>      p <span class="ot">&lt;-</span> <span class="fu">make_second_order_params_kr</span>(<span class="at">lambda =</span> lambda, <span class="at">resource_decrease =</span> rd,</span>
+<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a>                                       <span class="at">capacity_mult =</span> cc_grid[j])</span>
+<span id="cb5-13"><a href="#cb5-13" aria-hidden="true" tabindex="-1"></a>      <span class="cf">if</span> (<span class="sc">!</span><span class="fu">is.null</span>(state_n)) {</span>
+<span id="cb5-14"><a href="#cb5-14" aria-hidden="true" tabindex="-1"></a>        p<span class="sc">@</span>initial_n[]    <span class="ot">&lt;-</span> state_n</span>
+<span id="cb5-15"><a href="#cb5-15" aria-hidden="true" tabindex="-1"></a>        p<span class="sc">@</span>initial_n_pp[] <span class="ot">&lt;-</span> state_npp</span>
+<span id="cb5-16"><a href="#cb5-16" aria-hidden="true" tabindex="-1"></a>      }</span>
+<span id="cb5-17"><a href="#cb5-17" aria-hidden="true" tabindex="-1"></a>      sim <span class="ot">&lt;-</span> <span class="fu">project</span>(p, <span class="at">t_max =</span> t_run, <span class="at">dt =</span> <span class="fl">0.1</span>, <span class="at">t_save =</span> <span class="fl">0.5</span>,</span>
+<span id="cb5-18"><a href="#cb5-18" aria-hidden="true" tabindex="-1"></a>                     <span class="at">progress_bar =</span> <span class="cn">FALSE</span>, <span class="at">effort =</span> <span class="dv">0</span>, <span class="at">method =</span> <span class="st">"tr_bdf2"</span>)</span>
+<span id="cb5-19"><a href="#cb5-19" aria-hidden="true" tabindex="-1"></a>      bm   <span class="ot">&lt;-</span> <span class="fu">getBiomass</span>(sim)[, <span class="st">"Anchovy"</span>]</span>
+<span id="cb5-20"><a href="#cb5-20" aria-hidden="true" tabindex="-1"></a>      tv   <span class="ot">&lt;-</span> <span class="fu">as.numeric</span>(<span class="fu">names</span>(bm))</span>
+<span id="cb5-21"><a href="#cb5-21" aria-hidden="true" tabindex="-1"></a>      late <span class="ot">&lt;-</span> bm[tv <span class="sc">&gt;</span> t_run <span class="sc">*</span> <span class="fl">0.6</span>]</span>
+<span id="cb5-22"><a href="#cb5-22" aria-hidden="true" tabindex="-1"></a>      last <span class="ot">&lt;-</span> <span class="fu">dim</span>(sim<span class="sc">@</span>n)[<span class="dv">1</span>]</span>
+<span id="cb5-23"><a href="#cb5-23" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-24"><a href="#cb5-24" aria-hidden="true" tabindex="-1"></a>      state_n   <span class="ot">&lt;-</span> sim<span class="sc">@</span>n[last, , ]</span>
+<span id="cb5-25"><a href="#cb5-25" aria-hidden="true" tabindex="-1"></a>      state_npp <span class="ot">&lt;-</span> sim<span class="sc">@</span>n_pp[last, ]</span>
+<span id="cb5-26"><a href="#cb5-26" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-27"><a href="#cb5-27" aria-hidden="true" tabindex="-1"></a>      out[[k]] <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(<span class="at">resource_decrease =</span> rd, <span class="at">capacity_mult =</span> cc_grid[j],</span>
+<span id="cb5-28"><a href="#cb5-28" aria-hidden="true" tabindex="-1"></a>                             <span class="at">max_bm        =</span> <span class="fu">max</span>(late), <span class="at">min_bm =</span> <span class="fu">min</span>(late),</span>
+<span id="cb5-29"><a href="#cb5-29" aria-hidden="true" tabindex="-1"></a>                             <span class="at">mean_bm       =</span> <span class="fu">mean</span>(late),</span>
+<span id="cb5-30"><a href="#cb5-30" aria-hidden="true" tabindex="-1"></a>                             <span class="at">rel_amplitude =</span> (<span class="fu">max</span>(late) <span class="sc">-</span> <span class="fu">min</span>(late)) <span class="sc">/</span> <span class="fu">mean</span>(late),</span>
+<span id="cb5-31"><a href="#cb5-31" aria-hidden="true" tabindex="-1"></a>                             <span class="at">step          =</span> k)</span>
+<span id="cb5-32"><a href="#cb5-32" aria-hidden="true" tabindex="-1"></a>      k <span class="ot">&lt;-</span> k <span class="sc">+</span> <span class="dv">1</span></span>
+<span id="cb5-33"><a href="#cb5-33" aria-hidden="true" tabindex="-1"></a>    }</span>
+<span id="cb5-34"><a href="#cb5-34" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb5-35"><a href="#cb5-35" aria-hidden="true" tabindex="-1"></a>  <span class="fu">bind_rows</span>(out)</span>
+<span id="cb5-36"><a href="#cb5-36" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb5-37"><a href="#cb5-37" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-38"><a href="#cb5-38" aria-hidden="true" tabindex="-1"></a>rd_grid_snake <span class="ot">&lt;-</span> <span class="fu">exp</span>(<span class="fu">seq</span>(<span class="fu">log</span>(<span class="fl">0.0001</span>), <span class="fu">log</span>(<span class="fl">0.5</span>), <span class="at">length.out =</span> <span class="dv">5</span>))</span>
+<span id="cb5-39"><a href="#cb5-39" aria-hidden="true" tabindex="-1"></a>cc_grid_snake <span class="ot">&lt;-</span> <span class="fu">exp</span>(<span class="fu">seq</span>(<span class="fu">log</span>(<span class="dv">3</span>), <span class="fu">log</span>(<span class="dv">100</span>), <span class="at">length.out =</span> <span class="dv">4</span>))</span>
+<span id="cb5-40"><a href="#cb5-40" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-41"><a href="#cb5-41" aria-hidden="true" tabindex="-1"></a>snake_df <span class="ot">&lt;-</span> <span class="fu">run_snake_grid</span>(rd_grid_snake, cc_grid_snake) <span class="sc">%&gt;%</span></span>
+<span id="cb5-42"><a href="#cb5-42" aria-hidden="true" tabindex="-1"></a>  <span class="fu">arrange</span>(step) <span class="sc">%&gt;%</span></span>
+<span id="cb5-43"><a href="#cb5-43" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">collapsed =</span> mean_bm <span class="sc">&lt;</span> MIN_VIABLE_BIOMASS,</span>
+<span id="cb5-44"><a href="#cb5-44" aria-hidden="true" tabindex="-1"></a>         <span class="at">phase     =</span> <span class="fu">case_when</span>(</span>
+<span id="cb5-45"><a href="#cb5-45" aria-hidden="true" tabindex="-1"></a>           collapsed            <span class="sc">~</span> <span class="st">"Collapsed"</span>,</span>
+<span id="cb5-46"><a href="#cb5-46" aria-hidden="true" tabindex="-1"></a>           rel_amplitude <span class="sc">&gt;</span> <span class="fl">1e-2</span> <span class="sc">~</span> <span class="st">"Oscillating"</span>,</span>
+<span id="cb5-47"><a href="#cb5-47" aria-hidden="true" tabindex="-1"></a>           <span class="cn">TRUE</span>                 <span class="sc">~</span> <span class="st">"Fixed point"</span></span>
+<span id="cb5-48"><a href="#cb5-48" aria-hidden="true" tabindex="-1"></a>         ))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+</div>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>snake_plot_fwd <span class="ot">&lt;-</span> <span class="fu">ggplot</span>(snake_df, <span class="fu">aes</span>(<span class="at">x =</span> resource_decrease, <span class="at">y =</span> capacity_mult)) <span class="sc">+</span></span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_tile</span>(<span class="fu">aes</span>(<span class="at">fill =</span> phase), <span class="at">color =</span> <span class="st">"white"</span>, <span class="at">linewidth =</span> <span class="fl">0.3</span>) <span class="sc">+</span></span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_path</span>(<span class="at">color =</span> <span class="st">"black"</span>, <span class="at">linewidth =</span> <span class="fl">0.3</span>, <span class="at">alpha =</span> <span class="fl">0.5</span>) <span class="sc">+</span></span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_x_log10</span>() <span class="sc">+</span></span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_y_log10</span>() <span class="sc">+</span></span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_fill_manual</span>(<span class="at">values =</span> <span class="fu">c</span>(<span class="st">"Fixed point"</span> <span class="ot">=</span> <span class="st">"#4C72B0"</span>,</span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a>                               <span class="st">"Oscillating"</span> <span class="ot">=</span> <span class="st">"#DD8452"</span>,</span>
+<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a>                               <span class="st">"Collapsed"</span>   <span class="ot">=</span> <span class="st">"grey70"</span>)) <span class="sc">+</span></span>
+<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"resource_decrease (resource rate)"</span>,</span>
+<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a>       <span class="at">y =</span> <span class="st">"capacity_mult (carrying capacity)"</span>,</span>
+<span id="cb6-11"><a href="#cb6-11" aria-hidden="true" tabindex="-1"></a>       <span class="at">title =</span> <span class="st">"Phase diagram: fixed point vs. oscillating regime"</span>,</span>
+<span id="cb6-12"><a href="#cb6-12" aria-hidden="true" tabindex="-1"></a>       <span class="at">subtitle =</span> <span class="st">"Traced as a snake path -- state carried continuously between neighbouring points"</span>,</span>
+<span id="cb6-13"><a href="#cb6-13" aria-hidden="true" tabindex="-1"></a>       <span class="at">fill =</span> <span class="st">"Regime"</span>) <span class="sc">+</span></span>
+<span id="cb6-14"><a href="#cb6-14" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_minimal</span>()</span>
+<span id="cb6-15"><a href="#cb6-15" aria-hidden="true" tabindex="-1"></a>snake_plot_fwd</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="2026-07-08-day-twenty-three_files/figure-html/unnamed-chunk-5-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>Three regions fall out of the 5x4 grid: <code>Collapsed</code> at low <code>resource_decrease</code> combined with low-to-mid <code>capacity_mult</code>, a <code>Fixed point</code> band along the diagonal, and <code>Oscillating</code> covering most of the rest. One easy-to-miss detail: the lowest <code>resource_decrease</code> column isn’t uniformly collapsed ; at <code>capacity_mult = 100</code> it’s a <code>Fixed point</code>, not <code>Collapsed</code>, showing carrying capacity alone can rescue that corner even at the most depleted resource rate.</p>
+<p>The point of tracing the grid at all is Day 22’s supercooling/superheating framing: if the phase boundary genuinely depends on history, different routes through the same grid should trace different boundaries. Three get compared: <strong>Forward</strong> (the snake above), <strong>Reversed</strong> (the exact retrace, walked backwards), and <strong>Transposed</strong> (<code>capacity_mult</code> swept within each <code>resource_decrease</code> row instead). The <strong>Reversed</strong> route is also what closes out Day 22’s parked item about rechecking Day 21’s backward-first bifurcation ordering against the capacity-aware setup: it’s the same “walk it backwards” idea, just now run against both parameters at once instead of <code>resource_decrease</code> alone.</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>build_path_capacity_rows <span class="ot">&lt;-</span> <span class="cf">function</span>(rd_grid, cc_grid) {</span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>  path <span class="ot">&lt;-</span> <span class="fu">vector</span>(<span class="st">"list"</span>, <span class="fu">length</span>(rd_grid) <span class="sc">*</span> <span class="fu">length</span>(cc_grid))</span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>  k <span class="ot">&lt;-</span> <span class="dv">1</span></span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>  <span class="cf">for</span> (j <span class="cf">in</span> <span class="fu">seq_along</span>(cc_grid)) {</span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a>    rd_order <span class="ot">&lt;-</span> <span class="cf">if</span> (j <span class="sc">%%</span> <span class="dv">2</span> <span class="sc">==</span> <span class="dv">1</span>) rd_grid <span class="cf">else</span> <span class="fu">rev</span>(rd_grid)</span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> (rd <span class="cf">in</span> rd_order) {</span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a>      path[[k]] <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(<span class="at">resource_decrease =</span> rd, <span class="at">capacity_mult =</span> cc_grid[j])</span>
+<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a>      k <span class="ot">&lt;-</span> k <span class="sc">+</span> <span class="dv">1</span></span>
+<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a>    }</span>
+<span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb7-11"><a href="#cb7-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">bind_rows</span>(path)</span>
+<span id="cb7-12"><a href="#cb7-12" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb7-13"><a href="#cb7-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-14"><a href="#cb7-14" aria-hidden="true" tabindex="-1"></a>build_path_rd_rows <span class="ot">&lt;-</span> <span class="cf">function</span>(rd_grid, cc_grid) {</span>
+<span id="cb7-15"><a href="#cb7-15" aria-hidden="true" tabindex="-1"></a>  path <span class="ot">&lt;-</span> <span class="fu">vector</span>(<span class="st">"list"</span>, <span class="fu">length</span>(rd_grid) <span class="sc">*</span> <span class="fu">length</span>(cc_grid))</span>
+<span id="cb7-16"><a href="#cb7-16" aria-hidden="true" tabindex="-1"></a>  k <span class="ot">&lt;-</span> <span class="dv">1</span></span>
+<span id="cb7-17"><a href="#cb7-17" aria-hidden="true" tabindex="-1"></a>  <span class="cf">for</span> (i <span class="cf">in</span> <span class="fu">seq_along</span>(rd_grid)) {</span>
+<span id="cb7-18"><a href="#cb7-18" aria-hidden="true" tabindex="-1"></a>    cc_order <span class="ot">&lt;-</span> <span class="cf">if</span> (i <span class="sc">%%</span> <span class="dv">2</span> <span class="sc">==</span> <span class="dv">1</span>) cc_grid <span class="cf">else</span> <span class="fu">rev</span>(cc_grid)</span>
+<span id="cb7-19"><a href="#cb7-19" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> (cc <span class="cf">in</span> cc_order) {</span>
+<span id="cb7-20"><a href="#cb7-20" aria-hidden="true" tabindex="-1"></a>      path[[k]] <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(<span class="at">resource_decrease =</span> rd_grid[i], <span class="at">capacity_mult =</span> cc)</span>
+<span id="cb7-21"><a href="#cb7-21" aria-hidden="true" tabindex="-1"></a>      k <span class="ot">&lt;-</span> k <span class="sc">+</span> <span class="dv">1</span></span>
+<span id="cb7-22"><a href="#cb7-22" aria-hidden="true" tabindex="-1"></a>    }</span>
+<span id="cb7-23"><a href="#cb7-23" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb7-24"><a href="#cb7-24" aria-hidden="true" tabindex="-1"></a>  <span class="fu">bind_rows</span>(path)</span>
+<span id="cb7-25"><a href="#cb7-25" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb7-26"><a href="#cb7-26" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-27"><a href="#cb7-27" aria-hidden="true" tabindex="-1"></a>run_along_path <span class="ot">&lt;-</span> <span class="cf">function</span>(path_df, <span class="at">lambda =</span> <span class="fl">2.05</span>, <span class="at">t_run =</span> <span class="dv">600</span>, <span class="at">label =</span> <span class="st">""</span>) {</span>
+<span id="cb7-28"><a href="#cb7-28" aria-hidden="true" tabindex="-1"></a>  state_n   <span class="ot">&lt;-</span> <span class="cn">NULL</span></span>
+<span id="cb7-29"><a href="#cb7-29" aria-hidden="true" tabindex="-1"></a>  state_npp <span class="ot">&lt;-</span> <span class="cn">NULL</span></span>
+<span id="cb7-30"><a href="#cb7-30" aria-hidden="true" tabindex="-1"></a>  out <span class="ot">&lt;-</span> <span class="fu">vector</span>(<span class="st">"list"</span>, <span class="fu">nrow</span>(path_df))</span>
+<span id="cb7-31"><a href="#cb7-31" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-32"><a href="#cb7-32" aria-hidden="true" tabindex="-1"></a>  <span class="cf">for</span> (i <span class="cf">in</span> <span class="fu">seq_len</span>(<span class="fu">nrow</span>(path_df))) {</span>
+<span id="cb7-33"><a href="#cb7-33" aria-hidden="true" tabindex="-1"></a>    rd <span class="ot">&lt;-</span> path_df<span class="sc">$</span>resource_decrease[i]</span>
+<span id="cb7-34"><a href="#cb7-34" aria-hidden="true" tabindex="-1"></a>    cc <span class="ot">&lt;-</span> path_df<span class="sc">$</span>capacity_mult[i]</span>
+<span id="cb7-35"><a href="#cb7-35" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-36"><a href="#cb7-36" aria-hidden="true" tabindex="-1"></a>    p <span class="ot">&lt;-</span> <span class="fu">make_second_order_params_kr</span>(<span class="at">lambda =</span> lambda, <span class="at">resource_decrease =</span> rd,</span>
+<span id="cb7-37"><a href="#cb7-37" aria-hidden="true" tabindex="-1"></a>                                     <span class="at">capacity_mult =</span> cc)</span>
+<span id="cb7-38"><a href="#cb7-38" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> (<span class="sc">!</span><span class="fu">is.null</span>(state_n)) {</span>
+<span id="cb7-39"><a href="#cb7-39" aria-hidden="true" tabindex="-1"></a>      p<span class="sc">@</span>initial_n[]    <span class="ot">&lt;-</span> state_n</span>
+<span id="cb7-40"><a href="#cb7-40" aria-hidden="true" tabindex="-1"></a>      p<span class="sc">@</span>initial_n_pp[] <span class="ot">&lt;-</span> state_npp</span>
+<span id="cb7-41"><a href="#cb7-41" aria-hidden="true" tabindex="-1"></a>    }</span>
+<span id="cb7-42"><a href="#cb7-42" aria-hidden="true" tabindex="-1"></a>    sim <span class="ot">&lt;-</span> <span class="fu">project</span>(p, <span class="at">t_max =</span> t_run, <span class="at">dt =</span> <span class="fl">0.1</span>, <span class="at">t_save =</span> <span class="fl">0.5</span>,</span>
+<span id="cb7-43"><a href="#cb7-43" aria-hidden="true" tabindex="-1"></a>                   <span class="at">progress_bar =</span> <span class="cn">FALSE</span>, <span class="at">effort =</span> <span class="dv">0</span>, <span class="at">method =</span> <span class="st">"tr_bdf2"</span>)</span>
+<span id="cb7-44"><a href="#cb7-44" aria-hidden="true" tabindex="-1"></a>    bm   <span class="ot">&lt;-</span> <span class="fu">getBiomass</span>(sim)[, <span class="st">"Anchovy"</span>]</span>
+<span id="cb7-45"><a href="#cb7-45" aria-hidden="true" tabindex="-1"></a>    tv   <span class="ot">&lt;-</span> <span class="fu">as.numeric</span>(<span class="fu">names</span>(bm))</span>
+<span id="cb7-46"><a href="#cb7-46" aria-hidden="true" tabindex="-1"></a>    late <span class="ot">&lt;-</span> bm[tv <span class="sc">&gt;</span> t_run <span class="sc">*</span> <span class="fl">0.6</span>]</span>
+<span id="cb7-47"><a href="#cb7-47" aria-hidden="true" tabindex="-1"></a>    last <span class="ot">&lt;-</span> <span class="fu">dim</span>(sim<span class="sc">@</span>n)[<span class="dv">1</span>]</span>
+<span id="cb7-48"><a href="#cb7-48" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-49"><a href="#cb7-49" aria-hidden="true" tabindex="-1"></a>    state_n   <span class="ot">&lt;-</span> sim<span class="sc">@</span>n[last, , ]</span>
+<span id="cb7-50"><a href="#cb7-50" aria-hidden="true" tabindex="-1"></a>    state_npp <span class="ot">&lt;-</span> sim<span class="sc">@</span>n_pp[last, ]</span>
+<span id="cb7-51"><a href="#cb7-51" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-52"><a href="#cb7-52" aria-hidden="true" tabindex="-1"></a>    out[[i]] <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(<span class="at">resource_decrease =</span> rd, <span class="at">capacity_mult =</span> cc,</span>
+<span id="cb7-53"><a href="#cb7-53" aria-hidden="true" tabindex="-1"></a>                           <span class="at">max_bm        =</span> <span class="fu">max</span>(late), <span class="at">min_bm =</span> <span class="fu">min</span>(late),</span>
+<span id="cb7-54"><a href="#cb7-54" aria-hidden="true" tabindex="-1"></a>                           <span class="at">mean_bm       =</span> <span class="fu">mean</span>(late),</span>
+<span id="cb7-55"><a href="#cb7-55" aria-hidden="true" tabindex="-1"></a>                           <span class="at">rel_amplitude =</span> (<span class="fu">max</span>(late) <span class="sc">-</span> <span class="fu">min</span>(late)) <span class="sc">/</span> <span class="fu">mean</span>(late),</span>
+<span id="cb7-56"><a href="#cb7-56" aria-hidden="true" tabindex="-1"></a>                           <span class="at">step =</span> i, <span class="at">route =</span> label)</span>
+<span id="cb7-57"><a href="#cb7-57" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb7-58"><a href="#cb7-58" aria-hidden="true" tabindex="-1"></a>  <span class="fu">bind_rows</span>(out)</span>
+<span id="cb7-59"><a href="#cb7-59" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb7-60"><a href="#cb7-60" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-61"><a href="#cb7-61" aria-hidden="true" tabindex="-1"></a>classify_phase <span class="ot">&lt;-</span> <span class="cf">function</span>(mean_bm, rel_amplitude) {</span>
+<span id="cb7-62"><a href="#cb7-62" aria-hidden="true" tabindex="-1"></a>  <span class="fu">case_when</span>(</span>
+<span id="cb7-63"><a href="#cb7-63" aria-hidden="true" tabindex="-1"></a>    mean_bm <span class="sc">&lt;</span> MIN_VIABLE_BIOMASS <span class="sc">~</span> <span class="st">"Collapsed"</span>,</span>
+<span id="cb7-64"><a href="#cb7-64" aria-hidden="true" tabindex="-1"></a>    rel_amplitude <span class="sc">&gt;</span> <span class="fl">1e-2</span>         <span class="sc">~</span> <span class="st">"Oscillating"</span>,</span>
+<span id="cb7-65"><a href="#cb7-65" aria-hidden="true" tabindex="-1"></a>    <span class="cn">TRUE</span>                         <span class="sc">~</span> <span class="st">"Fixed point"</span></span>
+<span id="cb7-66"><a href="#cb7-66" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb7-67"><a href="#cb7-67" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb7-68"><a href="#cb7-68" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-69"><a href="#cb7-69" aria-hidden="true" tabindex="-1"></a>path_fwd         <span class="ot">&lt;-</span> <span class="fu">build_path_capacity_rows</span>(rd_grid_snake, cc_grid_snake)</span>
+<span id="cb7-70"><a href="#cb7-70" aria-hidden="true" tabindex="-1"></a>path_bwd         <span class="ot">&lt;-</span> path_fwd[<span class="fu">rev</span>(<span class="fu">seq_len</span>(<span class="fu">nrow</span>(path_fwd))), ]</span>
+<span id="cb7-71"><a href="#cb7-71" aria-hidden="true" tabindex="-1"></a>path_transposed  <span class="ot">&lt;-</span> <span class="fu">build_path_rd_rows</span>(rd_grid_snake, cc_grid_snake)</span>
+<span id="cb7-72"><a href="#cb7-72" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-73"><a href="#cb7-73" aria-hidden="true" tabindex="-1"></a>routes_df <span class="ot">&lt;-</span> <span class="fu">bind_rows</span>(</span>
+<span id="cb7-74"><a href="#cb7-74" aria-hidden="true" tabindex="-1"></a>  <span class="fu">run_along_path</span>(path_fwd,        <span class="at">label =</span> <span class="st">"Forward (capacity rows)"</span>),</span>
+<span id="cb7-75"><a href="#cb7-75" aria-hidden="true" tabindex="-1"></a>  <span class="fu">run_along_path</span>(path_bwd,        <span class="at">label =</span> <span class="st">"Reversed (exact retrace)"</span>),</span>
+<span id="cb7-76"><a href="#cb7-76" aria-hidden="true" tabindex="-1"></a>  <span class="fu">run_along_path</span>(path_transposed, <span class="at">label =</span> <span class="st">"Transposed (resource-rate rows)"</span>)</span>
+<span id="cb7-77"><a href="#cb7-77" aria-hidden="true" tabindex="-1"></a>) <span class="sc">%&gt;%</span></span>
+<span id="cb7-78"><a href="#cb7-78" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">phase =</span> <span class="fu">classify_phase</span>(mean_bm, rel_amplitude))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+</div>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb8"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>routes_plot <span class="ot">&lt;-</span> <span class="fu">ggplot</span>(routes_df, <span class="fu">aes</span>(<span class="at">x =</span> resource_decrease, <span class="at">y =</span> capacity_mult)) <span class="sc">+</span></span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_tile</span>(<span class="fu">aes</span>(<span class="at">fill =</span> phase), <span class="at">color =</span> <span class="st">"white"</span>, <span class="at">linewidth =</span> <span class="fl">0.3</span>) <span class="sc">+</span></span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_path</span>(<span class="at">color =</span> <span class="st">"black"</span>, <span class="at">linewidth =</span> <span class="fl">0.3</span>, <span class="at">alpha =</span> <span class="fl">0.5</span>) <span class="sc">+</span></span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_x_log10</span>() <span class="sc">+</span></span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_y_log10</span>() <span class="sc">+</span></span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_fill_manual</span>(<span class="at">values =</span> <span class="fu">c</span>(<span class="st">"Fixed point"</span> <span class="ot">=</span> <span class="st">"#4C72B0"</span>,</span>
+<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a>                               <span class="st">"Oscillating"</span> <span class="ot">=</span> <span class="st">"#DD8452"</span>,</span>
+<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a>                               <span class="st">"Collapsed"</span>   <span class="ot">=</span> <span class="st">"grey70"</span>)) <span class="sc">+</span></span>
+<span id="cb8-9"><a href="#cb8-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">facet_wrap</span>(<span class="sc">~</span>route) <span class="sc">+</span></span>
+<span id="cb8-10"><a href="#cb8-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"resource_decrease (resource rate)"</span>,</span>
+<span id="cb8-11"><a href="#cb8-11" aria-hidden="true" tabindex="-1"></a>       <span class="at">y =</span> <span class="st">"capacity_mult (carrying capacity)"</span>,</span>
+<span id="cb8-12"><a href="#cb8-12" aria-hidden="true" tabindex="-1"></a>       <span class="at">title =</span> <span class="st">"Phase diagram by route: same grid, three different paths"</span>,</span>
+<span id="cb8-13"><a href="#cb8-13" aria-hidden="true" tabindex="-1"></a>       <span class="at">subtitle =</span> <span class="st">"If these three panels disagree, the boundary is path-dependent"</span>,</span>
+<span id="cb8-14"><a href="#cb8-14" aria-hidden="true" tabindex="-1"></a>       <span class="at">fill =</span> <span class="st">"Regime"</span>) <span class="sc">+</span></span>
+<span id="cb8-15"><a href="#cb8-15" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_minimal</span>()</span>
+<span id="cb8-16"><a href="#cb8-16" aria-hidden="true" tabindex="-1"></a>routes_plot</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="2026-07-08-day-twenty-three_files/figure-html/unnamed-chunk-7-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>Checked numerically rather than by eye: zero of the 20 grid points disagree across all three routes, and where they agree the underlying <code>mean_bm</code> values agree to within a few percent almost everywhere (three cells agree to machine precision). A clean negative result for path-dependence, within this grid, which starts sampling at <code>capacity_mult = 3</code>. That qualifier turns out to matter later.</p>
+<hr>
+</section>
+<section id="closing-three-open-questions" class="level2">
+<h2 class="anchored" data-anchor-id="closing-three-open-questions">Closing Three Open Questions</h2>
+<p>That “no path dependence” result came with three caveats: untested scan-rate dependence (<code>t_run = 600</code> might just be long enough to relax away any real memory effect), no genuine perturbation test (every <code>Fixed point</code> cell was only ever approached from a settled neighbour, never actively kicked), and grid resolution (5x4 is coarse enough to hide a narrow band). All three get closed out.</p>
+<section id="scan-rate-dependence" class="level3">
+<h3 class="anchored" data-anchor-id="scan-rate-dependence">1. Scan-Rate Dependence</h3>
+<p>The three-route comparison reruns at <code>t_run = 50</code> and <code>150</code>, reusing <code>routes_df</code> above as the <code>t_run = 600</code> baseline rather than recomputing it:</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb9"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>run_three_routes <span class="ot">&lt;-</span> <span class="cf">function</span>(t_run, <span class="at">rd_grid =</span> rd_grid_snake, <span class="at">cc_grid =</span> cc_grid_snake) {</span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>  fwd        <span class="ot">&lt;-</span> <span class="fu">build_path_capacity_rows</span>(rd_grid, cc_grid)</span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a>  bwd        <span class="ot">&lt;-</span> fwd[<span class="fu">rev</span>(<span class="fu">seq_len</span>(<span class="fu">nrow</span>(fwd))), ]</span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a>  transposed <span class="ot">&lt;-</span> <span class="fu">build_path_rd_rows</span>(rd_grid, cc_grid)</span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">bind_rows</span>(</span>
+<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a>    <span class="fu">run_along_path</span>(fwd,        <span class="at">t_run =</span> t_run, <span class="at">label =</span> <span class="st">"Forward (capacity rows)"</span>),</span>
+<span id="cb9-8"><a href="#cb9-8" aria-hidden="true" tabindex="-1"></a>    <span class="fu">run_along_path</span>(bwd,        <span class="at">t_run =</span> t_run, <span class="at">label =</span> <span class="st">"Reversed (exact retrace)"</span>),</span>
+<span id="cb9-9"><a href="#cb9-9" aria-hidden="true" tabindex="-1"></a>    <span class="fu">run_along_path</span>(transposed, <span class="at">t_run =</span> t_run, <span class="at">label =</span> <span class="st">"Transposed (resource-rate rows)"</span>)</span>
+<span id="cb9-10"><a href="#cb9-10" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">%&gt;%</span></span>
+<span id="cb9-11"><a href="#cb9-11" aria-hidden="true" tabindex="-1"></a>    <span class="fu">mutate</span>(<span class="at">t_run =</span> t_run, <span class="at">phase =</span> <span class="fu">classify_phase</span>(mean_bm, rel_amplitude))</span>
+<span id="cb9-12"><a href="#cb9-12" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb9-13"><a href="#cb9-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-14"><a href="#cb9-14" aria-hidden="true" tabindex="-1"></a>scan_rate_df <span class="ot">&lt;-</span> <span class="fu">bind_rows</span>(</span>
+<span id="cb9-15"><a href="#cb9-15" aria-hidden="true" tabindex="-1"></a>  <span class="fu">run_three_routes</span>(<span class="at">t_run =</span> <span class="dv">50</span>),</span>
+<span id="cb9-16"><a href="#cb9-16" aria-hidden="true" tabindex="-1"></a>  <span class="fu">run_three_routes</span>(<span class="at">t_run =</span> <span class="dv">150</span>),</span>
+<span id="cb9-17"><a href="#cb9-17" aria-hidden="true" tabindex="-1"></a>  routes_df <span class="sc">%&gt;%</span> <span class="fu">mutate</span>(<span class="at">t_run =</span> <span class="dv">600</span>)</span>
+<span id="cb9-18"><a href="#cb9-18" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb9-19"><a href="#cb9-19" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-20"><a href="#cb9-20" aria-hidden="true" tabindex="-1"></a>scan_rate_agreement <span class="ot">&lt;-</span> scan_rate_df <span class="sc">%&gt;%</span></span>
+<span id="cb9-21"><a href="#cb9-21" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(resource_decrease, capacity_mult, t_run, route, phase) <span class="sc">%&gt;%</span></span>
+<span id="cb9-22"><a href="#cb9-22" aria-hidden="true" tabindex="-1"></a>  tidyr<span class="sc">::</span><span class="fu">pivot_wider</span>(<span class="at">names_from =</span> route, <span class="at">values_from =</span> phase) <span class="sc">%&gt;%</span></span>
+<span id="cb9-23"><a href="#cb9-23" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">agree =</span> <span class="st">`</span><span class="at">Forward (capacity rows)</span><span class="st">`</span> <span class="sc">==</span> <span class="st">`</span><span class="at">Reversed (exact retrace)</span><span class="st">`</span> <span class="sc">&amp;</span></span>
+<span id="cb9-24"><a href="#cb9-24" aria-hidden="true" tabindex="-1"></a>                 <span class="st">`</span><span class="at">Reversed (exact retrace)</span><span class="st">`</span> <span class="sc">==</span> <span class="st">`</span><span class="at">Transposed (resource-rate rows)</span><span class="st">`</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb9-25"><a href="#cb9-25" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(t_run) <span class="sc">%&gt;%</span></span>
+<span id="cb9-26"><a href="#cb9-26" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarise</span>(<span class="at">n_disagree =</span> <span class="fu">sum</span>(<span class="sc">!</span>agree), <span class="at">n_total =</span> <span class="fu">n</span>(), <span class="at">.groups =</span> <span class="st">"drop"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+</div>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb10"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>scan_rate_agreement</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code># A tibble: 3 × 3
+  t_run n_disagree n_total
+  &lt;dbl&gt;      &lt;int&gt;   &lt;int&gt;
+1    50          1      20
+2   150          0      20
+3   600          0      20</code></pre>
+</div>
+</div>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>t_run</th>
+<th>disagreements</th>
+<th>out of</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>50</td>
+<td>1</td>
+<td>20</td>
+</tr>
+<tr class="even">
+<td>150</td>
+<td>0</td>
+<td>20</td>
+</tr>
+<tr class="odd">
+<td>600</td>
+<td>0</td>
+<td>20</td>
+</tr>
+</tbody>
+</table>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb12"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a>scan_rate_plot <span class="ot">&lt;-</span> <span class="fu">ggplot</span>(scan_rate_df, <span class="fu">aes</span>(<span class="at">x =</span> resource_decrease, <span class="at">y =</span> capacity_mult)) <span class="sc">+</span></span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_tile</span>(<span class="fu">aes</span>(<span class="at">fill =</span> phase), <span class="at">color =</span> <span class="st">"white"</span>, <span class="at">linewidth =</span> <span class="fl">0.3</span>) <span class="sc">+</span></span>
+<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_path</span>(<span class="at">color =</span> <span class="st">"black"</span>, <span class="at">linewidth =</span> <span class="fl">0.3</span>, <span class="at">alpha =</span> <span class="fl">0.5</span>) <span class="sc">+</span></span>
+<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_x_log10</span>() <span class="sc">+</span></span>
+<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_y_log10</span>() <span class="sc">+</span></span>
+<span id="cb12-6"><a href="#cb12-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_fill_manual</span>(<span class="at">values =</span> <span class="fu">c</span>(<span class="st">"Fixed point"</span> <span class="ot">=</span> <span class="st">"#4C72B0"</span>,</span>
+<span id="cb12-7"><a href="#cb12-7" aria-hidden="true" tabindex="-1"></a>                               <span class="st">"Oscillating"</span> <span class="ot">=</span> <span class="st">"#DD8452"</span>,</span>
+<span id="cb12-8"><a href="#cb12-8" aria-hidden="true" tabindex="-1"></a>                               <span class="st">"Collapsed"</span>   <span class="ot">=</span> <span class="st">"grey70"</span>)) <span class="sc">+</span></span>
+<span id="cb12-9"><a href="#cb12-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">facet_grid</span>(t_run <span class="sc">~</span> route) <span class="sc">+</span></span>
+<span id="cb12-10"><a href="#cb12-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"resource_decrease (resource rate)"</span>,</span>
+<span id="cb12-11"><a href="#cb12-11" aria-hidden="true" tabindex="-1"></a>       <span class="at">y =</span> <span class="st">"capacity_mult (carrying capacity)"</span>,</span>
+<span id="cb12-12"><a href="#cb12-12" aria-hidden="true" tabindex="-1"></a>       <span class="at">title =</span> <span class="st">"Scan-rate dependence: same three routes at t_run = 50, 150, 600"</span>,</span>
+<span id="cb12-13"><a href="#cb12-13" aria-hidden="true" tabindex="-1"></a>       <span class="at">subtitle =</span> <span class="st">"Rows = per-step settle time"</span>,</span>
+<span id="cb12-14"><a href="#cb12-14" aria-hidden="true" tabindex="-1"></a>       <span class="at">fill =</span> <span class="st">"Regime"</span>) <span class="sc">+</span></span>
+<span id="cb12-15"><a href="#cb12-15" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_minimal</span>()</span>
+<span id="cb12-16"><a href="#cb12-16" aria-hidden="true" tabindex="-1"></a>scan_rate_plot</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="2026-07-08-day-twenty-three_files/figure-html/unnamed-chunk-10-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>One disagreement at the fastest rate, gone by <code>150</code>. The disagreeing cell (<code>resource_decrease = 0.00707, capacity_mult = 3</code>) is one of the five cells the perturbation retest below confirms stable - pointing at a relaxation-time artefact (50 years isn’t long enough for a transient to decay before sampling) rather than a second real attractor.</p>
+</section>
+<section id="a-genuine-perturbation-retest" class="level3">
+<h3 class="anchored" data-anchor-id="a-genuine-perturbation-retest">2. A Genuine Perturbation Retest</h3>
+<p>Day 17/18’s original limit-cycle search actively kicked the system done by reducing the resource to 10% of carrying capacity, a short burn-in, then the mature stock divided by 1000x which is a step every sweep since Day 20 dropped. This reruns it, adapted to <code>tr_bdf2</code>, on every cell the <code>t_run = 600</code> sweep called <code>Fixed point</code>:</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb13"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a>make_limit_cycle_sim_kr <span class="ot">&lt;-</span> <span class="cf">function</span>(params, <span class="at">t_total =</span> <span class="dv">600</span>, <span class="at">effort =</span> <span class="dv">0</span>, <span class="at">perturbation =</span> <span class="fl">1e3</span>) {</span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>  params<span class="sc">@</span>initial_n_pp[] <span class="ot">&lt;-</span> params<span class="sc">@</span>cc_pp <span class="sc">*</span> <span class="fl">0.1</span></span>
+<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a>  sim_init <span class="ot">&lt;-</span> <span class="fu">project</span>(params, <span class="at">t_max =</span> <span class="dv">10</span>, <span class="at">dt =</span> <span class="fl">0.1</span>, <span class="at">t_save =</span> <span class="fl">0.2</span>,</span>
+<span id="cb13-5"><a href="#cb13-5" aria-hidden="true" tabindex="-1"></a>                      <span class="at">progress_bar =</span> <span class="cn">FALSE</span>, <span class="at">effort =</span> <span class="dv">0</span>,</span>
+<span id="cb13-6"><a href="#cb13-6" aria-hidden="true" tabindex="-1"></a>                      <span class="at">method =</span> <span class="st">"predictor-corrector"</span>)</span>
+<span id="cb13-7"><a href="#cb13-7" aria-hidden="true" tabindex="-1"></a>  idx  <span class="ot">&lt;-</span> params<span class="sc">@</span>w <span class="sc">&gt;=</span> <span class="dv">10</span> <span class="sc">&amp;</span> params<span class="sc">@</span>w <span class="sc">&lt;=</span> <span class="dv">100</span></span>
+<span id="cb13-8"><a href="#cb13-8" aria-hidden="true" tabindex="-1"></a>  last <span class="ot">&lt;-</span> <span class="fu">dim</span>(sim_init<span class="sc">@</span>n)[<span class="dv">1</span>]</span>
+<span id="cb13-9"><a href="#cb13-9" aria-hidden="true" tabindex="-1"></a>  sim_init<span class="sc">@</span>n[last, , idx] <span class="ot">&lt;-</span> sim_init<span class="sc">@</span>n[last, , idx] <span class="sc">/</span> perturbation</span>
+<span id="cb13-10"><a href="#cb13-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-11"><a href="#cb13-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">project</span>(sim_init, <span class="at">t_max =</span> t_total <span class="sc">-</span> <span class="dv">10</span>, <span class="at">dt =</span> <span class="fl">0.1</span>, <span class="at">t_save =</span> <span class="fl">0.2</span>,</span>
+<span id="cb13-12"><a href="#cb13-12" aria-hidden="true" tabindex="-1"></a>          <span class="at">progress_bar =</span> <span class="cn">FALSE</span>, <span class="at">effort =</span> effort,</span>
+<span id="cb13-13"><a href="#cb13-13" aria-hidden="true" tabindex="-1"></a>          <span class="at">method =</span> <span class="st">"tr_bdf2"</span>)</span>
+<span id="cb13-14"><a href="#cb13-14" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb13-15"><a href="#cb13-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-16"><a href="#cb13-16" aria-hidden="true" tabindex="-1"></a>fixed_point_cells <span class="ot">&lt;-</span> routes_df <span class="sc">%&gt;%</span></span>
+<span id="cb13-17"><a href="#cb13-17" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(phase <span class="sc">==</span> <span class="st">"Fixed point"</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb13-18"><a href="#cb13-18" aria-hidden="true" tabindex="-1"></a>  <span class="fu">distinct</span>(resource_decrease, capacity_mult)</span>
+<span id="cb13-19"><a href="#cb13-19" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-20"><a href="#cb13-20" aria-hidden="true" tabindex="-1"></a>retest_with_kick <span class="ot">&lt;-</span> <span class="cf">function</span>(rd, cc, <span class="at">lambda =</span> <span class="fl">2.05</span>, <span class="at">t_total =</span> <span class="dv">600</span>, <span class="at">perturbation =</span> <span class="fl">1e3</span>) {</span>
+<span id="cb13-21"><a href="#cb13-21" aria-hidden="true" tabindex="-1"></a>  p   <span class="ot">&lt;-</span> <span class="fu">make_second_order_params_kr</span>(<span class="at">lambda =</span> lambda, <span class="at">resource_decrease =</span> rd,</span>
+<span id="cb13-22"><a href="#cb13-22" aria-hidden="true" tabindex="-1"></a>                                     <span class="at">capacity_mult =</span> cc)</span>
+<span id="cb13-23"><a href="#cb13-23" aria-hidden="true" tabindex="-1"></a>  sim <span class="ot">&lt;-</span> <span class="fu">make_limit_cycle_sim_kr</span>(p, <span class="at">t_total =</span> t_total, <span class="at">perturbation =</span> perturbation)</span>
+<span id="cb13-24"><a href="#cb13-24" aria-hidden="true" tabindex="-1"></a>  bm   <span class="ot">&lt;-</span> <span class="fu">getBiomass</span>(sim)[, <span class="st">"Anchovy"</span>]</span>
+<span id="cb13-25"><a href="#cb13-25" aria-hidden="true" tabindex="-1"></a>  tv   <span class="ot">&lt;-</span> <span class="fu">as.numeric</span>(<span class="fu">names</span>(bm))</span>
+<span id="cb13-26"><a href="#cb13-26" aria-hidden="true" tabindex="-1"></a>  late <span class="ot">&lt;-</span> bm[tv <span class="sc">&gt;</span> (t_total <span class="sc">-</span> <span class="dv">10</span>) <span class="sc">*</span> <span class="fl">0.6</span>]</span>
+<span id="cb13-27"><a href="#cb13-27" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-28"><a href="#cb13-28" aria-hidden="true" tabindex="-1"></a>  <span class="fu">data.frame</span>(<span class="at">resource_decrease =</span> rd, <span class="at">capacity_mult =</span> cc,</span>
+<span id="cb13-29"><a href="#cb13-29" aria-hidden="true" tabindex="-1"></a>             <span class="at">mean_bm       =</span> <span class="fu">mean</span>(late),</span>
+<span id="cb13-30"><a href="#cb13-30" aria-hidden="true" tabindex="-1"></a>             <span class="at">rel_amplitude =</span> (<span class="fu">max</span>(late) <span class="sc">-</span> <span class="fu">min</span>(late)) <span class="sc">/</span> <span class="fu">mean</span>(late))</span>
+<span id="cb13-31"><a href="#cb13-31" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb13-32"><a href="#cb13-32" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-33"><a href="#cb13-33" aria-hidden="true" tabindex="-1"></a>kick_retest_df <span class="ot">&lt;-</span> purrr<span class="sc">::</span><span class="fu">map2_dfr</span>(</span>
+<span id="cb13-34"><a href="#cb13-34" aria-hidden="true" tabindex="-1"></a>  fixed_point_cells<span class="sc">$</span>resource_decrease, fixed_point_cells<span class="sc">$</span>capacity_mult,</span>
+<span id="cb13-35"><a href="#cb13-35" aria-hidden="true" tabindex="-1"></a>  retest_with_kick</span>
+<span id="cb13-36"><a href="#cb13-36" aria-hidden="true" tabindex="-1"></a>) <span class="sc">%&gt;%</span></span>
+<span id="cb13-37"><a href="#cb13-37" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">phase_after_kick =</span> <span class="fu">classify_phase</span>(mean_bm, rel_amplitude))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+</div>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb14"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a>kick_retest_df</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>  resource_decrease capacity_mult    mean_bm rel_amplitude phase_after_kick
+1      0.0070710678      3.000000 0.02197924  2.073532e-11      Fixed point
+2      0.0594603558      3.000000 0.18482266  8.860271e-15      Fixed point
+3      0.5000000000      3.000000 1.55416716  8.715099e-15      Fixed point
+4      0.0008408964      9.654894 0.01374181  5.308598e-04      Fixed point
+5      0.0001000000    100.000000 0.02526812  3.190598e-03      Fixed point</code></pre>
+</div>
+</div>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 25%">
+<col style="width: 25%">
+<col style="width: 25%">
+<col style="width: 25%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>resource_decrease</th>
+<th>capacity_mult</th>
+<th>rel_amplitude after kick</th>
+<th>phase after kick</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>0.00707</td>
+<td>3</td>
+<td>2.9e-11</td>
+<td>Fixed point</td>
+</tr>
+<tr class="even">
+<td>0.0595</td>
+<td>3</td>
+<td>8.9e-15</td>
+<td>Fixed point</td>
+</tr>
+<tr class="odd">
+<td>0.5</td>
+<td>3</td>
+<td>8.7e-15</td>
+<td>Fixed point</td>
+</tr>
+<tr class="even">
+<td>0.000841</td>
+<td>9.65</td>
+<td>5.3e-4</td>
+<td>Fixed point</td>
+</tr>
+<tr class="odd">
+<td>0.0001</td>
+<td>100</td>
+<td>3.2e-3</td>
+<td>Fixed point</td>
+</tr>
+</tbody>
+</table>
+<p>All five survive. Three come back at essentially machine-precision zero amplitude. These aren’t unexplored limit cycles the default initial state never found but rather, the same kick that originally revealed the Day 18 limit cycle puts all five straight back where they started.</p>
+</section>
+<section id="grid-resolution" class="level3">
+<h3 class="anchored" data-anchor-id="grid-resolution">3. Grid Resolution</h3>
+<p>A densified 9x7 grid - double the resolution of the 5x4 grid above, Forward route only, <code>t_run = 300</code>, checks whether a narrow band could be sitting entirely inside one of the coarse grid’s tiles:</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb16"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a>rd_grid_fine <span class="ot">&lt;-</span> <span class="fu">exp</span>(<span class="fu">seq</span>(<span class="fu">log</span>(<span class="fl">0.0001</span>), <span class="fu">log</span>(<span class="fl">0.5</span>), <span class="at">length.out =</span> <span class="dv">9</span>))</span>
+<span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a>cc_grid_fine <span class="ot">&lt;-</span> <span class="fu">exp</span>(<span class="fu">seq</span>(<span class="fu">log</span>(<span class="dv">3</span>), <span class="fu">log</span>(<span class="dv">100</span>), <span class="at">length.out =</span> <span class="dv">7</span>))</span>
+<span id="cb16-3"><a href="#cb16-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-4"><a href="#cb16-4" aria-hidden="true" tabindex="-1"></a>path_fwd_fine <span class="ot">&lt;-</span> <span class="fu">build_path_capacity_rows</span>(rd_grid_fine, cc_grid_fine)</span>
+<span id="cb16-5"><a href="#cb16-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-6"><a href="#cb16-6" aria-hidden="true" tabindex="-1"></a>fine_grid_df <span class="ot">&lt;-</span> <span class="fu">run_along_path</span>(path_fwd_fine, <span class="at">t_run =</span> <span class="dv">300</span>,</span>
+<span id="cb16-7"><a href="#cb16-7" aria-hidden="true" tabindex="-1"></a>                               <span class="at">label =</span> <span class="st">"Forward (capacity rows), fine grid"</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb16-8"><a href="#cb16-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">phase =</span> <span class="fu">classify_phase</span>(mean_bm, rel_amplitude))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+</div>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb17"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a>fine_grid_plot <span class="ot">&lt;-</span> <span class="fu">ggplot</span>(fine_grid_df, <span class="fu">aes</span>(<span class="at">x =</span> resource_decrease, <span class="at">y =</span> capacity_mult)) <span class="sc">+</span></span>
+<span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_tile</span>(<span class="fu">aes</span>(<span class="at">fill =</span> phase), <span class="at">color =</span> <span class="st">"white"</span>, <span class="at">linewidth =</span> <span class="fl">0.2</span>) <span class="sc">+</span></span>
+<span id="cb17-3"><a href="#cb17-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_path</span>(<span class="at">color =</span> <span class="st">"black"</span>, <span class="at">linewidth =</span> <span class="fl">0.3</span>, <span class="at">alpha =</span> <span class="fl">0.5</span>) <span class="sc">+</span></span>
+<span id="cb17-4"><a href="#cb17-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_x_log10</span>() <span class="sc">+</span></span>
+<span id="cb17-5"><a href="#cb17-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_y_log10</span>() <span class="sc">+</span></span>
+<span id="cb17-6"><a href="#cb17-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_fill_manual</span>(<span class="at">values =</span> <span class="fu">c</span>(<span class="st">"Fixed point"</span> <span class="ot">=</span> <span class="st">"#4C72B0"</span>,</span>
+<span id="cb17-7"><a href="#cb17-7" aria-hidden="true" tabindex="-1"></a>                               <span class="st">"Oscillating"</span> <span class="ot">=</span> <span class="st">"#DD8452"</span>,</span>
+<span id="cb17-8"><a href="#cb17-8" aria-hidden="true" tabindex="-1"></a>                               <span class="st">"Collapsed"</span>   <span class="ot">=</span> <span class="st">"grey70"</span>)) <span class="sc">+</span></span>
+<span id="cb17-9"><a href="#cb17-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"resource_decrease (resource rate)"</span>,</span>
+<span id="cb17-10"><a href="#cb17-10" aria-hidden="true" tabindex="-1"></a>       <span class="at">y =</span> <span class="st">"capacity_mult (carrying capacity)"</span>,</span>
+<span id="cb17-11"><a href="#cb17-11" aria-hidden="true" tabindex="-1"></a>       <span class="at">title =</span> <span class="st">"Densified phase diagram: 9x7 grid, Forward route only"</span>,</span>
+<span id="cb17-12"><a href="#cb17-12" aria-hidden="true" tabindex="-1"></a>       <span class="at">subtitle =</span> <span class="st">"t_run = 300 per step -- double the resolution of the 5x4 grid above"</span>,</span>
+<span id="cb17-13"><a href="#cb17-13" aria-hidden="true" tabindex="-1"></a>       <span class="at">fill =</span> <span class="st">"Regime"</span>) <span class="sc">+</span></span>
+<span id="cb17-14"><a href="#cb17-14" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_minimal</span>()</span>
+<span id="cb17-15"><a href="#cb17-15" aria-hidden="true" tabindex="-1"></a>fine_grid_plot</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="2026-07-08-day-twenty-three_files/figure-html/unnamed-chunk-14-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>It found something the coarse grid’s row spacing hid: a wide <code>Fixed point</code> band at <code>capacity_mult = 5.38</code>, interpolated between the coarse grid’s <code>cap = 3</code> row (almost entirely <code>Fixed point</code>) and <code>cap = 9.65</code> row (almost entirely <code>Oscillating</code>) but with zero <code>Oscillating</code> cells in it. The coarse grid made that transition look fast; it isn’t.</p>
+<p>A targeted refinement of <code>capacity_mult</code> in <code>[3, 10]</code> (same 9-point density, still Forward-only, <code>t_run = 300</code>) pins the shape down:</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb18"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a>cc_grid_refine <span class="ot">&lt;-</span> <span class="fu">exp</span>(<span class="fu">seq</span>(<span class="fu">log</span>(<span class="dv">3</span>), <span class="fu">log</span>(<span class="dv">10</span>), <span class="at">length.out =</span> <span class="dv">9</span>))</span>
+<span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-3"><a href="#cb18-3" aria-hidden="true" tabindex="-1"></a>path_fwd_refine <span class="ot">&lt;-</span> <span class="fu">build_path_capacity_rows</span>(rd_grid_fine, cc_grid_refine)</span>
+<span id="cb18-4"><a href="#cb18-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-5"><a href="#cb18-5" aria-hidden="true" tabindex="-1"></a>refine_grid_df <span class="ot">&lt;-</span> <span class="fu">run_along_path</span>(path_fwd_refine, <span class="at">t_run =</span> <span class="dv">300</span>,</span>
+<span id="cb18-6"><a href="#cb18-6" aria-hidden="true" tabindex="-1"></a>                                 <span class="at">label =</span> <span class="st">"Forward (capacity rows), cap in [3,10]"</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb18-7"><a href="#cb18-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">phase =</span> <span class="fu">classify_phase</span>(mean_bm, rel_amplitude))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+</div>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb19"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a>refine_grid_plot <span class="ot">&lt;-</span> <span class="fu">ggplot</span>(refine_grid_df, <span class="fu">aes</span>(<span class="at">x =</span> resource_decrease, <span class="at">y =</span> capacity_mult)) <span class="sc">+</span></span>
+<span id="cb19-2"><a href="#cb19-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_tile</span>(<span class="fu">aes</span>(<span class="at">fill =</span> phase), <span class="at">color =</span> <span class="st">"white"</span>, <span class="at">linewidth =</span> <span class="fl">0.2</span>) <span class="sc">+</span></span>
+<span id="cb19-3"><a href="#cb19-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_path</span>(<span class="at">color =</span> <span class="st">"black"</span>, <span class="at">linewidth =</span> <span class="fl">0.3</span>, <span class="at">alpha =</span> <span class="fl">0.5</span>) <span class="sc">+</span></span>
+<span id="cb19-4"><a href="#cb19-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_x_log10</span>() <span class="sc">+</span></span>
+<span id="cb19-5"><a href="#cb19-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_y_log10</span>() <span class="sc">+</span></span>
+<span id="cb19-6"><a href="#cb19-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_fill_manual</span>(<span class="at">values =</span> <span class="fu">c</span>(<span class="st">"Fixed point"</span> <span class="ot">=</span> <span class="st">"#4C72B0"</span>,</span>
+<span id="cb19-7"><a href="#cb19-7" aria-hidden="true" tabindex="-1"></a>                               <span class="st">"Oscillating"</span> <span class="ot">=</span> <span class="st">"#DD8452"</span>,</span>
+<span id="cb19-8"><a href="#cb19-8" aria-hidden="true" tabindex="-1"></a>                               <span class="st">"Collapsed"</span>   <span class="ot">=</span> <span class="st">"grey70"</span>)) <span class="sc">+</span></span>
+<span id="cb19-9"><a href="#cb19-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"resource_decrease (resource rate)"</span>,</span>
+<span id="cb19-10"><a href="#cb19-10" aria-hidden="true" tabindex="-1"></a>       <span class="at">y =</span> <span class="st">"capacity_mult (carrying capacity)"</span>,</span>
+<span id="cb19-11"><a href="#cb19-11" aria-hidden="true" tabindex="-1"></a>       <span class="at">title =</span> <span class="st">"Refined phase diagram: capacity_mult in [3, 10], 9x9 grid"</span>,</span>
+<span id="cb19-12"><a href="#cb19-12" aria-hidden="true" tabindex="-1"></a>       <span class="at">subtitle =</span> <span class="st">"Zooming in on the plateau found in the 9x7 grid"</span>,</span>
+<span id="cb19-13"><a href="#cb19-13" aria-hidden="true" tabindex="-1"></a>       <span class="at">fill =</span> <span class="st">"Regime"</span>) <span class="sc">+</span></span>
+<span id="cb19-14"><a href="#cb19-14" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_minimal</span>()</span>
+<span id="cb19-15"><a href="#cb19-15" aria-hidden="true" tabindex="-1"></a>refine_grid_plot</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="2026-07-08-day-twenty-three_files/figure-html/unnamed-chunk-16-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>Flat (zero <code>Oscillating</code>) from <code>3.00</code> through <code>5.48</code>, then a narrow flip: one stray cell at <code>6.37</code> (<code>rel_amplitude</code> landing almost exactly on the <code>1e-2</code> classification threshold ,which is likely a borderline call, not a clean oscillation), then a complete reversal by <code>7.40</code>.</p>
+<hr>
+</section>
+</section>
+<section id="bifurcation-sweeps-revisited-a-hysteresis-loop-the-grid-missed" class="level2">
+<h2 class="anchored" data-anchor-id="bifurcation-sweeps-revisited-a-hysteresis-loop-the-grid-missed">Bifurcation Sweeps Revisited: A Hysteresis Loop the Grid Missed</h2>
+<p>Everything above uses discrete phase classification on a grid. Returning to the classic style of bifurcation diagram used throughout Days 18-22 , forward and backward branches of biomass against one swept parameter , adds something the tile-grid approach doesn’t show as directly, and it surfaced a real result the phase diagram never tested for, simply because its grid always started at <code>capacity_mult = 3</code>.</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb20"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a>run_bifurcation_sweep <span class="ot">&lt;-</span> <span class="cf">function</span>(param_seq, param_name, <span class="at">fixed_params =</span> <span class="fu">list</span>(),</span>
+<span id="cb20-2"><a href="#cb20-2" aria-hidden="true" tabindex="-1"></a>                                  <span class="at">params_fn =</span> make_second_order_params_kr,</span>
+<span id="cb20-3"><a href="#cb20-3" aria-hidden="true" tabindex="-1"></a>                                  <span class="at">t_run =</span> <span class="dv">600</span>, <span class="at">lambda =</span> <span class="fl">2.05</span>) {</span>
+<span id="cb20-4"><a href="#cb20-4" aria-hidden="true" tabindex="-1"></a>  run_one_direction <span class="ot">&lt;-</span> <span class="cf">function</span>(seq_vals, <span class="at">init_n =</span> <span class="cn">NULL</span>, <span class="at">init_n_pp =</span> <span class="cn">NULL</span>) {</span>
+<span id="cb20-5"><a href="#cb20-5" aria-hidden="true" tabindex="-1"></a>    out       <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(<span class="at">value =</span> seq_vals, <span class="at">max_bm =</span> <span class="cn">NA_real_</span>, <span class="at">min_bm =</span> <span class="cn">NA_real_</span>)</span>
+<span id="cb20-6"><a href="#cb20-6" aria-hidden="true" tabindex="-1"></a>    state_n   <span class="ot">&lt;-</span> init_n</span>
+<span id="cb20-7"><a href="#cb20-7" aria-hidden="true" tabindex="-1"></a>    state_npp <span class="ot">&lt;-</span> init_n_pp</span>
+<span id="cb20-8"><a href="#cb20-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-9"><a href="#cb20-9" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> (i <span class="cf">in</span> <span class="fu">seq_along</span>(seq_vals)) {</span>
+<span id="cb20-10"><a href="#cb20-10" aria-hidden="true" tabindex="-1"></a>      args <span class="ot">&lt;-</span> fixed_params</span>
+<span id="cb20-11"><a href="#cb20-11" aria-hidden="true" tabindex="-1"></a>      args[[param_name]] <span class="ot">&lt;-</span> seq_vals[i]</span>
+<span id="cb20-12"><a href="#cb20-12" aria-hidden="true" tabindex="-1"></a>      args<span class="sc">$</span>lambda <span class="ot">&lt;-</span> lambda</span>
+<span id="cb20-13"><a href="#cb20-13" aria-hidden="true" tabindex="-1"></a>      p <span class="ot">&lt;-</span> <span class="fu">do.call</span>(params_fn, args)</span>
+<span id="cb20-14"><a href="#cb20-14" aria-hidden="true" tabindex="-1"></a>      <span class="cf">if</span> (<span class="sc">!</span><span class="fu">is.null</span>(state_n)) {</span>
+<span id="cb20-15"><a href="#cb20-15" aria-hidden="true" tabindex="-1"></a>        p<span class="sc">@</span>initial_n[]    <span class="ot">&lt;-</span> state_n</span>
+<span id="cb20-16"><a href="#cb20-16" aria-hidden="true" tabindex="-1"></a>        p<span class="sc">@</span>initial_n_pp[] <span class="ot">&lt;-</span> state_npp</span>
+<span id="cb20-17"><a href="#cb20-17" aria-hidden="true" tabindex="-1"></a>      }</span>
+<span id="cb20-18"><a href="#cb20-18" aria-hidden="true" tabindex="-1"></a>      sim <span class="ot">&lt;-</span> <span class="fu">project</span>(p, <span class="at">t_max =</span> t_run, <span class="at">dt =</span> <span class="fl">0.1</span>, <span class="at">t_save =</span> <span class="fl">0.5</span>,</span>
+<span id="cb20-19"><a href="#cb20-19" aria-hidden="true" tabindex="-1"></a>                     <span class="at">progress_bar =</span> <span class="cn">FALSE</span>, <span class="at">effort =</span> <span class="dv">0</span>, <span class="at">method =</span> <span class="st">"tr_bdf2"</span>)</span>
+<span id="cb20-20"><a href="#cb20-20" aria-hidden="true" tabindex="-1"></a>      bm   <span class="ot">&lt;-</span> <span class="fu">getBiomass</span>(sim)[, <span class="st">"Anchovy"</span>]</span>
+<span id="cb20-21"><a href="#cb20-21" aria-hidden="true" tabindex="-1"></a>      tv   <span class="ot">&lt;-</span> <span class="fu">as.numeric</span>(<span class="fu">names</span>(bm))</span>
+<span id="cb20-22"><a href="#cb20-22" aria-hidden="true" tabindex="-1"></a>      late <span class="ot">&lt;-</span> bm[tv <span class="sc">&gt;</span> t_run <span class="sc">*</span> <span class="fl">0.6</span>]</span>
+<span id="cb20-23"><a href="#cb20-23" aria-hidden="true" tabindex="-1"></a>      last <span class="ot">&lt;-</span> <span class="fu">dim</span>(sim<span class="sc">@</span>n)[<span class="dv">1</span>]</span>
+<span id="cb20-24"><a href="#cb20-24" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-25"><a href="#cb20-25" aria-hidden="true" tabindex="-1"></a>      state_n   <span class="ot">&lt;-</span> sim<span class="sc">@</span>n[last, , ]</span>
+<span id="cb20-26"><a href="#cb20-26" aria-hidden="true" tabindex="-1"></a>      state_npp <span class="ot">&lt;-</span> sim<span class="sc">@</span>n_pp[last, ]</span>
+<span id="cb20-27"><a href="#cb20-27" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-28"><a href="#cb20-28" aria-hidden="true" tabindex="-1"></a>      out<span class="sc">$</span>max_bm[i] <span class="ot">&lt;-</span> <span class="fu">max</span>(late)</span>
+<span id="cb20-29"><a href="#cb20-29" aria-hidden="true" tabindex="-1"></a>      out<span class="sc">$</span>min_bm[i] <span class="ot">&lt;-</span> <span class="fu">min</span>(late)</span>
+<span id="cb20-30"><a href="#cb20-30" aria-hidden="true" tabindex="-1"></a>    }</span>
+<span id="cb20-31"><a href="#cb20-31" aria-hidden="true" tabindex="-1"></a>    <span class="fu">list</span>(<span class="at">df =</span> out, <span class="at">n_final =</span> state_n, <span class="at">npp_final =</span> state_npp)</span>
+<span id="cb20-32"><a href="#cb20-32" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb20-33"><a href="#cb20-33" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-34"><a href="#cb20-34" aria-hidden="true" tabindex="-1"></a>  fwd    <span class="ot">&lt;-</span> <span class="fu">run_one_direction</span>(param_seq)</span>
+<span id="cb20-35"><a href="#cb20-35" aria-hidden="true" tabindex="-1"></a>  bwd    <span class="ot">&lt;-</span> <span class="fu">run_one_direction</span>(<span class="fu">rev</span>(param_seq), <span class="at">init_n =</span> fwd<span class="sc">$</span>n_final, <span class="at">init_n_pp =</span> fwd<span class="sc">$</span>npp_final)</span>
+<span id="cb20-36"><a href="#cb20-36" aria-hidden="true" tabindex="-1"></a>  bwd_df <span class="ot">&lt;-</span> bwd<span class="sc">$</span>df[<span class="fu">order</span>(bwd<span class="sc">$</span>df<span class="sc">$</span>value), ]</span>
+<span id="cb20-37"><a href="#cb20-37" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-38"><a href="#cb20-38" aria-hidden="true" tabindex="-1"></a>  <span class="fu">bind_rows</span>(</span>
+<span id="cb20-39"><a href="#cb20-39" aria-hidden="true" tabindex="-1"></a>    <span class="fu">data.frame</span>(<span class="at">value =</span> fwd<span class="sc">$</span>df<span class="sc">$</span>value, <span class="at">biomass =</span> fwd<span class="sc">$</span>df<span class="sc">$</span>max_bm, <span class="at">direction =</span> <span class="st">"Forward"</span>,  <span class="at">branch =</span> <span class="st">"max"</span>),</span>
+<span id="cb20-40"><a href="#cb20-40" aria-hidden="true" tabindex="-1"></a>    <span class="fu">data.frame</span>(<span class="at">value =</span> fwd<span class="sc">$</span>df<span class="sc">$</span>value, <span class="at">biomass =</span> fwd<span class="sc">$</span>df<span class="sc">$</span>min_bm, <span class="at">direction =</span> <span class="st">"Forward"</span>,  <span class="at">branch =</span> <span class="st">"min"</span>),</span>
+<span id="cb20-41"><a href="#cb20-41" aria-hidden="true" tabindex="-1"></a>    <span class="fu">data.frame</span>(<span class="at">value =</span> bwd_df<span class="sc">$</span>value, <span class="at">biomass =</span> bwd_df<span class="sc">$</span>max_bm, <span class="at">direction =</span> <span class="st">"Backward"</span>, <span class="at">branch =</span> <span class="st">"max"</span>),</span>
+<span id="cb20-42"><a href="#cb20-42" aria-hidden="true" tabindex="-1"></a>    <span class="fu">data.frame</span>(<span class="at">value =</span> bwd_df<span class="sc">$</span>value, <span class="at">biomass =</span> bwd_df<span class="sc">$</span>min_bm, <span class="at">direction =</span> <span class="st">"Backward"</span>, <span class="at">branch =</span> <span class="st">"min"</span>)</span>
+<span id="cb20-43"><a href="#cb20-43" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb20-44"><a href="#cb20-44" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb20-45"><a href="#cb20-45" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-46"><a href="#cb20-46" aria-hidden="true" tabindex="-1"></a>rd_seq_bif <span class="ot">&lt;-</span> <span class="fu">exp</span>(<span class="fu">seq</span>(<span class="fu">log</span>(<span class="fl">0.0001</span>), <span class="fu">log</span>(<span class="fl">0.5</span>), <span class="at">length.out =</span> <span class="dv">20</span>))</span>
+<span id="cb20-47"><a href="#cb20-47" aria-hidden="true" tabindex="-1"></a>cc_seq_bif <span class="ot">&lt;-</span> <span class="fu">exp</span>(<span class="fu">seq</span>(<span class="fu">log</span>(<span class="dv">1</span>), <span class="fu">log</span>(<span class="dv">100</span>), <span class="at">length.out =</span> <span class="dv">20</span>))</span>
+<span id="cb20-48"><a href="#cb20-48" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-49"><a href="#cb20-49" aria-hidden="true" tabindex="-1"></a>bif_rd_df <span class="ot">&lt;-</span> <span class="fu">run_bifurcation_sweep</span>(rd_seq_bif, <span class="st">"resource_decrease"</span>,</span>
+<span id="cb20-50"><a href="#cb20-50" aria-hidden="true" tabindex="-1"></a>                                   <span class="at">fixed_params =</span> <span class="fu">list</span>(<span class="at">capacity_mult =</span> <span class="dv">1</span>),</span>
+<span id="cb20-51"><a href="#cb20-51" aria-hidden="true" tabindex="-1"></a>                                   <span class="at">params_fn =</span> make_second_order_params_kr)</span>
+<span id="cb20-52"><a href="#cb20-52" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-53"><a href="#cb20-53" aria-hidden="true" tabindex="-1"></a>bif_cc_df <span class="ot">&lt;-</span> <span class="fu">run_bifurcation_sweep</span>(cc_seq_bif, <span class="st">"capacity_mult"</span>,</span>
+<span id="cb20-54"><a href="#cb20-54" aria-hidden="true" tabindex="-1"></a>                                   <span class="at">fixed_params =</span> <span class="fu">list</span>(<span class="at">resource_decrease =</span> <span class="fl">0.001</span>),</span>
+<span id="cb20-55"><a href="#cb20-55" aria-hidden="true" tabindex="-1"></a>                                   <span class="at">params_fn =</span> make_second_order_params_kr)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+</div>
+<p>Both <code>rd_seq_bif</code> and <code>cc_seq_bif</code> use the same <code>exp(seq(log(lo), log(hi), length.out = n))</code> log-spacing pattern used throughout this project’s grids: linear steps in log-space become constant-<em>ratio</em> steps in real space, so the same resolution is spent on the <code>1</code>-<code>10</code> decade as on <code>10</code>-<code>100</code>, rather than a linear grid burying almost every point above 50.</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb21"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a>bif_rd_plot <span class="ot">&lt;-</span> <span class="fu">ggplot</span>(bif_rd_df, <span class="fu">aes</span>(<span class="at">x =</span> value, <span class="at">y =</span> biomass, <span class="at">color =</span> direction, <span class="at">linetype =</span> branch)) <span class="sc">+</span></span>
+<span id="cb21-2"><a href="#cb21-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>(<span class="at">linewidth =</span> <span class="dv">1</span>) <span class="sc">+</span> <span class="fu">geom_point</span>(<span class="at">size =</span> <span class="fl">1.2</span>) <span class="sc">+</span> <span class="fu">scale_x_log10</span>() <span class="sc">+</span></span>
+<span id="cb21-3"><a href="#cb21-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"resource_decrease"</span>, <span class="at">y =</span> <span class="st">"Biomass"</span>,</span>
+<span id="cb21-4"><a href="#cb21-4" aria-hidden="true" tabindex="-1"></a>       <span class="at">title =</span> <span class="st">"resource_decrease swept"</span>, <span class="at">subtitle =</span> <span class="st">"capacity_mult held at 1"</span>) <span class="sc">+</span></span>
+<span id="cb21-5"><a href="#cb21-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_minimal</span>()</span>
+<span id="cb21-6"><a href="#cb21-6" aria-hidden="true" tabindex="-1"></a>bif_cc_plot <span class="ot">&lt;-</span> <span class="fu">ggplot</span>(bif_cc_df, <span class="fu">aes</span>(<span class="at">x =</span> value, <span class="at">y =</span> biomass, <span class="at">color =</span> direction, <span class="at">linetype =</span> branch)) <span class="sc">+</span></span>
+<span id="cb21-7"><a href="#cb21-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>(<span class="at">linewidth =</span> <span class="dv">1</span>) <span class="sc">+</span> <span class="fu">geom_point</span>(<span class="at">size =</span> <span class="fl">1.2</span>) <span class="sc">+</span> <span class="fu">scale_x_log10</span>() <span class="sc">+</span></span>
+<span id="cb21-8"><a href="#cb21-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"capacity_mult"</span>, <span class="at">y =</span> <span class="st">"Biomass"</span>,</span>
+<span id="cb21-9"><a href="#cb21-9" aria-hidden="true" tabindex="-1"></a>       <span class="at">title =</span> <span class="st">"capacity_mult swept"</span>, <span class="at">subtitle =</span> <span class="st">"resource_decrease held at 0.001"</span>) <span class="sc">+</span></span>
+<span id="cb21-10"><a href="#cb21-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_minimal</span>()</span>
+<span id="cb21-11"><a href="#cb21-11" aria-hidden="true" tabindex="-1"></a>bif_rd_plot <span class="sc">|</span> bif_cc_plot</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="2026-07-08-day-twenty-three_files/figure-html/unnamed-chunk-18-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+<section id="the-resource_decrease-panel-is-an-artefact-not-a-finding" class="level3">
+<h3 class="anchored" data-anchor-id="the-resource_decrease-panel-is-an-artefact-not-a-finding">The resource_decrease panel is an artefact, not a finding</h3>
+<p>Every value in the <code>capacity_mult = 1</code> panel , Forward, Backward, min, max, across all 20 points, bottoms out at <code>5.50e-316</code>, the same repeated constant: floating-point underflow, an absorbing numerically-extinct state. The Forward branch’s early points show it happening in real time: <code>1.22e-63 → 6.75e-113 → 8.93e-161 → ...</code>, decaying by ~30 orders of magnitude per step until it hits the underflow floor around <code>resource_decrease ≈ 0.0009</code>, then stays there the rest of the way to <code>0.5</code>. Because state carries forward point to point, once the population dies at the very first (lowest, harshest) value, nothing in the model lets a truly-zero population regrow - so the rest of the panel is one dead trajectory being dragged along, not independent evidence about every <code>resource_decrease</code> value.</p>
+<p>The obvious next question: is that death <em>itself</em> an artefact - a starting perturbation too extreme to survive - or is <code>capacity_mult = 1</code> genuinely unviable? Two follow-up checks, both fresh starts from mizer’s own default initial condition, no sweep history at all:</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb22"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a>run_fresh <span class="ot">&lt;-</span> <span class="cf">function</span>(rd, cc, <span class="at">t_run =</span> <span class="dv">600</span>) {</span>
+<span id="cb22-2"><a href="#cb22-2" aria-hidden="true" tabindex="-1"></a>  p   <span class="ot">&lt;-</span> <span class="fu">make_second_order_params_kr</span>(<span class="at">resource_decrease =</span> rd, <span class="at">capacity_mult =</span> cc)</span>
+<span id="cb22-3"><a href="#cb22-3" aria-hidden="true" tabindex="-1"></a>  sim <span class="ot">&lt;-</span> <span class="fu">project</span>(p, <span class="at">t_max =</span> t_run, <span class="at">dt =</span> <span class="fl">0.1</span>, <span class="at">t_save =</span> <span class="fl">0.5</span>,</span>
+<span id="cb22-4"><a href="#cb22-4" aria-hidden="true" tabindex="-1"></a>                 <span class="at">progress_bar =</span> <span class="cn">FALSE</span>, <span class="at">effort =</span> <span class="dv">0</span>, <span class="at">method =</span> <span class="st">"tr_bdf2"</span>)</span>
+<span id="cb22-5"><a href="#cb22-5" aria-hidden="true" tabindex="-1"></a>  bm   <span class="ot">&lt;-</span> <span class="fu">getBiomass</span>(sim)[, <span class="st">"Anchovy"</span>]</span>
+<span id="cb22-6"><a href="#cb22-6" aria-hidden="true" tabindex="-1"></a>  tv   <span class="ot">&lt;-</span> <span class="fu">as.numeric</span>(<span class="fu">names</span>(bm))</span>
+<span id="cb22-7"><a href="#cb22-7" aria-hidden="true" tabindex="-1"></a>  late <span class="ot">&lt;-</span> bm[tv <span class="sc">&gt;</span> t_run <span class="sc">*</span> <span class="fl">0.6</span>]</span>
+<span id="cb22-8"><a href="#cb22-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">data.frame</span>(<span class="at">resource_decrease =</span> rd, <span class="at">capacity_mult =</span> cc, <span class="at">mean_bm =</span> <span class="fu">mean</span>(late))</span>
+<span id="cb22-9"><a href="#cb22-9" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb22-10"><a href="#cb22-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-11"><a href="#cb22-11" aria-hidden="true" tabindex="-1"></a>fresh_check <span class="ot">&lt;-</span> <span class="fu">bind_rows</span>(<span class="fu">lapply</span>(<span class="fu">c</span>(<span class="dv">1</span>, <span class="fl">0.9</span>, <span class="fl">0.8</span>, <span class="fl">0.7</span>, <span class="fl">0.6</span>, <span class="fl">0.5</span>, <span class="fl">0.1</span>, <span class="fl">0.01</span>, <span class="fl">0.001</span>, <span class="fl">0.0001</span>),</span>
+<span id="cb22-12"><a href="#cb22-12" aria-hidden="true" tabindex="-1"></a>                                run_fresh, <span class="at">cc =</span> <span class="dv">1</span>))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+</div>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb23"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true" tabindex="-1"></a>fresh_check</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>   resource_decrease capacity_mult      mean_bm
+1              1e+00             1 3.829992e-32
+2              9e-01             1 3.754233e-32
+3              8e-01             1 3.662810e-32
+4              7e-01             1 3.550328e-32
+5              6e-01             1 3.408611e-32
+6              5e-01             1 3.224661e-32
+7              1e-01             1 1.197569e-32
+8              1e-02             1 6.268999e-34
+9              1e-03             1 2.131057e-37
+10             1e-04             1 2.651641e-65</code></pre>
+</div>
+</div>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>resource_decrease (fresh start)</th>
+<th>mean biomass</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>1.0 (no cut at all)</td>
+<td>3.83e-32</td>
+</tr>
+<tr class="even">
+<td>0.5</td>
+<td>3.22e-32</td>
+</tr>
+<tr class="odd">
+<td>0.1</td>
+<td>1.20e-32</td>
+</tr>
+<tr class="even">
+<td>0.01</td>
+<td>6.27e-34</td>
+</tr>
+<tr class="odd">
+<td>0.001</td>
+<td>2.13e-37</td>
+</tr>
+<tr class="even">
+<td>0.0001</td>
+<td>2.65e-65</td>
+</tr>
+</tbody>
+</table>
+<p>Two things fall out of this table. First: <strong><code>capacity_mult = 1</code> is genuinely unviable at every <code>resource_decrease</code> tested</strong>, even the friendliest (<code>0.5</code>) and even starting completely fresh - refuting the “the perturbation was too extreme” hypothesis. Second, and more surprising: <strong>it’s <em>still</em> dead at <code>resource_decrease = 1</code></strong>, with no cut applied at all, both <code>resource_rate</code> and <code>resource_capacity</code> handed back as mizer’s own unscaled defaults, with no mismatch between them whatsoever. That refutes a second, more specific hypothesis , that the collapse was a rate/capacity mismatch (a capacity sized for the <em>default</em>, faster-refilling rate, paired with a rate slowed down by <code>resource_decrease</code>). If that were the mechanism, <code>resource_decrease = 1</code> should have fixed it. It didn’t; the biomass barely moves across the whole <code>0.5</code>-<code>1.0</code> range.</p>
+<p>The best lead so far, not yet fully confirmed: <code>make_second_order_params_balanced()</code> (below, used for the diffusion sweep) is structurally almost identical , same species setup, same <code>D_ext</code>/<code>setBevertonHolt()</code> order , and <em>does</em> produce real, viable populations at the same species parameters. The only structural difference is <code>balance = TRUE</code> with only <code>resource_rate</code> passed, versus <code>balance = FALSE</code> with an explicit <code>resource_capacity</code>. That isolates the cause to <code>balance = FALSE</code> itself doing something more than “pick consistent numbers” - Day 22’s own note describes <code>balance = TRUE</code> as keeping “the derived capacity, the rate, and the actual dynamics consistent with each other,” which sounds like a broader reconciliation against the whole calibrated community (feeding rates, <code>setBevertonHolt()</code>’s reproduction calibration) that <code>balance = FALSE</code> skips by design. Exactly what breaks isn’t nailed down yet - comparing <code>erepro</code>/reproduction-level calibration between the two constructions is the natural next step.</p>
+</section>
+<section id="the-capacity_mult-panel-is-real-and-its-a-hysteresis-loop-the-phase-diagram-never-tested-for" class="level3">
+<h3 class="anchored" data-anchor-id="the-capacity_mult-panel-is-real-and-its-a-hysteresis-loop-the-phase-diagram-never-tested-for">The capacity_mult panel is real and it’s a hysteresis loop the phase diagram never tested for</h3>
+<p>Unlike the <code>resource_decrease</code> panel, this one isn’t an artefact:</p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>capacity_mult</th>
+<th>Forward</th>
+<th>Backward</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>1.00</td>
+<td>8.97e-36 (dead)</td>
+<td>8.85e-34 (dead)</td>
+</tr>
+<tr class="even">
+<td>1.27</td>
+<td>1.30e-57 (dead)</td>
+<td>3.38e-6 (still collapsing)</td>
+</tr>
+<tr class="odd">
+<td><strong>1.62</strong></td>
+<td><strong>7.71e-24 (dead)</strong></td>
+<td><strong>6.66e-4 (alive)</strong></td>
+</tr>
+<tr class="even">
+<td>2.07</td>
+<td>1.46e-3 (alive)</td>
+<td>1.46e-3 (alive)</td>
+</tr>
+<tr class="odd">
+<td>8.86</td>
+<td>0.0147</td>
+<td>0.0147</td>
+</tr>
+<tr class="even">
+<td>11.3</td>
+<td>0.0208 / 0.0189</td>
+<td>0.0213 / 0.0185</td>
+</tr>
+</tbody>
+</table>
+<p>Away from the boundary – e.g.&nbsp;around <code>capacity_mult ≈ 10</code> – Forward and Backward agree closely, consistent with everything found in the phase-diagram work above. But right at <code>capacity_mult = 1.62</code>, they disagree by roughly 20 orders of magnitude at the <em>identical</em> parameter value: Forward, arriving from nothing, is still dead; Backward, arriving from an established population at <code>capacity_mult = 100</code>, is already on the real branch. That’s a hysteresis loop, bracketed (at this grid’s resolution) to Backward’s collapse point sitting in <code>(1.27, 1.62]</code> and Forward’s escape point sitting in <code>(1.62, 2.07)</code> so narrower resolution would need a targeted refinement the same way the <code>[3, 10]</code> plateau got refined earlier.</p>
+<p>This doesn’t overturn the “no path dependence” result from the phase-diagram section above - it extends it. That grid never sampled below <code>capacity_mult = 3</code>, so it never had the chance to see this boundary at all. The two findings are consistent, not contradictory: no path dependence <em>within the range tested</em>, and a real one just outside it.</p>
+<hr>
+</section>
+</section>
+<section id="was-it-diffusion" class="level2">
+<h2 class="anchored" data-anchor-id="was-it-diffusion">Was It Diffusion?</h2>
+<p>Day 22’s own framing raised the question directly: the forward/backward hysteresis gap Days 18-21 built the whole limit-cycle story around disappeared once Day 22 changed <em>two</em> things at once , the resource mechanism (<code>balance = TRUE</code> → <code>FALSE</code>) and the diffusion strength (<code>ext_diff</code> default <code>0.01</code> → <code>0</code>), and which one actually killed the hysteresis was left explicitly unresolved. This tests diffusion strength directly, on the <em>old</em> <code>balance = TRUE</code> mechanism (Day 21’s original, the one that first produced the hysteresis):</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb25"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb25-1"><a href="#cb25-1" aria-hidden="true" tabindex="-1"></a>make_second_order_params_balanced <span class="ot">&lt;-</span> <span class="cf">function</span>(<span class="at">lambda =</span> <span class="fl">2.05</span>, <span class="at">resource_decrease =</span> <span class="fl">0.001</span>,</span>
+<span id="cb25-2"><a href="#cb25-2" aria-hidden="true" tabindex="-1"></a>                                              <span class="at">resource_level =</span> <span class="dv">1</span>, <span class="at">second_order =</span> <span class="cn">TRUE</span>,</span>
+<span id="cb25-3"><a href="#cb25-3" aria-hidden="true" tabindex="-1"></a>                                              <span class="at">ext_diff =</span> <span class="fl">0.00</span>) {</span>
+<span id="cb25-4"><a href="#cb25-4" aria-hidden="true" tabindex="-1"></a>  a0    <span class="ot">&lt;-</span> <span class="dv">100</span></span>
+<span id="cb25-5"><a href="#cb25-5" aria-hidden="true" tabindex="-1"></a>  kappa <span class="ot">&lt;-</span> a0 <span class="sc">*</span> <span class="fu">exp</span>(<span class="sc">-</span><span class="fl">6.9</span> <span class="sc">*</span> (lambda <span class="sc">-</span> <span class="dv">1</span>))</span>
+<span id="cb25-6"><a href="#cb25-6" aria-hidden="true" tabindex="-1"></a>  no_w  <span class="ot">&lt;-</span> <span class="fu">round</span>(<span class="fu">log</span>(<span class="fl">66.5</span> <span class="sc">/</span> <span class="fl">0.0003</span>) <span class="sc">/</span> <span class="fl">0.1</span>)</span>
+<span id="cb25-7"><a href="#cb25-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-8"><a href="#cb25-8" aria-hidden="true" tabindex="-1"></a>  params <span class="ot">&lt;-</span> <span class="fu">newSingleSpeciesParams</span>(</span>
+<span id="cb25-9"><a href="#cb25-9" aria-hidden="true" tabindex="-1"></a>    <span class="at">species_name =</span> <span class="st">"Anchovy"</span>,</span>
+<span id="cb25-10"><a href="#cb25-10" aria-hidden="true" tabindex="-1"></a>    <span class="at">w_min =</span> <span class="fl">0.0003</span>, <span class="at">w_max =</span> <span class="fl">66.5</span>, <span class="at">w_mat =</span> <span class="dv">10</span>,</span>
+<span id="cb25-11"><a href="#cb25-11" aria-hidden="true" tabindex="-1"></a>    <span class="at">no_w =</span> no_w, <span class="at">lambda =</span> lambda, <span class="at">kappa =</span> kappa,</span>
+<span id="cb25-12"><a href="#cb25-12" aria-hidden="true" tabindex="-1"></a>    <span class="at">alpha =</span> <span class="fl">0.1</span>, <span class="at">gamma =</span> <span class="dv">750</span>, <span class="at">ks =</span> <span class="dv">0</span></span>
+<span id="cb25-13"><a href="#cb25-13" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb25-14"><a href="#cb25-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-15"><a href="#cb25-15" aria-hidden="true" tabindex="-1"></a>  <span class="fu">given_species_params</span>(params)<span class="sc">$</span>D_ext <span class="ot">&lt;-</span> ext_diff</span>
+<span id="cb25-16"><a href="#cb25-16" aria-hidden="true" tabindex="-1"></a>  params <span class="ot">&lt;-</span> <span class="fu">setBevertonHolt</span>(params)</span>
+<span id="cb25-17"><a href="#cb25-17" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-18"><a href="#cb25-18" aria-hidden="true" tabindex="-1"></a>  <span class="co"># setResource() rejects resource_rate and resource_level together under</span></span>
+<span id="cb25-19"><a href="#cb25-19" aria-hidden="true" tabindex="-1"></a>  <span class="co"># balance = TRUE -- confirmed directly against the installed mizer build:</span></span>
+<span id="cb25-20"><a href="#cb25-20" aria-hidden="true" tabindex="-1"></a>  <span class="co"># "you should only provide either... because the other is determined."</span></span>
+<span id="cb25-21"><a href="#cb25-21" aria-hidden="true" tabindex="-1"></a>  <span class="co"># resource_level is kept as an argument (default 1, i.e. the resource left</span></span>
+<span id="cb25-22"><a href="#cb25-22" aria-hidden="true" tabindex="-1"></a>  <span class="co"># at its full, unsuppressed level) to document intent; only resource_rate</span></span>
+<span id="cb25-23"><a href="#cb25-23" aria-hidden="true" tabindex="-1"></a>  <span class="co"># is actually passed, exactly reproducing Day 21's original balance = TRUE</span></span>
+<span id="cb25-24"><a href="#cb25-24" aria-hidden="true" tabindex="-1"></a>  <span class="co"># call before Day 22 moved to balance = FALSE + explicit resource_level.</span></span>
+<span id="cb25-25"><a href="#cb25-25" aria-hidden="true" tabindex="-1"></a>  r <span class="ot">&lt;-</span> <span class="fu">getResourceRate</span>(params) <span class="sc">*</span> resource_decrease</span>
+<span id="cb25-26"><a href="#cb25-26" aria-hidden="true" tabindex="-1"></a>  params <span class="ot">&lt;-</span> <span class="fu">setResource</span>(params, <span class="at">resource_rate =</span> r,</span>
+<span id="cb25-27"><a href="#cb25-27" aria-hidden="true" tabindex="-1"></a>                        <span class="at">resource_dynamics =</span> <span class="st">"resource_semichemostat"</span>,</span>
+<span id="cb25-28"><a href="#cb25-28" aria-hidden="true" tabindex="-1"></a>                        <span class="at">balance =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb25-29"><a href="#cb25-29" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-30"><a href="#cb25-30" aria-hidden="true" tabindex="-1"></a>  <span class="cf">if</span> (second_order) {</span>
+<span id="cb25-31"><a href="#cb25-31" aria-hidden="true" tabindex="-1"></a>    <span class="fu">second_order_w</span>(params) <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="at">flux =</span> <span class="st">"centred"</span>, <span class="at">bin_average =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb25-32"><a href="#cb25-32" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb25-33"><a href="#cb25-33" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-34"><a href="#cb25-34" aria-hidden="true" tabindex="-1"></a>  params</span>
+<span id="cb25-35"><a href="#cb25-35" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb25-36"><a href="#cb25-36" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-37"><a href="#cb25-37" aria-hidden="true" tabindex="-1"></a><span class="co"># Cut down from the full 20-point / t_run=600 spec to fit a ~20-minute</span></span>
+<span id="cb25-38"><a href="#cb25-38" aria-hidden="true" tabindex="-1"></a><span class="co"># budget: 12 points and t_run=300 -- the latter already validated as</span></span>
+<span id="cb25-39"><a href="#cb25-39" aria-hidden="true" tabindex="-1"></a><span class="co"># sufficient to settle in the phase-diagram refinements above.</span></span>
+<span id="cb25-40"><a href="#cb25-40" aria-hidden="true" tabindex="-1"></a>rd_seq_quick <span class="ot">&lt;-</span> <span class="fu">exp</span>(<span class="fu">seq</span>(<span class="fu">log</span>(<span class="fl">0.0001</span>), <span class="fu">log</span>(<span class="fl">0.5</span>), <span class="at">length.out =</span> <span class="dv">12</span>))</span>
+<span id="cb25-41"><a href="#cb25-41" aria-hidden="true" tabindex="-1"></a>ext_diff_values_bif <span class="ot">&lt;-</span> <span class="fu">seq</span>(<span class="fl">0.001</span>, <span class="fl">0.5</span>, <span class="at">length.out =</span> <span class="dv">4</span>)</span>
+<span id="cb25-42"><a href="#cb25-42" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-43"><a href="#cb25-43" aria-hidden="true" tabindex="-1"></a>bif_balanced_df <span class="ot">&lt;-</span> <span class="fu">bind_rows</span>(<span class="fu">lapply</span>(ext_diff_values_bif, <span class="cf">function</span>(ed) {</span>
+<span id="cb25-44"><a href="#cb25-44" aria-hidden="true" tabindex="-1"></a>  <span class="fu">run_bifurcation_sweep</span>(rd_seq_quick, <span class="st">"resource_decrease"</span>,</span>
+<span id="cb25-45"><a href="#cb25-45" aria-hidden="true" tabindex="-1"></a>                        <span class="at">fixed_params =</span> <span class="fu">list</span>(<span class="at">resource_level =</span> <span class="dv">1</span>, <span class="at">ext_diff =</span> ed),</span>
+<span id="cb25-46"><a href="#cb25-46" aria-hidden="true" tabindex="-1"></a>                        <span class="at">params_fn =</span> make_second_order_params_balanced,</span>
+<span id="cb25-47"><a href="#cb25-47" aria-hidden="true" tabindex="-1"></a>                        <span class="at">t_run =</span> <span class="dv">300</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb25-48"><a href="#cb25-48" aria-hidden="true" tabindex="-1"></a>    <span class="fu">mutate</span>(<span class="at">ext_diff =</span> ed)</span>
+<span id="cb25-49"><a href="#cb25-49" aria-hidden="true" tabindex="-1"></a>})) <span class="sc">%&gt;%</span></span>
+<span id="cb25-50"><a href="#cb25-50" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">ext_diff_label =</span> <span class="fu">factor</span>(<span class="fu">sprintf</span>(<span class="st">"ext_diff = %.3f"</span>, ext_diff),</span>
+<span id="cb25-51"><a href="#cb25-51" aria-hidden="true" tabindex="-1"></a>                                 <span class="at">levels =</span> <span class="fu">sprintf</span>(<span class="st">"ext_diff = %.3f"</span>, <span class="fu">sort</span>(<span class="fu">unique</span>(ext_diff)))))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+</div>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb26"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb26-1"><a href="#cb26-1" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(bif_balanced_df, <span class="fu">aes</span>(<span class="at">x =</span> value, <span class="at">y =</span> biomass, <span class="at">color =</span> direction, <span class="at">linetype =</span> branch)) <span class="sc">+</span></span>
+<span id="cb26-2"><a href="#cb26-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>(<span class="at">linewidth =</span> <span class="dv">1</span>) <span class="sc">+</span> <span class="fu">geom_point</span>(<span class="at">size =</span> <span class="fl">1.2</span>) <span class="sc">+</span> <span class="fu">scale_x_log10</span>() <span class="sc">+</span></span>
+<span id="cb26-3"><a href="#cb26-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">facet_wrap</span>(<span class="sc">~</span>ext_diff_label, <span class="at">nrow =</span> <span class="dv">1</span>) <span class="sc">+</span></span>
+<span id="cb26-4"><a href="#cb26-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"resource_decrease"</span>, <span class="at">y =</span> <span class="st">"Biomass"</span>,</span>
+<span id="cb26-5"><a href="#cb26-5" aria-hidden="true" tabindex="-1"></a>       <span class="at">title =</span> <span class="st">"resource_decrease swept at 4 diffusion strengths"</span>,</span>
+<span id="cb26-6"><a href="#cb26-6" aria-hidden="true" tabindex="-1"></a>       <span class="at">subtitle =</span> <span class="st">"balance = TRUE -- the pre-Day-22-fix resource setup"</span>) <span class="sc">+</span></span>
+<span id="cb26-7"><a href="#cb26-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_minimal</span>()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="2026-07-08-day-twenty-three_files/figure-html/unnamed-chunk-22-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 50%">
+<col style="width: 50%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>ext_diff</th>
+<th>Forward/Backward gap</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>0.001</td>
+<td>Large – e.g.&nbsp;<code>resource_decrease = 0.049</code>: Forward <code>0.0537</code> vs Backward <code>3.55e-35</code></td>
+</tr>
+<tr class="even">
+<td>0.167</td>
+<td>Agree within 1-3% everywhere</td>
+</tr>
+<tr class="odd">
+<td>0.334</td>
+<td>Agree within 1-3% everywhere</td>
+</tr>
+<tr class="even">
+<td>0.5</td>
+<td>Agree within 1-3% everywhere</td>
+</tr>
+</tbody>
+</table>
+<p>At the lowest diffusion tested, there’s a large hysteresis gap which is not just at one point: <code>resource_decrease = 0.049</code>, <code>0.106</code>, and <code>0.231</code> all show Forward sustaining real biomass while Backward is collapsed to near-zero at the identical value, a textbook two-states-at-one-parameter-value signature. By <code>ext_diff = 0.167</code> that gap has essentially vanished, and stays gone through <code>0.5</code>.</p>
+<p>So: yes, diffusion strength controls whether hysteresis appears, at least under the <code>balance = TRUE</code> mechanism. That’s a verified answer, not a guess. The caveat: this only tests the <em>old</em> mechanism. Whether the <em>current</em> <code>balance = FALSE</code> setup (what Day 22/23’s “no hysteresis” conclusion was actually based on, at <code>ext_diff = 0</code>) would also show hysteresis at <code>ext_diff = 0.001</code> is a distinct, still-open test - the full 20-point / <code>t_run = 600</code> version of this sweep is saved in <code>23_experiments.R</code> if a longer, higher-resolution run is wanted later.</p>
+<hr>
+</section>
+<section id="what-this-all-adds-up-to" class="level2">
+<h2 class="anchored" data-anchor-id="what-this-all-adds-up-to">What This All Adds Up To</h2>
+<p>The phase-diagram work (snake sweep, three routes, scan-rate test, perturbation retest, densified grid) is a genuinely clean, thoroughly-checked “no path dependence” result but only within the range it tested, <code>capacity_mult ≥ 3</code>. Push below that, and there’s a real hysteresis loop right at the collapse boundary (<code>~1.6-2.1</code>) that no version of the grid ever had the chance to see. Separately, diffusion strength is confirmed to control hysteresis under the old resource mechanism, closing (for that mechanism) the question Day 22 left open while opening a narrower one about why <code>balance = FALSE</code> breaks viability at <code>capacity_mult = 1</code> even with perfectly matched default values.</p>
+<hr>
+</section>
+<section id="whats-next" class="level2">
+<h2 class="anchored" data-anchor-id="whats-next">What’s Next</h2>
+<ul>
+<li><strong>Pin down the capacity_mult ≈ 1.6-2.1 hysteresis window more precisely</strong> with a targeted refinement, the same way <code>[3, 10]</code> got refined earlier.</li>
+<li><strong>Find the actual mechanism behind <code>balance = FALSE</code>’s viability collapse at <code>capacity_mult = 1</code></strong> – the rate/capacity mismatch hypothesis is refuted; comparing <code>erepro</code>/reproduction-level calibration against the working <code>balance = TRUE</code> construction is the natural next step.</li>
+<li><strong>Rerun the diffusion sweep under <code>balance = FALSE</code></strong> at low <code>ext_diff</code> to check whether the current mechanism shows the same diffusion-dependence as the old one, or whether <code>balance = FALSE</code> itself suppresses hysteresis regardless of diffusion.</li>
+<li><strong>Rerun the diffusion sweep at full resolution</strong> (20 points, <code>t_run = 600</code>, code already in <code>23_experiments.R</code>) once the <code>balance = FALSE</code> question above is settled, rather than spending the longer run on the old mechanism twice.</li>
+<li><strong>Rerun the <code>capacity_mult</code> bifurcation diagram at a few different fixed resource rates</strong> to check it isn’t a cherrypicked example and to confirm Gustav’s prediction (from the shape of the earlier snake-sweep plot) that a higher resource rate should move the bifurcation point left, toward a smaller carrying capacity.</li>
+<li><strong>Check whether the juvenile-biomass pileup is specific to this parameter range or general</strong>, by rerunning the same single-species bifurcation diagram with mizer’s own unspecified/default species parameters and seeing if the same shape shows up.</li>
+<li><strong>Build a simple, non-size-structured two-species predator-prey model</strong>: Prey with a chemostat-style replenishment rate and carrying capacity, predator with an intake term proportional to prey × resource and a mortality term proportional to predator abundance and check whether it reproduces the same transcritical-like bifurcation. The point is to test whether size resolution is actually necessary for this bifurcation behaviour or just changes the details on top of it.</li>
+<li><strong>Come back to what fish growth (and the growth-slowdown bottleneck) actually has to do with the instability</strong>, once the non-size-structured comparison above has an answer as if the simple predator-prey model shows the same bifurcation, growth probably isn’t the mechanism after all; if it doesn’t, that’s where to dig next.</li>
+</ul>
+
+
+</section>
+
+</main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp('/' + window.location.host + '/');
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+</div> <!-- /content -->
+
+
+
+
+</body></html>
