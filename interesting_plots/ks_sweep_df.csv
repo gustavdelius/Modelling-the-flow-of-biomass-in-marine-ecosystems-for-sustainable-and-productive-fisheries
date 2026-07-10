@@ -1,0 +1,14 @@
+"param","value","catchable_fraction","error"
+"ks",0,0.000343896734206915,NA
+"ks",0.5,1.02893317572962e-05,NA
+"ks",1,1.77266446971333e-08,NA
+"ks",1.5,1.20548788876692e-13,NA
+"ks",2,2.98924130522153e-23,NA
+"ks",2.5,3.60163484361752e-65,NA
+"ks",3,NA,"The feeding level is not sufficient to maintain the fish."
+"ks",3.5,NA,"The feeding level is not sufficient to maintain the fish."
+"ks",4,NA,"The feeding level is not sufficient to maintain the fish."
+"ks",4.5,NA,"The feeding level is not sufficient to maintain the fish."
+"ks",5,NA,"The feeding level is not sufficient to maintain the fish."
+"ks",5.5,NA,"The feeding level is not sufficient to maintain the fish."
+"ks",6,NA,"The feeding level is not sufficient to maintain the fish."
