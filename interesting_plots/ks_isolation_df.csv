@@ -1,0 +1,5 @@
+"label","gamma","alpha","ks","kappa","w_mat","catchable_fraction","error"
+"Anchovy params, anchovy ks (0)",750,0.1,0,0.0713734152780435,10,0.000343896734206915,NA
+"Anchovy params, default ks",NA,NA,NA,NA,NA,NA,"The feeding level is not sufficient to maintain the fish."
+"Default params, default ks",2066.00406509043,0.4,3,0.005,25.1188643150958,0.0713188823762578,NA
+"Default params, anchovy ks (0)",2066.00406509043,0.4,0,0.005,25.1188643150958,0.487934803052717,NA

@@ -1,0 +1,5 @@
+"label","gamma","alpha","ks","kappa","w_mat","catchable_fraction","error"
+"Anchovy params, anchovy kappa",750,0.1,0,0.0713734152780435,10,0.000343896734206915,NA
+"Anchovy params, default kappa",750,0.1,0,0.005,10,2.47199197283606e-05,NA
+"Default params, default kappa",2066.00406509043,0.4,3,0.005,25.1188643150958,0.0713188823762578,NA
+"Default params, anchovy kappa",144.732044630488,0.4,3,0.0713734152780435,25.1188643150958,0.071318882376257,NA

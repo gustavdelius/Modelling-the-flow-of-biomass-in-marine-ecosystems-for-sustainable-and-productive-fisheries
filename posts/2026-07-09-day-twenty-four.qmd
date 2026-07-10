@@ -291,16 +291,16 @@ bifurcation_trend
 ```
 
 | resource_decrease | Backward | Forward |
-|--------------------|----------|---------|
-| 0.0001             | 1.32     | 4.89    |
-| 0.000841           | 1.32     | 4.89    |
-| 0.00707            | 1.32     | 4.89    |
-| 0.0595             | 1.32     | 4.89    |
-| 0.5                | 1.32     | 4.89    |
+|-------------------|----------|---------|
+| 0.0001            | 1.32     | 4.89    |
+| 0.000841          | 1.32     | 4.89    |
+| 0.00707           | 1.32     | 4.89    |
+| 0.0595            | 1.32     | 4.89    |
+| 0.5               | 1.32     | 4.89    |
 
 Completely flat -- every resource rate gives the exact same bracket. That's not evidence against Gustav's prediction, though: the grid here steps by roughly 55% (the ratio between adjacent log-spaced points over 3.6 decades in 20 steps), while the actual hysteresis window at a single rate, pinned down above, is only about 8% wide. A shift smaller than the grid's own resolution looks exactly like no shift at all -- this result only says the grid is too coarse to tell, not that the boundary is fixed.
 
-### Second Pass: Zoomed to [1, 15]
+### Second Pass: Zoomed to \[1, 15\]
 
 Same five resource rates, `capacity_mult` narrowed to `[1, 15]` -- comfortably bracketing anything the coarse pass could plausibly have missed -- at higher density. Settle time is cut from `600` to `150` to keep the run practical, reusing the exact scan-rate check Day 23 already ran on a similar grid (which found `t_run = 150` agreed with `t_run = 600` everywhere), rather than an unvalidated shortcut:
 
@@ -339,23 +339,23 @@ transitions_multi_refine
 ```
 
 | resource_decrease | direction | dead below | alive above |
-|--------------------|-----------|------------|-------------|
-| 0.0001             | Backward  | 1.00       | 1.15        |
-| 0.0001             | Forward   | 2.71       | 3.13        |
-| 0.000841           | Backward  | 1.15       | 1.33        |
-| 0.000841           | Forward   | 1.77       | 2.04        |
-| 0.00707            | Backward  | 1.15       | 1.33        |
-| 0.00707            | Forward   | 1.53       | 1.77        |
-| 0.0595             | Backward  | 1.00       | 1.15        |
-| 0.0595             | Forward   | 1.53       | 1.77        |
-| 0.5                | Backward  | 1.00       | 1.15        |
-| 0.5                | Forward   | 1.53       | 1.77        |
+|-------------------|-----------|------------|-------------|
+| 0.0001            | Backward  | 1.00       | 1.15        |
+| 0.0001            | Forward   | 2.71       | 3.13        |
+| 0.000841          | Backward  | 1.15       | 1.33        |
+| 0.000841          | Forward   | 1.77       | 2.04        |
+| 0.00707           | Backward  | 1.15       | 1.33        |
+| 0.00707           | Forward   | 1.53       | 1.77        |
+| 0.0595            | Backward  | 1.00       | 1.15        |
+| 0.0595            | Forward   | 1.53       | 1.77        |
+| 0.5               | Backward  | 1.00       | 1.15        |
+| 0.5               | Forward   | 1.53       | 1.77        |
 
 ## What This Shows
 
 **Forward confirms Gustav's prediction, clearly.** The escape-from-nothing boundary shifts left monotonically as `resource_decrease` increases: the geometric-mean estimate drops from `≈2.91` at the lowest rate down to `≈1.65` by `resource_decrease = 0.00707`, then holds there through the two highest rates. Higher resource rate really does need a smaller `capacity_mult` for the population to establish -- exactly the direction predicted, and not an artefact of the single rate the `(1.30, 1.41)` window above was found at.
 
-**Backward doesn't confirm or contradict it -- it's inconclusive at this resolution.** The Backward bracket only ever takes two values across all five rates, and doesn't move monotonically with `resource_decrease` (tight at the two middle rates, looser at the three outer ones). Backward tends to be the more robust direction throughout this project -- it starts from an established population rather than nothing -- so if its true shift across this range is smaller than the grid's ~15% step, this grid simply can't resolve it. That's a gap in the evidence, not evidence against the prediction.
+**Backward doesn't confirm or contradict it -- it's inconclusive at this resolution.** The Backward bracket only ever takes two values across all five rates, and doesn't move monotonically with `resource_decrease` (tight at the two middle rates, looser at the three outer ones). Backward tends to be the more robust direction throughout this project -- it starts from an established population rather than nothing -- so if its true shift across this range is smaller than the grid's \~15% step, this grid simply can't resolve it. That's a gap in the evidence, not evidence against the prediction.
 
 **A bonus finding: the loop itself narrows, not just shifts.** The gap between Forward and Backward shrinks from roughly `2.7`x at the lowest resource rate down to about `1.3`-`1.5`x at the highest. Higher resource rate doesn't just move the whole bistable region left -- it also compresses it.
 
@@ -367,7 +367,7 @@ transitions_multi_refine
 
 From the 2026-07-08 meeting: is the `capacity_mult` collapse bifurcation actually a consequence of mizer's size structure, or would the same qualitative behaviour already show up in the simplest possible unstructured version -- a two-species system with no age, size, or stage distinction at all? Gustav's suggested model: prey with chemostat-style replenishment and a carrying capacity (the same functional form as mizer's `resource_semichemostat`), predator with intake proportional to prey times predator (mass-action, no saturation) and mortality proportional to its own abundance:
 
-```
+```         
 dN/dt = D * (K - N) - a * N * P
 dP/dt = e * a * N * P - m * P
 ```
@@ -499,8 +499,8 @@ pp_transition
 ```
 
 | Analytic K_crit | Simulated dead below | Simulated alive above |
-|------------------|-----------------------|------------------------|
-| 0.6000           | 0.5247                | 0.6000                 |
+|-----------------|----------------------|-----------------------|
+| 0.6000          | 0.5247               | 0.6000                |
 
 ## What This Shows
 
@@ -509,6 +509,772 @@ Predator biomass sits at zero for every `K` below `≈0.6`, then rises along a c
 This settles the original question, at least for one specific feature: **the collapse-at-low-carrying-capacity behaviour does not require size resolution.** A bare 2-ODE consumer-resource system with no age, size, or stage structure at all shows the same "population collapses below a critical capacity" transition, for the same textbook reason -- Tilman's R\* threshold, not anything about growth or maturation.
 
 But there's a pointed asymmetry worth carrying forward: the mizer model's `capacity_mult` boundary has *genuine* hysteresis (the real `(1.30, 1.41)` bistable window pinned down earlier today), and this toy model has none, by mathematical necessity of its linear (Type I) functional response -- textbook theory (Rosenzweig's paradox of enrichment) says a model like this one can never destabilise into bistability or oscillation, regardless of parameters. So while the *existence* of a collapse threshold clearly doesn't need size structure, the *hysteresis* around it apparently needs something this toy model doesn't have: plausibly mizer's saturating (Type II) feeding kernel, the size/stage structure itself, or the Beverton-Holt recruitment nonlinearity. That's a sharper follow-up question than the one this model actually answered.
+
+------------------------------------------------------------------------
+
+## Is the capacity_mult Bifurcation Shape Just an Artefact of Our Species Parameters?
+
+Every `capacity_mult` sweep in this project, from Day 22 onward, has used the same anchovy-like calibration (`w_min = 0.0003`, `w_max = 66.5`, `w_mat = 10`, `lambda = 2.05`, `alpha = 0.1`, `gamma = 750`, `ks = 0`), carried over unchanged since Day 17. That's one specific point in a large parameter space -- nothing so far has checked whether the collapse-then-rise shape survives swapping in a completely different species. `newSingleSpeciesParams()` called with none of those arguments gives mizer's own built-in defaults instead, so rerunning the same kind of sweep against it is the direct test.
+
+```{r default-species-setup}
+#| message: false
+#| warning: false
+#| output: false
+make_default_species_params_kr <- function(resource_decrease = 0.001, capacity_mult = 1,
+                                            second_order = TRUE, ext_diff = 0.00,
+                                            lambda = NULL) {
+  # species_name is a label, not a biological parameter -- kept as "Anchovy"
+  # purely so run_bifurcation_sweep()'s shared harness (which hardcodes
+  # getBiomass(sim)[, "Anchovy"] for extracting the biomass series) doesn't
+  # need touching. Every actual biological argument (w_min, w_max, w_mat,
+  # lambda, kappa, alpha, gamma, ks, ...) is left unspecified, so mizer
+  # fills in its own defaults instead of this project's anchovy calibration.
+  params <- newSingleSpeciesParams(species_name = "Anchovy")
+
+  given_species_params(params)$D_ext <- ext_diff
+  params <- setBevertonHolt(params)
+
+  default_capacity <- getResourceCapacity(params)
+  r  <- getResourceRate(params) * resource_decrease
+  cc <- default_capacity * capacity_mult
+
+  params <- setResource(params, resource_rate = r, resource_capacity = cc,
+                        resource_dynamics = "resource_semichemostat",
+                        balance = FALSE)
+
+  if (second_order) {
+    second_order_w(params) <- c(flux = "centred", bin_average = TRUE)
+  }
+
+  params
+}
+```
+
+Wide and sparse rather than a multi-stage refinement -- the point here is just to see whether a collapse-then-rise shape shows up at all for a different species, not to pin its edges down precisely the way the anchovy version was. `t_run = 150` reuses the same validated shortcut as the multi-rate sweeps above; `capacity_mult` spans 5 orders of magnitude since there's no prior information about where a default species' threshold would fall:
+
+```{r default-species-sweep}
+#| message: false
+#| warning: false
+#| output: false
+cc_seq_default <- exp(seq(log(0.01), log(1000), length.out = 15))
+
+bif_default_df <- run_bifurcation_sweep(cc_seq_default, "capacity_mult",
+                                        fixed_params = list(resource_decrease = 0.001),
+                                        params_fn = make_default_species_params_kr,
+                                        t_run = 150)
+```
+
+```{r default-species-plot}
+#| message: false
+#| warning: false
+plot_bifurcation(
+  bif_default_df, "capacity_mult",
+  "capacity_mult bifurcation with mizer's own default species parameters",
+  "resource_decrease held at 0.001, t_run = 150 -- same sweep style as the anchovy version, different species"
+)
+```
+
+```{r default-species-transitions}
+#| message: false
+#| warning: false
+edge_calls_default <- bif_default_df %>%
+  filter(branch == "max") %>%
+  transmute(capacity_mult = value, direction, biomass, alive = biomass > ALIVE_THRESHOLD) %>%
+  arrange(direction, capacity_mult)
+
+transitions_default <- edge_calls_default %>%
+  group_by(direction) %>%
+  group_modify(~ find_transition(.x)) %>%
+  ungroup()
+
+transitions_default
+```
+
+| direction | dead below | alive above |
+|-----------|------------|-------------|
+| Backward  | 0.611      | 1.389       |
+| Forward   | 3.162      | 7.197       |
+
+The coarse pass alone is already informative: the collapse-then-rise shape reproduces cleanly with a completely different species, and Backward's and Forward's brackets don't overlap at all, a \~2.3x gap between them -- apparent real hysteresis, not just an artefact of this grid's own \~62% step size. But this project has learned that lesson before (the resource-rate sweep earlier today): a coarse grid can only ever *overestimate* how wide a bistable region is. Worth checking directly rather than taking the gap at face value.
+
+### Zooming Into the Hysteresis Region
+
+Narrowing `capacity_mult` to `[0.5, 8]` -- comfortably bracketing both coarse-pass edges with margin -- at 25 points. `t_run` goes back to the sweep's own default, `600`, rather than reusing the `150` shortcut from the coarse pass: that shortcut was validated specifically against the anchovy-calibrated model (Day 23's scan-rate check), not this different default species, so reusing it here would be stacking one unvalidated assumption on another. The window is narrow enough now that full accuracy doesn't cost much:
+
+```{r default-species-refine-sweep}
+#| message: false
+#| warning: false
+#| output: false
+cc_seq_default_refine <- exp(seq(log(0.5), log(8), length.out = 25))
+
+bif_default_refine_df <- run_bifurcation_sweep(cc_seq_default_refine, "capacity_mult",
+                                               fixed_params = list(resource_decrease = 0.001),
+                                               params_fn = make_default_species_params_kr,
+                                               t_run = 600)
+```
+
+```{r default-species-refine-plot}
+#| message: false
+#| warning: false
+plot_bifurcation(
+  bif_default_refine_df, "capacity_mult",
+  "Refined capacity_mult bifurcation, default species: [0.5, 8]",
+  "resource_decrease held at 0.001, t_run = 600 -- 25 points vs. the coarse pass's 15 over [0.01, 1000]"
+)
+```
+
+```{r default-species-refine-transitions}
+#| message: false
+#| warning: false
+edge_calls_default_refine <- bif_default_refine_df %>%
+  filter(branch == "max") %>%
+  transmute(capacity_mult = value, direction, biomass, alive = biomass > ALIVE_THRESHOLD) %>%
+  arrange(direction, capacity_mult)
+
+transitions_default_refine <- edge_calls_default_refine %>%
+  group_by(direction) %>%
+  group_modify(~ find_transition(.x)) %>%
+  ungroup()
+
+transitions_default_refine
+```
+
+| direction | dead below | alive above |
+|-----------|------------|-------------|
+| Backward  | 0.8909     | 1.0000      |
+| Forward   | 1.1225     | 1.2599      |
+
+One artefact worth flagging in the plot itself: Forward shows a sharp, narrow spike (up to roughly `8e-4`, well above the smooth curve on either side) right around `capacity_mult ≈ 1.2-1.3`, before dropping back and resuming the smooth rise from `~1.5` onward. This is very likely **critical slowing down** -- this project has repeatedly found (Day 18, Day 23's own scan-rate check) that relaxation time diverges right at a bifurcation point, so `t_run = 600` may not be long enough to fully settle exactly at the escape threshold, even though it's plenty everywhere else. That one point's "max" reading is probably an unsettled transient overshoot, not a real equilibrium value -- it doesn't change the transition bracket itself (based on crossing `ALIVE_THRESHOLD`, comfortably satisfied either way), but that specific point shouldn't be read as genuine steady-state biomass.
+
+## What This Shows
+
+The collapse-then-rise shape reproduces cleanly with a completely different species: flat near-zero biomass at low `capacity_mult`, rising smoothly at higher `capacity_mult` -- the same qualitative shape as every anchovy-calibrated sweep this project has run, despite none of the anchovy-specific biological parameters being used.
+
+Real hysteresis shows up too, and refining it down reveals its actual size: Backward stays alive down to `1.00`, collapsing somewhere before `0.89`; Forward stays dead through `1.1225`, escaping somewhere before `1.2599`. The two directions actually disagree only in the narrow band `(1.00, 1.12)`, about 12% relative width -- the coarse pass's apparent `(1.39, 3.16)` gap was mostly a resolution artefact, not the bistable region's real extent. That 12% figure lands in the same order of magnitude as the anchovy model's own `(1.30, 1.41)` window (\~8%), rather than the dramatically wider gap the coarse pass suggested -- a tidier, more convincing match between two very differently-parameterised species than "wider in relative terms" would have been.
+
+One more thing worth a closer look later: away from the transition itself, the branches fan apart slightly at the top of the tested range (min biomass noticeably below max at the highest `capacity_mult` in the coarse pass), reminiscent of the paradox-of-enrichment-style oscillation onset the anchovy model showed around `capacity_mult = 10` on Day 22. Not confirmed as real oscillation yet -- `t_run = 150` may just not be long enough to fully settle there -- but consistent with the same pattern showing up again.
+
+Taken together, this is fairly strong evidence that the collapse bifurcation *and* its hysteresis are general features of this consumer-resource structure, not artefacts of the specific anchovy calibration used throughout this project -- the species parameters seem to control *where* and *how wide* the bistable region sits (and even then, only by a factor of \~1.3-1.5x in relative width), not *whether* it exists at all.
+
+------------------------------------------------------------------------
+
+## Is the Juvenile-Biomass Pileup General, or Specific to Our Anchovy Calibration?
+
+Day 19 found that the anchovy size spectrum drops several orders of magnitude right at `w_mat = 10`: only `~0.031%` (default feeding kernel) to `~0.0033%` (highest-amplitude kernel) of total biomass was ever "catchable" (mature). That was flagged as an open demographic question -- survivorship through growth, not yet explained -- and carried forward unresolved through Days 20-24. The default-species `capacity_mult` check above only looked at *aggregate* biomass and found the same collapse-then-rise shape; it never looked at how that biomass is distributed across sizes. This is the actual pileup check: mizer's own default species instead of the anchovy calibration, but looking at the size spectrum itself rather than the aggregate bifurcation curve.
+
+`capacity_mult = 10` is used rather than `1`: the refined sweep above found `capacity_mult = 1` sits right at this species' own collapse boundary (Backward barely alive there, Forward dead until `~1.26`) -- a marginal, not-fully-established population would be a poor basis for a clean size-spectrum comparison. `capacity_mult = 10` is comfortably inside the coexistence region, matching the kind of healthy, established regime Day 19's original anchovy spectrum was taken from.
+
+```{r default-spectrum-sweep}
+#| message: false
+#| warning: false
+#| output: false
+default_spectrum_params <- make_default_species_params_kr(resource_decrease = 0.001,
+                                                           capacity_mult = 10, lambda = 2.05)
+
+default_spectrum_sim <- project(default_spectrum_params, t_max = 600, dt = 0.1, t_save = 0.5,
+                                progress_bar = FALSE, effort = 0, method = "tr_bdf2")
+
+last_default_spectrum <- dim(default_spectrum_sim@n)[1]
+default_w_mat         <- default_spectrum_params@species_params$w_mat[1]
+
+default_spectrum_df <- data.frame(
+  w               = default_spectrum_sim@params@w,
+  biomass_density = default_spectrum_sim@n[last_default_spectrum, 1, ] * default_spectrum_sim@params@w
+)
+```
+
+```{r default-spectrum-plot}
+#| message: false
+#| warning: false
+ggplot(default_spectrum_df, aes(x = w, y = biomass_density)) +
+  geom_line(linewidth = 1, color = "#4C72B0") +
+  geom_vline(xintercept = default_w_mat, linetype = "dashed", color = "grey40") +
+  scale_x_log10() + scale_y_log10() +
+  labs(x = "Body weight (g)", y = "Biomass density (N x w)",
+       title = "Size spectrum, mizer's own default species parameters",
+       subtitle = sprintf(
+         "capacity_mult = 10, resource_decrease = 0.001 -- dashed line = this species' own w_mat = %.3g",
+         default_w_mat
+       )) +
+  theme_minimal()
+```
+
+Same `catchable_fraction()` quantification Day 19 used for the anchovy, so the two are directly comparable numbers, not just similar-looking plots:
+
+```{r default-spectrum-fraction}
+#| message: false
+#| warning: false
+catchable_fraction_default <- function(sim, cutoff) {
+  last         <- dim(sim@n)[1]
+  w            <- sim@params@w
+  dw           <- sim@params@dw
+  bm_density   <- sim@n[last, 1, ] * w * dw
+  total_bm     <- sum(bm_density)
+  catchable_bm <- sum(bm_density[w >= cutoff])
+  data.frame(total_bm = total_bm, catchable_bm = catchable_bm,
+             catchable_fraction = catchable_bm / total_bm)
+}
+
+catchable_fraction_default(default_spectrum_sim, cutoff = default_w_mat)
+```
+
+| w_mat | Fraction of biomass at or above w_mat ("catchable") |
+|-------|-----------------------------------------------------|
+| 25.12 | 7.13%                                               |
+
+## What This Shows
+
+`~7.1%` of this default species' biomass sits at or above its own `w_mat` -- roughly 200-2000x larger than the anchovy's `0.031%`/`0.0033%`. The spectrum plot shows why: the normal, gently-declining shape for most of the size range, a small shoulder right around `w_mat = 25.12`, then a steep drop-off toward the top of the tested weights -- a much more moderate version of the same qualitative "something changes at maturity" feature, not the near-total juvenile domination (`>99.9%`) Day 19 found.
+
+This points the opposite direction from the capacity_mult check above: **the juvenile-biomass pileup does not look like a general mizer/growth-mortality feature.** It's not simply that maturity sits in a different place on the size axis either -- the anchovy's `w_mat`/`w_max` ratio (`10/66.5 ≈ 0.15`) and the default species' (roughly `25/100 ≈ 0.25`, going by where the spectrum's steep drop happens) aren't wildly different. Both species show *some* juvenile skew, which is ordinary size-spectrum theory (smaller, younger individuals are always more abundant), but the anchovy's skew is several orders of magnitude more extreme. That points at the specific `alpha`, `gamma`, `ks`, or `w_min`/`w_max` choices carried since Day 17 -- not mizer's growth-mortality structure in general -- as what's actually producing the near-complete absence of mature biomass in this project's anchovy model.
+
+So the two checks run today land on opposite answers: the `capacity_mult` collapse-and-hysteresis behaviour looks like a general feature of this model class, while the juvenile-biomass pileup looks like a specific consequence of this project's own species calibration.
+
+------------------------------------------------------------------------
+
+## Does a Saturating Functional Response Unlock the Hysteresis?
+
+The non-size-structured predator-prey model earlier today used a Type I (linear, unsaturated) intake term and, as Rosenzweig's paradox-of-enrichment theory predicts, showed no hysteresis at all -- only mizer's saturating feeding kernel, its size structure, or its Beverton-Holt recruitment nonlinearity could explain the real `(1.30, 1.41)` bistable window mizer shows. This tests the first of those directly: add satiation to the toy predator's intake, `a*N/(1 + a*h*N)` instead of `a*N`, and rerun the same kind of sweep.
+
+Worth working out analytically before touching the sweep, the same way `K_crit` was derived for the Type I model. For any two-species system `dN/dt = g(N) - f(N)*P`, `dP/dt = e*f(N)*P - m*P`, the coexistence equilibrium always has `f(N*) = m/e`, which makes the `dP/dt`-vs-`P` Jacobian entry (`e*f(N*) - m`) exactly zero *regardless of f's shape*. That leaves `trace = g'(N*) - f'(N*)*P*` and `det = m*f'(N*)*P*` (always positive if `f` is increasing), so stability depends entirely on the trace's sign. For **chemostat** prey growth, `g(N) = D*(K-N)`, so `g'(N) = -D` -- a constant, independent of `K` and of whether `f` is Type I (`f' = a`) or Type II (`f' = a/(1+a*h*N)^2`, still `> 0`). `trace = -D - f'(N*)*P*` is negative either way, for every `K` where the predator survives at all. The paradox of enrichment specifically needs the prey's *own* growth curve to weaken (or reverse) as `K` grows at fixed `N*` -- true for logistic growth `r*N*(1-N/K)`, structurally impossible for chemostat growth. So the analytic prediction here is that Type II saturation alone, with prey growth kept chemostat-style, should still give a single transcritical bifurcation -- a different `K_crit` formula, but no oscillation and no hysteresis. Confirming that empirically is worth more than trusting the algebra, and if it holds, it sharpens the open question rather than closing it.
+
+```{r pp-typeII-setup}
+#| message: false
+#| warning: false
+#| output: false
+predator_prey_rhs_typeII <- function(t, state, parms) {
+  # Same positional-indexing and clamping lessons as the Type I model.
+  N <- max(state[1], 0)
+  P <- max(state[2], 0)
+  D <- parms[["D"]]
+  a <- parms[["a"]]
+  e <- parms[["e"]]
+  m <- parms[["m"]]
+  h <- parms[["h"]]
+  K <- parms[["K"]]
+
+  intake <- a * N / (1 + a * h * N)  # Holling Type II -- reduces to a*N (Type I) as h -> 0
+
+  dN <- D * (K - N) - intake * P
+  dP <- e * intake * P - m * P
+  list(c(dN, dP))
+}
+
+# h = 1: comfortably below the e/m = 1.667 ceiling above which the predator
+# can never break even even at infinite prey -- as N -> infinity, intake
+# maxes out at 1/h, so viability at any N at all needs e/h > m, i.e. h < e/m.
+predator_prey_params_typeII <- list(D = 1, a = 1, e = 0.5, m = 0.3, h = 1, K = 1)
+
+# f(N*) = m/e => a*N* / (1 + a*h*N*) = m/e => N* = m / (a*(e - h*m)),
+# valid only while e > h*m. K_crit = N*, same logic as the Type I model.
+N_star_typeII <- with(predator_prey_params_typeII, m / (a * (e - h * m)))
+K_crit_typeII <- N_star_typeII
+
+run_predator_prey_typeII <- function(K, state0 = c(N = 1, P = 0.1), t_max = 500,
+                                     parms = predator_prey_params_typeII) {
+  parms$K <- K
+  out  <- as.data.frame(ode(y = state0, times = seq(0, t_max, by = 0.5),
+                            func = predator_prey_rhs_typeII, parms = parms))
+  late <- out[out$time > t_max * 0.6, ]
+  if (nrow(late) == 0) late <- tail(out, 1)
+  data.frame(K = K, max_P = max(late$P), min_P = min(late$P), mean_P = mean(late$P),
+             n_final = tail(late$N, 1), p_final = tail(late$P, 1))
+}
+```
+
+```{r pp-typeII-fresh-sweep}
+#| message: false
+#| warning: false
+#| output: false
+K_seq_typeII <- exp(seq(log(K_crit_typeII * 0.2), log(K_crit_typeII * 5), length.out = 25))
+
+pp_typeII_df <- bind_rows(lapply(K_seq_typeII, run_predator_prey_typeII))
+```
+
+```{r pp-typeII-fresh-plot}
+#| message: false
+#| warning: false
+ggplot(pp_typeII_df, aes(x = K, y = p_final)) +
+  geom_line(color = "#DD8452", linewidth = 1) +
+  geom_point(color = "#DD8452", size = 1.5) +
+  geom_vline(xintercept = K_crit_typeII, linetype = "dotted", color = "grey40") +
+  scale_x_log10() +
+  labs(x = "K (prey carrying capacity)", y = "Predator biomass (P), settled",
+       title = "Type II (saturating) predator-prey model: fresh run at each K",
+       subtitle = sprintf("h = %.2f -- dotted line = analytic K_crit = %.3f",
+                          predator_prey_params_typeII$h, K_crit_typeII)) +
+  theme_minimal()
+```
+
+The fresh-run curve confirms `K_crit_typeII = 1.5` exactly -- the curve departs from zero right at the dotted line, same clean match as the Type I model's `K_crit = 0.6`. Now the actual hysteresis test: a state-carried Forward/Backward pass, starting comfortably above `K_crit_typeII` (not deep in extinction territory like the fresh sweep) so the Type I attempt's absorbing-zero failure can't retrigger:
+
+```{r pp-typeII-carried-sweep}
+#| message: false
+#| warning: false
+#| output: false
+run_state_carried_typeII <- function(K_seq, parms = predator_prey_params_typeII, t_max = 500) {
+  run_one_direction <- function(seq_vals, init_state = c(N = 1, P = 0.1)) {
+    out   <- vector("list", length(seq_vals))
+    state <- init_state
+    for (i in seq_along(seq_vals)) {
+      p <- parms
+      p$K <- seq_vals[i]
+      sim   <- as.data.frame(ode(y = state, times = seq(0, t_max, by = 0.5),
+                                 func = predator_prey_rhs_typeII, parms = p))
+      late  <- sim[sim$time > t_max * 0.6, ]
+      if (nrow(late) == 0) late <- tail(sim, 1)
+      state <- pmax(c(N = tail(late$N, 1), P = tail(late$P, 1)), 0)
+      out[[i]] <- data.frame(K = seq_vals[i], max_P = max(late$P), min_P = min(late$P))
+    }
+    list(df = bind_rows(out), final_state = state)
+  }
+
+  fwd    <- run_one_direction(K_seq)
+  bwd    <- run_one_direction(rev(K_seq), init_state = fwd$final_state)
+  bwd_df <- bwd$df[order(bwd$df$K), ]
+
+  bind_rows(
+    data.frame(K = fwd$df$K, biomass = fwd$df$max_P, direction = "Forward",  branch = "max"),
+    data.frame(K = fwd$df$K, biomass = fwd$df$min_P, direction = "Forward",  branch = "min"),
+    data.frame(K = bwd_df$K, biomass = bwd_df$max_P, direction = "Backward", branch = "max"),
+    data.frame(K = bwd_df$K, biomass = bwd_df$min_P, direction = "Backward", branch = "min")
+  )
+}
+
+K_seq_typeII_carried <- exp(seq(log(K_crit_typeII * 0.8), log(K_crit_typeII * 5), length.out = 20))
+
+pp_typeII_carried_df <- run_state_carried_typeII(K_seq_typeII_carried)
+```
+
+```{r pp-typeII-carried-plot}
+#| message: false
+#| warning: false
+ggplot(pp_typeII_carried_df, aes(x = K, y = biomass, color = direction, linetype = branch)) +
+  geom_line(linewidth = 1) +
+  geom_point(size = 1.2) +
+  geom_vline(xintercept = K_crit_typeII, linetype = "dotted", color = "grey40") +
+  scale_x_log10() +
+  labs(x = "K (prey carrying capacity)", y = "Predator biomass (P)",
+       title = "Type II predator-prey model: state-carried Forward/Backward",
+       subtitle = "Started at K = 0.8 * K_crit_typeII, comfortably clear of the low-K absorbing-zero region") +
+  theme_minimal()
+```
+
+## What This Shows
+
+Forward and Backward overlap across essentially the entire range, both rising smoothly from near-zero at `K ≈ K_crit_typeII` up to `~10` by `K ≈ 5.7` along the same curve -- the "no hysteresis" prediction holding up under direct simulation, not just algebra. There's one small, isolated dip in the "min" branch right around `K ≈ 2`, just above `K_crit_typeII`, but it's a single brief wobble rather than a sustained gap between the branches -- consistent with critical slowing down (relaxation time is longest right near a bifurcation point, so a fixed settle window can catch an under-settled transient there), the same phenomenon flagged in the default-species `capacity_mult` refinement earlier today, not genuine bistability.
+
+**Type II saturation alone, with prey growth kept chemostat-style, is not sufficient to reproduce mizer's genuine hysteresis loop** -- exactly as the Jacobian argument predicted. That sharpens the open question rather than closing it: the missing ingredient is either a density-dependent (logistic-type) prey growth curve -- the actual paradox-of-enrichment mechanism, which chemostat growth structurally can't provide -- or something else entirely, such as real size/stage structure or mizer's Beverton-Holt recruitment nonlinearity.
+
+------------------------------------------------------------------------
+
+## Is Gamma Specifically What Drives the Juvenile-Biomass Pileup?
+
+The juvenile-pileup check above found the default species puts `~7.1%` of biomass above its own `w_mat`, versus the anchovy's `0.031%`/`0.0033%` -- 200-2000x less extreme -- and pointed at this project's own `alpha`/`gamma`/`ks`/`w_min`/`w_max` calibration rather than mizer's growth-mortality structure in general. `gamma` (search volume / intake rate) is the natural first suspect: a much higher `gamma` should mean faster growth through the juvenile size range, which could plausibly explain why so little anchovy biomass ever survives to `w_mat`.
+
+A clean 2x2 isolates it: species parameters (anchovy vs. default) crossed with `gamma` (the anchovy's `750` vs. the default species' own value), holding everything else about each species fixed:
+
+```{r gamma-isolation-setup}
+#| message: false
+#| warning: false
+#| output: false
+default_gamma <- default_spectrum_params@species_params$gamma[1]
+
+# Anchovy species parameters, but gamma is swappable instead of hardcoded.
+make_anchovy_gamma_swap_kr <- function(resource_decrease = 0.001, capacity_mult = 1,
+                                       second_order = TRUE, ext_diff = 0.00,
+                                       lambda = 2.05, gamma_override) {
+  a0    <- 100
+  kappa <- a0 * exp(-6.9 * (lambda - 1))
+  no_w  <- round(log(66.5 / 0.0003) / 0.1)
+
+  params <- newSingleSpeciesParams(
+    species_name = "Anchovy",
+    w_min = 0.0003, w_max = 66.5, w_mat = 10,
+    no_w = no_w, lambda = lambda, kappa = kappa,
+    alpha = 0.1, gamma = gamma_override, ks = 0
+  )
+
+  given_species_params(params)$D_ext <- ext_diff
+  params <- setBevertonHolt(params)
+
+  default_capacity <- getResourceCapacity(params)
+  r  <- getResourceRate(params) * resource_decrease
+  cc <- default_capacity * capacity_mult
+
+  params <- setResource(params, resource_rate = r, resource_capacity = cc,
+                        resource_dynamics = "resource_semichemostat",
+                        balance = FALSE)
+
+  if (second_order) {
+    second_order_w(params) <- c(flux = "centred", bin_average = TRUE)
+  }
+
+  params
+}
+
+# Default species parameters, but gamma is swappable instead of left to
+# mizer's own default.
+make_default_gamma_swap_kr <- function(resource_decrease = 0.001, capacity_mult = 1,
+                                       second_order = TRUE, ext_diff = 0.00,
+                                       lambda = NULL, gamma_override) {
+  params <- newSingleSpeciesParams(species_name = "Anchovy", gamma = gamma_override)
+
+  given_species_params(params)$D_ext <- ext_diff
+  params <- setBevertonHolt(params)
+
+  default_capacity <- getResourceCapacity(params)
+  r  <- getResourceRate(params) * resource_decrease
+  cc <- default_capacity * capacity_mult
+
+  params <- setResource(params, resource_rate = r, resource_capacity = cc,
+                        resource_dynamics = "resource_semichemostat",
+                        balance = FALSE)
+
+  if (second_order) {
+    second_order_w(params) <- c(flux = "centred", bin_average = TRUE)
+  }
+
+  params
+}
+
+# Same spectrum-and-catchable_fraction logic as the juvenile-pileup check
+# above, generalised so all four variants are computed identically rather
+# than by hand four times. Reports both gamma and alpha since the same
+# function is reused for the alpha isolation check later.
+run_spectrum_check <- function(params_fn, label, capacity_mult = 10,
+                               resource_decrease = 0.001, t_max = 600, ...) {
+  # Wrapped in tryCatch: newSingleSpeciesParams() does its own viability
+  # check at construction time and errors out hard if a swapped parameter
+  # makes the species infeasible before any dynamics even run -- a real
+  # result for an isolation test like this one, not just a technical
+  # failure, so it's recorded as a row (catchable_fraction = NA, error
+  # message kept) rather than halting the whole isolation table.
+  tryCatch({
+    p   <- params_fn(resource_decrease = resource_decrease, capacity_mult = capacity_mult, ...)
+    sim <- project(p, t_max = t_max, dt = 0.1, t_save = 0.5,
+                   progress_bar = FALSE, effort = 0, method = "tr_bdf2")
+    last  <- dim(sim@n)[1]
+    w_mat <- p@species_params$w_mat[1]
+    w     <- sim@params@w
+    dw    <- sim@params@dw
+
+    bm_density   <- sim@n[last, 1, ] * w * dw
+    total_bm     <- sum(bm_density)
+    catchable_bm <- sum(bm_density[w >= w_mat])
+
+    # kappa is not a species-level parameter the way gamma/alpha/ks are --
+    # it describes the background resource spectrum -- so retrieving it
+    # needs its own defensive helper (NA on failure) rather than assuming
+    # it lives in species_params.
+    safe_scalar <- function(expr) {
+      v <- tryCatch(expr, error = function(e) NULL)
+      if (is.null(v) || length(v) == 0) NA_real_ else v[1]
+    }
+    kappa_val <- safe_scalar(resource_params(p)$kappa)
+
+    data.frame(label = label, gamma = p@species_params$gamma[1],
+               alpha = p@species_params$alpha[1], ks = p@species_params$ks[1],
+               kappa = kappa_val, w_mat = w_mat,
+               catchable_fraction = catchable_bm / total_bm, error = NA_character_)
+  }, error = function(e) {
+    data.frame(label = label, gamma = NA_real_, alpha = NA_real_, ks = NA_real_,
+               kappa = NA_real_, w_mat = NA_real_, catchable_fraction = NA_real_,
+               error = conditionMessage(e))
+  })
+}
+```
+
+```{r gamma-isolation-run}
+#| message: false
+#| warning: false
+gamma_isolation_df <- bind_rows(
+  run_spectrum_check(make_second_order_params_kr,
+                     label = "Anchovy params, anchovy gamma (750)"),
+  run_spectrum_check(make_anchovy_gamma_swap_kr,
+                     label = "Anchovy params, default gamma",
+                     gamma_override = default_gamma),
+  run_spectrum_check(make_default_species_params_kr,
+                     label = "Default params, default gamma"),
+  run_spectrum_check(make_default_gamma_swap_kr,
+                     label = "Default params, anchovy gamma (750)",
+                     gamma_override = 750)
+)
+
+gamma_isolation_df
+```
+
+| label                               | gamma  | catchable_fraction |
+|-------------------------------------|--------|--------------------|
+| Anchovy params, anchovy gamma (750) | 750.0  | 0.0344%            |
+| Anchovy params, default gamma       | 2066.0 | 0.0416%            |
+| Default params, default gamma       | 2066.0 | 7.13%              |
+| Default params, anchovy gamma (750) | 750.0  | 0.0426%            |
+
+## What This Shows
+
+Reading down each column tells two different stories. **Starting from the default species and swapping only `gamma` down to the anchovy's `750` collapses the catchable fraction by \~165x** (`7.13% → 0.043%`), landing almost exactly on the anchovy's own extreme value -- a striking, single-parameter effect, and directionally sensible: lower `gamma` means slower intake and growth, so individuals take longer to cross from `w_min` to `w_mat`, and cumulative background mortality over that longer juvenile period leaves less biomass ever arriving at maturity.
+
+**But raising the anchovy's `gamma` nearly 3x, up to the default's own `2066`, barely moves its catchable fraction at all** (`0.034% → 0.042%`). If `gamma` alone explained the anchovy's extremity, this should have pulled it back up toward the `~7%` default level -- it didn't.
+
+**So `gamma` is *sufficient* to cause the extreme pileup (in the default parameter context), but it's not *necessary*, and it can't undo the anchovy's extremity on its own.** Something else in the anchovy's specific parameter set -- `alpha = 0.1` (assimilation efficiency), `ks = 0`, the `w_min`/`w_max` span, or `kappa` -- is independently locking in the extreme skew, robustly enough that a much higher `gamma` doesn't rescue it. `alpha` is the natural next suspect, using the identical isolation design.
+
+------------------------------------------------------------------------
+
+## Is Alpha the Rest of the Story?
+
+Same 2x2 isolation design as the `gamma` check, `alpha` (assimilation efficiency) instead of `gamma` -- and `gamma` held fixed at each species' own natural value throughout, so this isolates `alpha` specifically rather than reopening the `gamma` question:
+
+```{r alpha-isolation-setup}
+#| message: false
+#| warning: false
+#| output: false
+default_alpha <- default_spectrum_params@species_params$alpha[1]
+
+# Anchovy species parameters, but alpha is swappable instead of hardcoded.
+# gamma stays fixed at the anchovy's own 750.
+make_anchovy_alpha_swap_kr <- function(resource_decrease = 0.001, capacity_mult = 1,
+                                       second_order = TRUE, ext_diff = 0.00,
+                                       lambda = 2.05, alpha_override) {
+  a0    <- 100
+  kappa <- a0 * exp(-6.9 * (lambda - 1))
+  no_w  <- round(log(66.5 / 0.0003) / 0.1)
+
+  params <- newSingleSpeciesParams(
+    species_name = "Anchovy",
+    w_min = 0.0003, w_max = 66.5, w_mat = 10,
+    no_w = no_w, lambda = lambda, kappa = kappa,
+    alpha = alpha_override, gamma = 750, ks = 0
+  )
+
+  given_species_params(params)$D_ext <- ext_diff
+  params <- setBevertonHolt(params)
+
+  default_capacity <- getResourceCapacity(params)
+  r  <- getResourceRate(params) * resource_decrease
+  cc <- default_capacity * capacity_mult
+
+  params <- setResource(params, resource_rate = r, resource_capacity = cc,
+                        resource_dynamics = "resource_semichemostat",
+                        balance = FALSE)
+
+  if (second_order) {
+    second_order_w(params) <- c(flux = "centred", bin_average = TRUE)
+  }
+
+  params
+}
+
+# Default species parameters, but alpha is swappable. gamma stays fixed at
+# the default species' own value.
+make_default_alpha_swap_kr <- function(resource_decrease = 0.001, capacity_mult = 1,
+                                       second_order = TRUE, ext_diff = 0.00,
+                                       lambda = NULL, alpha_override) {
+  params <- newSingleSpeciesParams(species_name = "Anchovy", alpha = alpha_override)
+
+  given_species_params(params)$D_ext <- ext_diff
+  params <- setBevertonHolt(params)
+
+  default_capacity <- getResourceCapacity(params)
+  r  <- getResourceRate(params) * resource_decrease
+  cc <- default_capacity * capacity_mult
+
+  params <- setResource(params, resource_rate = r, resource_capacity = cc,
+                        resource_dynamics = "resource_semichemostat",
+                        balance = FALSE)
+
+  if (second_order) {
+    second_order_w(params) <- c(flux = "centred", bin_average = TRUE)
+  }
+
+  params
+}
+```
+
+```{r alpha-isolation-run}
+#| message: false
+#| warning: false
+alpha_isolation_df <- bind_rows(
+  run_spectrum_check(make_second_order_params_kr,
+                     label = "Anchovy params, anchovy alpha (0.1)"),
+  run_spectrum_check(make_anchovy_alpha_swap_kr,
+                     label = "Anchovy params, default alpha",
+                     alpha_override = default_alpha),
+  run_spectrum_check(make_default_species_params_kr,
+                     label = "Default params, default alpha"),
+  run_spectrum_check(make_default_alpha_swap_kr,
+                     label = "Default params, anchovy alpha (0.1)",
+                     alpha_override = 0.1)
+)
+
+alpha_isolation_df
+```
+
+| label                               | gamma  | catchable_fraction |
+|-------------------------------------|--------|--------------------|
+| Anchovy params, anchovy alpha (0.1) | 750.0  | 3.44e-4            |
+| Anchovy params, default alpha       | 750.0  | 0.703              |
+| Default params, default alpha       | 2066.0 | 0.0713             |
+| Default params, anchovy alpha (0.1) | 2066.0 | 8.02e-10           |
+
+## What This Shows
+
+Alpha's effect dwarfs gamma's. Swapping only `alpha` (holding `gamma` fixed at each species' own value): anchovy's other params plus the **default's alpha** takes the catchable fraction from `0.034%` to **`70.3%`** -- not just rescued, but overshooting the default species' own baseline (`7.13%`) by roughly 10x. And default's other params plus the **anchovy's alpha (`0.1`)** takes it from `7.13%` down to **`8.0×10⁻⁸%`** -- an even more extreme collapse than the anchovy's own actual value. Both swings are 5+ orders of magnitude, versus gamma's \~165x in one direction and negligible in the other -- `alpha` is clearly the dominant lever, not a secondary one.
+
+But a genuine loose thread remains before calling this closed. Two rows -- one from the `gamma` check, one from this one -- share the *exact same* `alpha = 0.1, gamma = 2066` combination, differing only in which species' remaining parameters (`w_min`, `w_max`, `w_mat`, `kappa`, `ks`) were used:
+
+- Anchovy's other params + `alpha = 0.1, gamma = 2066`: `0.042%` (the `gamma` check's row 2)
+- Default's other params + `alpha = 0.1, gamma = 2066`: `8.0×10⁻⁸%` (this check's row 4)
+
+That's still a \~500,000x gap with `alpha` and `gamma` pinned identical -- meaning `kappa`, `ks`, or the `w_min`/`w_max` span are *also* independently doing real work, not just noise around `alpha`'s dominant effect. `alpha` is the biggest single lever found so far, but not the complete explanation.
+
+------------------------------------------------------------------------
+
+## Do ks and kappa Close the Remaining Gap?
+
+Same isolation design again, `ks` (standard metabolism) and `kappa` (background resource-spectrum coefficient) this time -- the two remaining parameters that plausibly affect the growth/mortality rate balance directly, rather than just the size range (`w_min`/`w_max`):
+
+```{r ks-kappa-isolation-setup}
+#| message: false
+#| warning: false
+#| output: false
+# kappa is not a species-level trait the way gamma/alpha/ks are -- it's a
+# background-resource-spectrum parameter, and by the time
+# default_spectrum_params exists, setResource(..., resource_dynamics =
+# "resource_semichemostat", ...) has already replaced the power-law
+# (kappa/lambda) resource setup with a semichemostat one
+# (resource_rate/resource_capacity), so kappa may no longer be part of the
+# object at all. Querying a fresh, not-yet-modified default species object
+# instead, before that override runs.
+get_kappa <- function(p) {
+  v <- tryCatch(resource_params(p)$kappa, error = function(e) NULL)
+  if (is.null(v) || length(v) == 0) NA_real_ else v[1]
+}
+
+default_species_raw <- newSingleSpeciesParams(species_name = "Anchovy")
+default_kappa        <- get_kappa(default_species_raw)
+default_ks           <- default_spectrum_params@species_params$ks[1]
+anchovy_kappa        <- 100 * exp(-6.9 * (2.05 - 1))  # same formula make_second_order_params_kr() uses
+
+make_anchovy_ks_swap_kr <- function(resource_decrease = 0.001, capacity_mult = 1,
+                                    second_order = TRUE, ext_diff = 0.00,
+                                    lambda = 2.05, ks_override) {
+  a0    <- 100
+  kappa <- a0 * exp(-6.9 * (lambda - 1))
+  no_w  <- round(log(66.5 / 0.0003) / 0.1)
+  params <- newSingleSpeciesParams(
+    species_name = "Anchovy", w_min = 0.0003, w_max = 66.5, w_mat = 10,
+    no_w = no_w, lambda = lambda, kappa = kappa,
+    alpha = 0.1, gamma = 750, ks = ks_override
+  )
+  given_species_params(params)$D_ext <- ext_diff
+  params <- setBevertonHolt(params)
+  cc <- getResourceCapacity(params) * capacity_mult
+  r  <- getResourceRate(params) * resource_decrease
+  params <- setResource(params, resource_rate = r, resource_capacity = cc,
+                        resource_dynamics = "resource_semichemostat", balance = FALSE)
+  if (second_order) second_order_w(params) <- c(flux = "centred", bin_average = TRUE)
+  params
+}
+
+make_default_ks_swap_kr <- function(resource_decrease = 0.001, capacity_mult = 1,
+                                    second_order = TRUE, ext_diff = 0.00,
+                                    lambda = NULL, ks_override) {
+  params <- newSingleSpeciesParams(species_name = "Anchovy", ks = ks_override)
+  given_species_params(params)$D_ext <- ext_diff
+  params <- setBevertonHolt(params)
+  cc <- getResourceCapacity(params) * capacity_mult
+  r  <- getResourceRate(params) * resource_decrease
+  params <- setResource(params, resource_rate = r, resource_capacity = cc,
+                        resource_dynamics = "resource_semichemostat", balance = FALSE)
+  if (second_order) second_order_w(params) <- c(flux = "centred", bin_average = TRUE)
+  params
+}
+
+make_anchovy_kappa_swap_kr <- function(resource_decrease = 0.001, capacity_mult = 1,
+                                       second_order = TRUE, ext_diff = 0.00,
+                                       lambda = 2.05, kappa_override) {
+  no_w <- round(log(66.5 / 0.0003) / 0.1)
+  params <- newSingleSpeciesParams(
+    species_name = "Anchovy", w_min = 0.0003, w_max = 66.5, w_mat = 10,
+    no_w = no_w, lambda = lambda, kappa = kappa_override,
+    alpha = 0.1, gamma = 750, ks = 0
+  )
+  given_species_params(params)$D_ext <- ext_diff
+  params <- setBevertonHolt(params)
+  cc <- getResourceCapacity(params) * capacity_mult
+  r  <- getResourceRate(params) * resource_decrease
+  params <- setResource(params, resource_rate = r, resource_capacity = cc,
+                        resource_dynamics = "resource_semichemostat", balance = FALSE)
+  if (second_order) second_order_w(params) <- c(flux = "centred", bin_average = TRUE)
+  params
+}
+
+make_default_kappa_swap_kr <- function(resource_decrease = 0.001, capacity_mult = 1,
+                                       second_order = TRUE, ext_diff = 0.00,
+                                       lambda = NULL, kappa_override) {
+  params <- newSingleSpeciesParams(species_name = "Anchovy", kappa = kappa_override)
+  given_species_params(params)$D_ext <- ext_diff
+  params <- setBevertonHolt(params)
+  cc <- getResourceCapacity(params) * capacity_mult
+  r  <- getResourceRate(params) * resource_decrease
+  params <- setResource(params, resource_rate = r, resource_capacity = cc,
+                        resource_dynamics = "resource_semichemostat", balance = FALSE)
+  if (second_order) second_order_w(params) <- c(flux = "centred", bin_average = TRUE)
+  params
+}
+```
+
+```{r ks-kappa-isolation-run}
+#| message: false
+#| warning: false
+ks_isolation_df <- bind_rows(
+  run_spectrum_check(make_second_order_params_kr, label = "Anchovy params, anchovy ks (0)"),
+  run_spectrum_check(make_anchovy_ks_swap_kr, label = "Anchovy params, default ks", ks_override = default_ks),
+  run_spectrum_check(make_default_species_params_kr, label = "Default params, default ks"),
+  run_spectrum_check(make_default_ks_swap_kr, label = "Default params, anchovy ks (0)", ks_override = 0)
+)
+
+kappa_isolation_df <- bind_rows(
+  run_spectrum_check(make_second_order_params_kr, label = "Anchovy params, anchovy kappa"),
+  run_spectrum_check(make_anchovy_kappa_swap_kr, label = "Anchovy params, default kappa", kappa_override = default_kappa),
+  run_spectrum_check(make_default_species_params_kr, label = "Default params, default kappa"),
+  run_spectrum_check(make_default_kappa_swap_kr, label = "Default params, anchovy kappa", kappa_override = anchovy_kappa)
+)
+
+ks_isolation_df
+kappa_isolation_df
+```
+
+| label                          | gamma   | alpha | ks  | kappa | catchable_fraction |
+|--------------------------------|---------|-------|-----|-------|--------------------|
+| Anchovy params, anchovy ks (0) | 750     | 0.1   | 0   | 0.071 | 0.0344%            |
+| Anchovy params, default ks     | --      | --    | --  | --    | *infeasible*       |
+| Default params, default ks     | 2066    | 0.4   | 3   | 0.005 | 7.13%              |
+| Default params, anchovy ks (0) | 2066    | 0.4   | 0   | 0.005 | 48.8%              |
+| Anchovy params, anchovy kappa  | 750     | 0.1   | 0   | 0.071 | 0.0344%            |
+| Anchovy params, default kappa  | 750     | 0.1   | 0   | 0.005 | 0.0025%            |
+| Default params, default kappa  | 2066    | 0.4   | 3   | 0.005 | 7.13%              |
+| Default params, anchovy kappa  | **145** | 0.4   | 3   | 0.071 | 7.13%              |
+
+## What This Shows
+
+The last row is the important one to notice first, and not for the reason it was run. "Default params, anchovy kappa" reports `gamma = 145`, not the default's own `2066` -- even though nothing in that call touched `gamma`. **This reveals that mizer's own default-parameter calibration is interdependent: leaving a parameter unspecified doesn't hold it at "the pure default species' value," it lets mizer re-derive it to stay self-consistent with whatever *was* specified.** That means every "Default params, anchovy `X`" row across all four isolation tests today (gamma, alpha, ks, kappa) may have silently varied more than the one parameter intended -- except this `ks` table's version of that row, where `gamma`/`alpha`/`kappa` did stay pinned at `2066`/`0.4`/`0.005` as expected, and the "Anchovy params, default `X`" direction, which is always clean since those builder functions explicitly hardcode every other parameter.
+
+Restricting to the clean, trustworthy comparisons -- anchovy's own parameters, swapping exactly one to the default's value -- gives a real ranking:
+
+| swapped parameter   | catchable fraction | vs. anchovy baseline (0.0344%)     |
+|---------------------|--------------------|------------------------------------|
+| `alpha` → default's | 70.3%              | rescued, massively overshoots      |
+| `ks` → default's    | *infeasible*       | breaks the species entirely        |
+| `kappa` → default's | 0.0025%            | \~14x **worse** -- wrong direction |
+| `gamma` → default's | 0.042%             | barely moves                       |
+
+`alpha` is overwhelmingly dominant. `ks` is a real second contributor in the *same* direction as `alpha` -- adding the default's `ks` on top of the anchovy's already-thin `alpha` margin is enough to make the species unbuildable at all. `kappa` has a real but modest effect, and it points the wrong way to help explain the anchovy's extremity: the anchovy's own `kappa` is actually more generous than the default's, so a smaller `kappa` isn't why the anchovy is worse off. `gamma` is negligible on its own -- consistent with the earlier gamma-isolation finding.
+
+The one "Default params" row that *is* trustworthy (`ks`, where the other three parameters stayed properly pinned) confirms `ks` matters substantially in that direction too: removing the default's standard metabolic cost (`ks: 3 → 0`) nearly *triples* the catchable fraction (`7.13% → 48.8%`) -- directionally exactly as expected, since less ongoing metabolic drain means faster net growth and less cumulative juvenile mortality before reaching `w_mat`.
+
+**Put together: `alpha` and `ks` both look like real, substantial, same-direction contributors to the anchovy's extreme pileup, `kappa` looks like a minor effect pointing the wrong way, and `gamma` is negligible in isolation.** That likely accounts for most of the \~500,000x gap the `alpha` check left open -- though a fully clean version of the "Default params, anchovy `X`" direction (explicitly hardcoding every other parameter, the way the anchovy-side builders already do) would be needed to rule out the confound entirely rather than just working around it.
 
 ------------------------------------------------------------------------
 
@@ -524,7 +1290,14 @@ But there's a pointed asymmetry worth carrying forward: the mizer model's `capac
 - **Resolve or remove `score_oscillation_kr()` and `run_rd_sweep_second_order()`**, still sitting unused in `23_experiments.R`.
 - ~~Rerun the `capacity_mult` bifurcation diagram at a few different fixed resource rates to check it isn't a cherrypicked example and to confirm Gustav's prediction~~ -- done today: Forward confirms the prediction (`≈2.91 → ≈1.65` as resource rate increases across five tested values) and the loop narrows as it shifts; Backward's own trend and a possible Forward plateau at the two highest rates remain unresolved at the tested grid resolution.
 - **Pin down the Forward plateau and Backward's trend** with a finer `capacity_mult` grid on `[1, 3.5]` at the original `t_run = 600`, now that the neighbourhood is cheap to search at full accuracy.
-- **Check whether the juvenile-biomass pileup is specific to this parameter range or general**, by rerunning the same single-species bifurcation diagram with mizer's own unspecified/default species parameters.
+- ~~Check whether the juvenile-biomass pileup is specific to this parameter range or general~~ -- done today: it looks specific. The default species' size spectrum puts `~7.1%` of biomass at or above its own `w_mat`, 200-2000x more than the anchovy's `0.031%`/`0.0033%` -- pointing at the anchovy's specific `alpha`/`gamma`/`ks`/`w_min`/`w_max` calibration, not mizer's growth-mortality structure in general, as the actual driver.
+- ~~Test whether gamma specifically is what's driving the pileup~~ -- done today: partly. Gamma is *sufficient* (default params + anchovy's gamma collapses `7.13% → 0.043%`) but not *necessary* (anchovy params + default's much higher gamma barely moves `0.034% → 0.042%`) -- something else in the anchovy's parameters is independently locking in the extreme skew.
+- ~~Run the same isolation test on `alpha`~~ -- done today: `alpha` is a dominant lever (5+ orders of magnitude either way, `0.034% <-> 70.3%` and `7.13% <-> 8.0e-8%`), much bigger than `gamma`'s effect. But two rows sharing the exact same `alpha = 0.1, gamma = 2066` combination still differ by \~500,000x depending on which species' `w_min`/`w_max`/`w_mat`/`kappa`/`ks` were used -- `alpha` isn't the complete explanation either.
+- ~~Run the same isolation test on `ks` and `kappa`~~ -- done today: `ks` is a real second contributor alongside `alpha` (adding the default's `ks` on top of the anchovy's thin `alpha` even makes the species unbuildable); `kappa` has only a modest effect and points the wrong way to explain the anchovy's extremity. Also surfaced a methodological confound: mizer's own default-parameter calibration is interdependent, so the "Default params, anchovy `X`" direction of every isolation test today may have silently varied more than one parameter at once.
+- **Redo the "Default params, anchovy `X`" direction of all four isolation tests with every other parameter explicitly hardcoded** (the way the anchovy-side builders already do), to rule out the parameter-interdependency confound properly rather than working around it with the one clean `ks` row found by chance.
+- **Confirm whether the branch-fanning at the top of the default-species `capacity_mult` sweep is genuine oscillation** (paradox-of-enrichment-style, matching Day 22's anchovy finding at `capacity_mult = 10`) rather than a `t_run = 150` settling artefact -- needs a longer run at just the highest tested `capacity_mult` values.
+- **Check whether the Forward spike at `capacity_mult ≈ 1.2-1.3` in the refined default-species sweep is genuine critical slowing down** -- rerun just that neighbourhood at a longer `t_run` than `600` to see whether the spike flattens out into the smooth curve either side of it, confirming it was an under-settled transient rather than a real feature.
 - ~~Build a simple, non-size-structured two-species predator-prey model and check whether it reproduces the same transcritical-like bifurcation~~ -- done today: it does, exactly (simulated transition `(0.5247, 0.60]` brackets the analytic `K_crit = 0.6`), confirming the collapse bifurcation itself doesn't need size resolution. But the toy model has no hysteresis at all, unlike mizer's genuine `(1.30, 1.41)` bistable window -- a sharper question than the one just answered.
-- **Test whether a saturating (Type II) functional response is what's actually needed for the mizer-style hysteresis**, by adding satiation to the toy predator's intake term (`a*N/(1 + a*h*N)` instead of `a*N`) and rerunning the same `K` sweep -- Rosenzweig's paradox-of-enrichment theory predicts the linear (Type I) version used today can never show bistability or oscillation regardless of parameters, so this isolates whether the saturating kernel alone (no size structure) is enough to reproduce mizer's real hysteresis loop.
-- **Come back to what fish growth (and the growth-slowdown bottleneck) actually has to do with the instability**, once the Type II comparison above has an answer.
+- ~~Test whether a saturating (Type II) functional response is what's actually needed for the mizer-style hysteresis~~ -- done today: it isn't, on its own. Forward and Backward overlap everywhere (bar one likely critical-slowing-down wobble near `K_crit_typeII`), confirming the analytic prediction that chemostat prey growth keeps the Jacobian trace negative regardless of functional response shape.
+- **Test whether switching the toy model's prey growth to logistic (`r*N*(1-N/K)`) is what actually unlocks the paradox-of-enrichment mechanism**, combined with the Type II intake term already built -- this is the specific missing ingredient the Jacobian argument points at (chemostat growth's constant `g'(N) = -D` structurally can't destabilise the equilibrium as `K` grows, logistic growth's `g'(N) = r(1-2N/K)` can), so this isolates whether *that*, rather than size structure, is what mizer's hysteresis actually depends on.
+- **Come back to what fish growth (and the growth-slowdown bottleneck) actually has to do with the instability**, once the logistic-growth comparison above has an answer.

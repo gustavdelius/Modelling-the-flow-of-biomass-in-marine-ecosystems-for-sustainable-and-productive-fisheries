@@ -1,0 +1,5 @@
+"label","gamma","w_mat","catchable_fraction"
+"Anchovy params, anchovy alpha (0.1)",750,10,0.000343896734206915
+"Anchovy params, default alpha",750,10,0.703327944648471
+"Default params, default alpha",2066.00406509043,25.1188643150958,0.0713188823762578
+"Default params, anchovy alpha (0.1)",2066.00406509043,25.1188643150958,8.01717080302779e-10
