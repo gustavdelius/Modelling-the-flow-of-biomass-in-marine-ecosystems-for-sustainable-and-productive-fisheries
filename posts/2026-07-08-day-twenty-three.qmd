@@ -9,7 +9,7 @@ format:
     theme: flatly
     code-fold: true
 categories: [research, mizer, hysteresis, phase-diagram, path-dependence, bifurcation, diffusion, reproducibility, blog]
-description: "A single day's work, all appended onto 23_experiments.R: fixing the MIN_VIABLE_BIOMASS bug that kept the overnight phase-diagram run from surviving a fresh session, reading back a clean 'no path dependence' result across 20 grid points, then closing out that result's three open caveats (scan rate, perturbation, grid resolution) -- all of which hold up. Then a return to classic forward/backward bifurcation diagrams turns up something the phase-diagram grid never tested: a real hysteresis loop sitting right at the capacity_mult collapse boundary (~1.6-2.1), below where every grid so far started sampling. Chasing why capacity_mult = 1 collapses entirely rules out two plausible mechanisms (an over-extreme starting perturbation, a resource-rate/capacity mismatch) without yet landing on a third. Separately, a diffusion-strength sweep under the old balance = TRUE setup confirms hysteresis is genuinely diffusion-dependent -- strong at ext_diff = 0.001, gone by 0.167 -- answering, at least for that setup, whether Day 22's 'no hysteresis' result was a diffusion artefact."
+description: "A fix to a missing constant lets the overnight phase-diagram run stand on its own, confirming a clean 'no path dependence' result across scan-rate, perturbation, and resolution checks. Returning to classic bifurcation sweeps turns up something the phase-diagram grid never tested for: a real hysteresis loop right at the capacity_mult collapse boundary (~1.6-2.1). Two explanations for why capacity_mult = 1 collapses entirely are ruled out. Separately, hysteresis is confirmed diffusion-dependent under the old balance = TRUE resource setup."
 ---
 
 ## Where We Started: A Missing Constant
@@ -61,7 +61,7 @@ library(scales)
 
 ## The Params Builder
 
-`make_second_order_params_kr()` , carrying capacity and resource rate set independently, both as multipliers on mizer's own `kappa`/`lambda`-derived defaults, `balance = FALSE` so neither gets silently recomputed from the other , carries over unchanged from Day 22's "take two":
+`make_second_order_params_kr()` is a function where carrying capacity and resource rate set independently, both as multipliers on mizer's own `kappa`/`lambda`-derived defaults, `balance = FALSE` so neither gets silently recomputed from the other ,but instead, carries over unchanged from Day 22's "take two":
 
 ```{r}
 #| message: false
@@ -104,7 +104,7 @@ make_second_order_params_kr <- function(lambda = 2.05, resource_decrease = 0.001
 
 ## The Phase Diagram: A Snake Sweep and Three Routes
 
-Rather than sweeping `resource_decrease` independently at each `capacity_mult` row , restarting from mizer's default state every time , the whole grid gets traced as one continuous boustrophedon path, carrying the settled state from each point into its immediate neighbour, including across the row-to-row step:
+Rather than sweeping `resource_decrease` independently at each `capacity_mult` row and then restarting from mizer's default state every time, we instead make it so the whole grid gets traced as one continuous "snake" path, carrying the settled state from each point into its immediate neighbour, including across the row-to-row step:
 
 ```{r}
 #| message: false
@@ -368,7 +368,7 @@ scan_rate_plot
 
 One disagreement at the fastest rate, gone by `150`. The disagreeing cell (`resource_decrease = 0.00707, capacity_mult = 3`) is one of the five cells the perturbation retest below confirms stable - pointing at a relaxation-time artefact (50 years isn't long enough for a transient to decay before sampling) rather than a second real attractor.
 
-### 2. A Genuine Perturbation Retest
+### 2. A Perturbation Retest
 
 Day 17/18's original limit-cycle search actively kicked the system done by reducing the resource to 10% of carrying capacity, a short burn-in, then the mature stock divided by 1000x which is a step every sweep since Day 20 dropped. This reruns it, adapted to `tr_bdf2`, on every cell the `t_run = 600` sweep called `Fixed point`:
 
@@ -422,7 +422,7 @@ kick_retest_df
 ```
 
 | resource_decrease | capacity_mult | rel_amplitude after kick | phase after kick |
-|-------------------|---------------|--------------------------|------------------|
+|-----------------|-----------------|----------------------|-----------------|
 | 0.00707           | 3             | 2.9e-11                  | Fixed point      |
 | 0.0595            | 3             | 8.9e-15                  | Fixed point      |
 | 0.5               | 3             | 8.7e-15                  | Fixed point      |
@@ -595,7 +595,7 @@ bif_rd_plot | bif_cc_plot
 
 ### The resource_decrease panel is an artefact, not a finding
 
-Every value in the `capacity_mult = 1` panel , Forward, Backward, min, max, across all 20 points, bottoms out at `5.50e-316`, the same repeated constant: floating-point underflow, an absorbing numerically-extinct state. The Forward branch's early points show it happening in real time: `1.22e-63 → 6.75e-113 → 8.93e-161 → ...`, decaying by \~30 orders of magnitude per step until it hits the underflow floor around `resource_decrease ≈ 0.0009`, then stays there the rest of the way to `0.5`. Because state carries forward point to point, once the population dies at the very first (lowest, harshest) value, nothing in the model lets a truly-zero population regrow - so the rest of the panel is one dead trajectory being dragged along, not independent evidence about every `resource_decrease` value.
+Every value in the `capacity_mult = 1` panel — Forward, Backward, min, max, across all 20 points — bottoms out at `5.50e-316`, the same repeated constant: floating-point underflow, an absorbing numerically-extinct state. The Forward branch's early points show it happening in real time: `1.22e-63 → 6.75e-113 → 8.93e-161 → ...`, decaying by \~30 orders of magnitude per step until it hits the underflow floor around `resource_decrease ≈ 0.0009`, then stays there the rest of the way to `0.5`. Because state carries forward point to point, once the population dies at the very first (lowest, harshest) value, nothing in the model lets a truly-zero population regrow — so the rest of the panel is one dead trajectory being dragged along, not independent evidence about every `resource_decrease` value.
 
 The obvious next question: is that death *itself* an artefact - a starting perturbation too extreme to survive - or is `capacity_mult = 1` genuinely unviable? Two follow-up checks, both fresh starts from mizer's own default initial condition, no sweep history at all:
 
@@ -632,7 +632,7 @@ fresh_check
 | 0.001                           | 2.13e-37     |
 | 0.0001                          | 2.65e-65     |
 
-Two things fall out of this table. First: **`capacity_mult = 1` is genuinely unviable at every `resource_decrease` tested**, even the friendliest (`0.5`) and even starting completely fresh - refuting the "the perturbation was too extreme" hypothesis. Second, and more surprising: **it's *still* dead at `resource_decrease = 1`**, with no cut applied at all, both `resource_rate` and `resource_capacity` handed back as mizer's own unscaled defaults, with no mismatch between them whatsoever. That refutes a second, more specific hypothesis , that the collapse was a rate/capacity mismatch (a capacity sized for the *default*, faster-refilling rate, paired with a rate slowed down by `resource_decrease`). If that were the mechanism, `resource_decrease = 1` should have fixed it. It didn't; the biomass barely moves across the whole `0.5`-`1.0` range.
+Two things fall out of this table. First: **`capacity_mult = 1` is unviable at every `resource_decrease` tested**, even the friendliest (`0.5`) and even starting completely fresh - refuting the "the perturbation was too extreme" hypothesis. Second, and more surprising: **it's *still* dead at `resource_decrease = 1`**, with no cut applied at all, both `resource_rate` and `resource_capacity` handed back as mizer's own unscaled defaults, with no mismatch between them whatsoever. That refutes a second, more specific hypothesis which is that the collapse was a rate/capacity mismatch (a capacity sized for the *default*, faster-refilling rate, paired with a rate slowed down by `resource_decrease`). If that were the mechanism, `resource_decrease = 1` should have fixed it. It didn't; the biomass barely moves across the whole `0.5`-`1.0` range.
 
 The best lead so far, not yet fully confirmed: `make_second_order_params_balanced()` (below, used for the diffusion sweep) is structurally almost identical , same species setup, same `D_ext`/`setBevertonHolt()` order , and *does* produce real, viable populations at the same species parameters. The only structural difference is `balance = TRUE` with only `resource_rate` passed, versus `balance = FALSE` with an explicit `resource_capacity`. That isolates the cause to `balance = FALSE` itself doing something more than "pick consistent numbers" - Day 22's own note describes `balance = TRUE` as keeping "the derived capacity, the rate, and the actual dynamics consistent with each other," which sounds like a broader reconciliation against the whole calibrated community (feeding rates, `setBevertonHolt()`'s reproduction calibration) that `balance = FALSE` skips by design. Exactly what breaks isn't nailed down yet - comparing `erepro`/reproduction-level calibration between the two constructions is the natural next step.
 
@@ -729,8 +729,8 @@ ggplot(bif_balanced_df, aes(x = value, y = biomass, color = direction, linetype 
 ```
 
 | ext_diff | Forward/Backward gap |
-|----|----|
-| 0.001 | Large -- e.g. `resource_decrease = 0.049`: Forward `0.0537` vs Backward `3.55e-35` |
+|------------------------------------|------------------------------------|
+| 0.001 | Large - e.g. `resource_decrease = 0.049`: Forward `0.0537` vs Backward `3.55e-35` |
 | 0.167 | Agree within 1-3% everywhere |
 | 0.334 | Agree within 1-3% everywhere |
 | 0.5 | Agree within 1-3% everywhere |

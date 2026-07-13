@@ -9,12 +9,12 @@ format:
     theme: flatly
     code-fold: true
 categories: [research, mizer, juvenile-pileup, alpha, parameter-sweep, predator-prey, time-delay, blog]
-description: "Two threads from Day 24's 'What's Next' closed in one day. First: the alpha/gamma/kappa juvenile-pileup isolation, rerun as an actual 13-15-point sweep per parameter instead of Day 24's single-value swaps, fixing a tryCatch that only wrapped the simulation (not the parameter construction where infeasible combinations actually throw) and a percent-formatted y-axis that collapsed every value below 0.00005% to the same label. alpha comes out as the dominant lever by a wide margin -- 27.5 orders of magnitude across its range, a genuine viability threshold the anchovy's own alpha = 0.1 sits right at the foot of -- with kappa modest and gamma close to flat. Second: does a time delay in the predator's growth term unlock the hysteresis that instantaneous Type I and Type II models couldn't? Worked out analytically first -- the Hopf-bifurcation condition reduces, via the model's own equilibrium relation, to an expression that's strictly negative for any positive parameters -- so a Hopf bifurcation is impossible here for any delay, confirmed by simulation once a misleadingly-climbing amplitude sweep is checked against the actual (purely monotonic) time series."
+description: "Two threads from Day 24 closed. First: a real alpha/gamma/kappa sweep (not just single-value swaps) confirms alpha as the dominant lever by a wide margin - a genuine viability threshold the anchovy's own value sits right at the foot of - with kappa modest and gamma flat. Second: a time delay in the predator's growth term is proven analytically to never trigger a Hopf bifurcation here, for any delay or parameters, and simulation confirms it."
 ---
 
 ## Where Day 24 Left Us
 
-Day 24 closed out the `capacity_mult` hysteresis window and Gustav's resource-rate prediction, but left three threads open for what's next: giving the toy predator-prey model a time delay, trying a feedback-loop variant of it, and rerunning the `alpha`/`gamma`/`kappa` juvenile-pileup isolation properly. That last one is a direct fix to a real gap: Day 24's version only ever swapped each parameter to *one* alternate value -- the other species' own default -- not a real range, and it surfaced a genuine confound along the way (mizer's own default-parameter calibration turned out to be interdependent, so leaving a parameter unspecified silently let other parameters re-derive too). Today closes that thread.
+Day 24 closed out the `capacity_mult` hysteresis window and Gustav's resource-rate prediction, but left three threads open for what's next: giving the toy predator-prey model a time delay, trying a feedback-loop variant of it, and rerunning the `alpha`/`gamma`/`kappa` juvenile-pileup isolation properly. That last one is a direct fix to a real gap: Day 24's version only ever swapped each parameter to *one* alternate value , the other species' own default , not a real range, and it surfaced a genuine confound along the way (mizer's own default-parameter calibration turned out to be interdependent, so leaving a parameter unspecified silently let other parameters re-derive too). Today closes that thread.
 
 ------------------------------------------------------------------------
 
@@ -38,7 +38,7 @@ library(future)
 library(scales)
 ```
 
-Same builder as every day since Day 20, self-contained rather than sourced from `24_experiments.R` -- but extended with `alpha`/`gamma`/`kappa` arguments (all defaulting to the anchovy's own values), so the same single builder can sweep any one of the three while pinning the rest at the anchovy's own fully-specified values throughout. That's what sidesteps Day 24's confound directly: nothing here is ever left for mizer to fill in, so there's no re-derivation to worry about, and every sweep point is directly comparable to every other.
+Same builder as every day since Day 20, self-contained rather than sourced from `24_experiments.R` but extended with `alpha`/`gamma`/`kappa` arguments (all defaulting to the anchovy's own values), so the same single builder can sweep any one of the three while pinning the rest at the anchovy's own fully-specified values throughout. That's what sidesteps Day 24's confound directly: nothing here is ever left for mizer to fill in, so there's no re-derivation to worry about, and every sweep point is directly comparable to every other.
 
 ```{r builder}
 #| message: false
@@ -78,7 +78,7 @@ make_second_order_params_kr <- function(lambda = 2.05, resource_decrease = 0.001
 }
 ```
 
-The default species' own `alpha`/`gamma`/`kappa`, purely as reference lines on the sweep plots below -- not used to build anything, so there's no risk of reintroducing the confound this rerun is designed to avoid:
+The default species' own `alpha`/`gamma`/`kappa`, purely as reference lines on the sweep plots below.It's not used to build anything, so there's no risk of reintroducing the confound this rerun is designed to avoid:
 
 ```{r reference-values}
 #| message: false
@@ -99,20 +99,7 @@ cat(sprintf(
 ))
 ```
 
-------------------------------------------------------------------------
-
-## Two Bugs Before Any Results
-
-### Bug 1: the tryCatch wrapped the wrong step
-
-The first version of this sweep's `catchable_fraction_at()` wrapped its call to `project()` in a `tryCatch`, reusing the reasoning behind Day 24's `run_spectrum_check()`: a swept value can push a species past viability. But `newSingleSpeciesParams()` does its own viability check *before* `project()` is ever reached -- at construction time, inside `make_second_order_params_kr()` -- and that construction call was sitting outside the `tryCatch` entirely, in the sweep loop itself. First real run:
-
-```
-Error in newSingleSpeciesParams(species_name = "Anchovy", w_min = 3e-04,  :
-  The feeding level is not sufficient to maintain the fish.
-```
-
-One sweep point being infeasible halted the whole sweep. The fix moves the `tryCatch` up a level, so it wraps both the params construction and the simulation:
+Three more helper functions round out the setup. `catchable_fraction_at()` runs a simulation out to `t_max` and returns the settled fraction of biomass sitting at or above `w_mat`. `run_param_sweep()` calls it across a sequence of values for one parameter, holding everything else fixed:
 
 ```{r catchable-fraction}
 #| message: false
@@ -154,11 +141,9 @@ run_param_sweep <- function(param_name, param_seq, capacity_mult = 10,
 }
 ```
 
-An infeasible point now comes back as an `NA` row with the error message kept, exactly like Day 24's `run_spectrum_check()` -- a real result for a sweep like this, not just a technical failure to work around.
+The `tryCatch` wraps both the params construction and the simulation, not just the simulation - a value near the edge of the tested range can make `newSingleSpeciesParams()` itself throw ("the feeding level is not sufficient to maintain the fish") before `project()` is ever reached, so an infeasible point needs to be caught there too. It comes back as an `NA` row with the error message kept, rather than halting the sweep.
 
-### Bug 2: percent-formatted labels collapse across a log-scale range
-
-`catchable_fraction` spans from numerically-extinct up to double-digit percentages within a single sweep, so the y-axis has to be log-scaled. The first version formatted it with `scales::percent_format(accuracy = 0.0001)` -- fine for a narrow range, but that accuracy rounds anything below 0.00005% to `"0.0000%"`. Since log-scale breaks are spaced by decades, several consecutive breaks below that threshold all print the identical label, which is exactly what showed up on the first alpha plot: `10.0000%`, then `0.0000%` three times in a row, no way to tell those decades apart. The fix drops percent formatting for scientific notation on the raw fraction instead, which has no such threshold:
+`plot_param_sweep()` draws the result on a log-scaled y-axis, labelled in scientific notation rather than as a percentage. `catchable_fraction` ranges from numerically-extinct up to double-digit percentages within a single sweep, and a fixed-accuracy percent label rounds everything below its threshold to the same "0.0000%" string, which erases exactly the low end of the range this plot needs to show:
 
 ```{r plot-fn}
 #| message: false
@@ -171,7 +156,7 @@ plot_param_sweep <- function(df, param_label, ref_values, log_x = TRUE) {
     scale_y_log10(labels = scales::label_scientific()) +
     labs(x = param_label, y = "Catchable fraction (biomass at or above w_mat)",
          title = sprintf("Juvenile-pileup sweep: %s", param_label),
-         subtitle = "capacity_mult = 10, resource_decrease = 0.001 -- every other parameter pinned at the anchovy's own value") +
+         subtitle = "capacity_mult = 10, resource_decrease = 0.001 — every other parameter pinned at the anchovy's own value") +
     theme_minimal()
   if (log_x) p <- p + scale_x_log10()
   for (rv in ref_values) {
@@ -185,7 +170,7 @@ plot_param_sweep <- function(df, param_label, ref_values, log_x = TRUE) {
 
 ## The Sweeps
 
-`capacity_mult = 10`, `resource_decrease = 0.001` throughout -- the same operating point every isolation check in `24_experiments.R` used, comfortably inside the coexistence region so a marginal population never confounds the pileup reading.
+`capacity_mult = 10`, `resource_decrease = 0.001` throughout which is the same operating point every isolation check in `24_experiments.R` used, comfortably inside the coexistence region so a marginal population never confounds the pileup reading.
 
 ### alpha
 
@@ -203,19 +188,19 @@ plot_param_sweep(
 ```
 
 | alpha | catchable fraction |
-|-------|---------------------|
-| 0.020 | 3.2×10⁻²⁸ |
-| 0.057 | 1.1×10⁻⁹ |
-| 0.075 | 8.9×10⁻⁷ |
-| 0.097 | 2.1×10⁻⁴ |
-| 0.126 | 1.10% |
-| 0.164 | 8.76% |
-| 0.214 | 25.5% |
-| 0.279 | 46.1% |
-| 0.363 | 64.7% |
-| 0.472 | 78.3% |
-| 0.615 | 87.1% |
-| 0.800 | 92.3% |
+|-------|--------------------|
+| 0.020 | 3.2×10⁻²⁸          |
+| 0.057 | 1.1×10⁻⁹           |
+| 0.075 | 8.9×10⁻⁷           |
+| 0.097 | 2.1×10⁻⁴           |
+| 0.126 | 1.10%              |
+| 0.164 | 8.76%              |
+| 0.214 | 25.5%              |
+| 0.279 | 46.1%              |
+| 0.363 | 64.7%              |
+| 0.472 | 78.3%              |
+| 0.615 | 87.1%              |
+| 0.800 | 92.3%              |
 
 ### gamma
 
@@ -233,16 +218,16 @@ plot_param_sweep(
 ```
 
 | gamma | catchable fraction |
-|-------|---------------------|
-| 100 | 2.20×10⁻⁵ |
-| 231 | 2.45×10⁻⁴ |
-| 306 | 9.48×10⁻⁵ |
-| 404 | 4.03×10⁻⁴ |
-| 707 | 3.62×10⁻⁴ |
-| 1237 | 3.85×10⁻⁴ |
-| 2162 | 4.18×10⁻⁴ |
-| 3781 | 4.50×10⁻⁴ |
-| 5000 | 4.67×10⁻⁴ |
+|-------|--------------------|
+| 100   | 2.20×10⁻⁵          |
+| 231   | 2.45×10⁻⁴          |
+| 306   | 9.48×10⁻⁵          |
+| 404   | 4.03×10⁻⁴          |
+| 707   | 3.62×10⁻⁴          |
+| 1237  | 3.85×10⁻⁴          |
+| 2162  | 4.18×10⁻⁴          |
+| 3781  | 4.50×10⁻⁴          |
+| 5000  | 4.67×10⁻⁴          |
 
 ### kappa
 
@@ -260,17 +245,17 @@ plot_param_sweep(
 )
 ```
 
-| kappa | catchable fraction |
-|-------|---------------------|
-| 0.0010 | 1.35×10⁻⁶ |
-| 0.0044 | 1.76×10⁻⁵ |
-| 0.0118 | 1.21×10⁻⁴ |
-| 0.0193 | 9.96×10⁻⁵ |
-| 0.0316 | 1.58×10⁻⁴ |
-| 0.0848 | 3.60×10⁻⁴ |
-| 0.2276 | 4.22×10⁻⁴ |
-| 0.6105 | 4.79×10⁻⁴ |
-| 1.0000 | 4.96×10⁻⁴ |
+| kappa  | catchable fraction |
+|--------|--------------------|
+| 0.0010 | 1.35×10⁻⁶          |
+| 0.0044 | 1.76×10⁻⁵          |
+| 0.0118 | 1.21×10⁻⁴          |
+| 0.0193 | 9.96×10⁻⁵          |
+| 0.0316 | 1.58×10⁻⁴          |
+| 0.0848 | 3.60×10⁻⁴          |
+| 0.2276 | 4.22×10⁻⁴          |
+| 0.6105 | 4.79×10⁻⁴          |
+| 1.0000 | 4.96×10⁻⁴          |
 
 ------------------------------------------------------------------------
 
@@ -295,29 +280,29 @@ sweep_magnitude <- all_sweeps_df %>%
 sweep_magnitude
 ```
 
-| param | min | max | log10 range |
-|-------|-----|-----|--------------|
-| alpha | 3.2×10⁻²⁸ | 92.3% | **27.5** |
-| kappa | 1.4×10⁻⁶ | 4.96×10⁻⁴ | 2.6 |
-| gamma | 2.2×10⁻⁵ | 4.67×10⁻⁴ | 1.3 |
+| param | min       | max       | log10 range |
+|-------|-----------|-----------|-------------|
+| alpha | 3.2×10⁻²⁸ | 92.3%     | **27.5**    |
+| kappa | 1.4×10⁻⁶  | 4.96×10⁻⁴ | 2.6         |
+| gamma | 2.2×10⁻⁵  | 4.67×10⁻⁴ | 1.3         |
 
-**alpha is confirmed as the dominant lever, and it's a threshold, not a gradual slope.** Between `alpha = 0.057` and `alpha = 0.28` the catchable fraction jumps roughly 8 orders of magnitude (1.1×10⁻⁹ → 25.5%) -- a genuine viability threshold for juvenile survivorship, the same qualitative signature as the `capacity_mult` collapse bifurcations from Days 22-24. The anchovy's own `alpha = 0.1` sits right at the foot of that climb (catchable fraction ≈0.02% there), not in some ordinary low-effect regime -- the real anchovy model is parked right at the edge of the transition, which is a sharper explanation for the extreme pileup than Day 24's two-point swap could give.
+alpha is confirmed as the dominant lever, and it's a threshold, not a gradual slope. Between `alpha = 0.057` and `alpha = 0.28` the catchable fraction jumps roughly 8 orders of magnitude (1.1×10⁻⁹ → 25.5%).This seems to be a viability threshold for juvenile survivorship, the same qualitative signature as the `capacity_mult` collapse bifurcations from Days 22-24. The anchovy's own `alpha = 0.1` sits right at the foot of that climb (catchable fraction ≈0.02% there), not in some ordinary low-effect regime , so the real anchovy model is parked right at the edge of the transition, which is a sharper explanation for the extreme pileup than Day 24's two-point swap could give.
 
-**gamma is close to flat** -- the smallest range of the three, confirming Day 24's anchovy-side finding directly rather than just from two points. One thing worth flagging: the point at `gamma = 305.8` (9.48×10⁻⁵) breaks monotonicity, dipping below both neighbours. That matches a pattern this project has seen before (Day 23's scan-rate check, Day 24's Type II wobble) -- critical slowing down near a transition, where `t_run = 600` might not be quite enough to fully settle. Worth a longer run at that one point before trusting it as a real feature.
+Gamma is close to flat. the smallest range of the three, confirming Day 24's anchovy-side finding directly rather than just from two points. One thing worth flagging: the point at `gamma = 305.8` (9.48×10⁻⁵) breaks monotonicity, dipping below both neighbours. That matches a pattern this project has seen before (Day 23's scan-rate check, Day 24's Type II wobble), which is critical slowing down near a transition, where `t_run = 600` might not be quite enough to fully settle. It is worth a longer run at that one point before trusting it as a real feature.
 
-**kappa shows a real but modest, mostly-monotonic effect** -- bigger than gamma's, nowhere close to alpha's.
+kappa shows a real but modest, mostly-monotonic effect.It is bigger than gamma's, nowhere close to alpha's.
 
 ------------------------------------------------------------------------
 
 ## The Time-Delay Predator-Prey Model
 
-Day 24's toy predator-prey model (chemostat prey growth, mass-action Type I predation) has no hysteresis at all, and neither does a Type II (saturating) version -- both proven analytically (chemostat growth keeps the Jacobian trace negative regardless of the predation term's shape) and confirmed by simulation. The next candidate mechanism, flagged in Day 24's own "What's Next": a time delay between a predator eating and that intake showing up as predator growth -- a maturation or gestation lag -- which is a well-known route to oscillation in delay differential equation (DDE) models that an instantaneous ODE can't produce on its own.
+Day 24's toy predator-prey model (chemostat prey growth, mass-action Type I predation) has no hysteresis at all. This was both proven analytically (chemostat growth keeps the Jacobian trace negative regardless of the predation term's shape) and confirmed by simulation. The next candidate mechanism, flagged in Day 24's own "What's Next": a time delay between a predator eating and that intake showing up as predator growth , a maturation or gestation lag , which is a well-known route to oscillation in delay differential equation (DDE) models that an instantaneous ODE can't produce on its own.
 
 ### Setting Up the Delay
 
-The classical form for this (Wangersky-Cunningham, 1957) keeps predation -- and prey loss -- instantaneous, but delays the *conversion* of that predation into new predator biomass by `tau`:
+The classical form for this (Wangersky-Cunningham, 1957) keeps predation and prey loss instantaneous, but delays the *conversion* of that predation into new predator biomass by `tau`:
 
-```
+```         
 dN/dt = D*(K - N(t)) - a*N(t)*P(t)
 dP/dt = e*a*N(t-tau)*P(t-tau) - m*P(t)
 ```
@@ -326,39 +311,62 @@ Predator death stays instantaneous, since dying isn't subject to the same conver
 
 ### Working Out the Maths First
 
-**The equilibrium doesn't move.** At a constant solution, every delayed term equals its un-delayed counterpart, so setting both derivatives to zero reproduces exactly Day 24's `N* = m/(e*a)` and `P* = D*(K-N*)/(a*N*)`. The delay can only change whether that point is stable, not where it sits.
+The question is whether adding the delay `tau` can turn the stable fixed point Day 24 found into an unstable one that oscillates instead. That's checked in three steps: find where the fixed point sits, linearise the system around it to see how a small perturbation behaves, then ask what value of `tau` (if any) could flip that perturbation from decaying to growing.
 
-**Linearising** `N = N*+n`, `P = P*+p` around it (dropping second-order terms, and using the equilibrium relation `e*a*N* = m` to simplify) gives:
+**Step 1 - the equilibrium doesn't move.**
 
+At a constant solution, `N` and `P` aren't changing, so every delayed term is just equal to its own current value (`N(t-tau) = N(t)`, and likewise for `P`). That means the delay drops out of the equilibrium condition entirely, and setting both derivatives to zero reproduces exactly Day 24's non-delayed result:
+
+```         
+N* = m / (e*a)
+P* = D*(K - N*) / (a*N*)
 ```
+
+So `tau` can only change whether this point is *stable*, not where the point itself sits.
+
+**Step 2 - linearise around the equilibrium.**
+
+Write `N = N* + n` and `P = P* + p`, where `n` and `p` are small perturbations, and drop every term of second order or higher in them (the standard move for checking local stability). Using the equilibrium relation `e*a*N* = m` to simplify the result gives:
+
+```         
 dn/dt = -alpha*n(t) - beta*p(t)
 dp/dt = gamma*n(t-tau) + m*p(t-tau) - m*p(t)
 ```
 
-where `alpha = D + a*P*`, `beta = a*N*`, `gamma = e*a*P*`. Substituting `n, p ~ exp(lambda*t)` gives the characteristic equation:
+where `alpha = D + a*P*`, `beta = a*N*`, and `gamma = e*a*P*` are just shorthand for the constants that fall out of the substitution.
 
+Trying a solution of the form `n, p ~ exp(lambda*t)` , the standard ansatz for a linear system like this , turns the two differential equations into one algebraic condition on `lambda`, the characteristic equation:
+
+```         
+(lambda + alpha) * (lambda + m - m*exp(-lambda*tau)) + beta*gamma*exp(-lambda*tau) = 0
 ```
-(lambda+alpha)*(lambda+m-m*exp(-lambda*tau)) + beta*gamma*exp(-lambda*tau) = 0
-```
 
-At `tau = 0` this collapses to `lambda^2 + alpha*lambda + beta*gamma = 0` -- exactly Day 24's `trace = -alpha`, `det = beta*gamma` result, confirming this reduces correctly to the known non-delayed case before trusting it for `tau > 0`.
+As a sanity check before trusting this for `tau > 0`: setting `tau = 0` should recover Day 24's own non-delayed result. It does. The equation collapses to `lambda^2 + alpha*lambda + beta*gamma = 0`, matching Day 24's `trace = -alpha`, `det = beta*gamma` exactly.
 
-**A Hopf bifurcation** -- a pair of roots crossing the imaginary axis, `lambda = i*omega`, as `tau` increases from 0 -- needs a real, positive `omega^2` solving a quadratic that reduces to the condition:
+**Step 3 - ask what a Hopf bifurcation would require.**
 
-```
+A Hopf bifurcation is the specific way a delay can destabilise a fixed point: as `tau` grows from 0, a pair of roots of the characteristic equation crosses from the stable side of the complex plane to the unstable side, passing through the imaginary axis at `lambda = i*omega`. Substituting that in and solving for when a real, positive `omega^2` exists reduces to one inequality:
+
+```         
 beta*gamma > 2*m*alpha                                            (*)
 ```
 
-Substituting `beta = a*N*`, `gamma = e*a*P*`, and using `e*a*N* = m` once more:
+If (\*) can never hold, no crossing is possible at any `tau`, and the fixed point stays stable forever. So the whole question comes down to checking the sign of `beta*gamma - 2*m*alpha`.
 
-```
-beta*gamma - 2*m*alpha = a^2*e*N**P* - 2*m*(D + a*P*)
-                       = a*P*(a*e*N* - 2*m) - 2*m*D
-                       = a*P*(m - 2*m) - 2*m*D
-                       = -a*m*P* - 2*m*D
+Substituting `beta = a*N*` and `gamma = e*a*P*`, then using `e*a*N* = m` once more to simplify, step by step:
+
+```         
+beta*gamma - 2*m*alpha
+    = a^2*e*N**P* - 2*m*(D + a*P*)          [substitute beta, gamma, alpha]
+    = a*P*(a*e*N*) - 2*m*D - 2*m*a*P*       [expand the bracket]
+    = a*P*(a*e*N* - 2*m) - 2*m*D            [group the a*P* terms]
+    = a*P*(m - 2*m) - 2*m*D                 [a*e*N* = m, from the equilibrium relation]
+    = -a*m*P* - 2*m*D
 ```
 
-Strictly **negative** for every positive `D`, `a`, `m`, `P*`. Condition (*) can never hold -- a Hopf bifurcation is analytically impossible here, for *any* delay and *any* parameter choice. Chemostat-style prey growth blocks this route to instability too, not just the Type I/II functional-response route Day 24 already ruled out -- same underlying reason both times: the `-D`/`-2mD` term is a fixed restoring force the delay can't get around.
+Every term in that final line , `a`, `m`, `P*`, `D` , is strictly positive by construction, so the whole expression is strictly negative, for any choice of these parameters. Condition (*) can never hold, which means a Hopf bifurcation is analytically impossible here, for* any\* delay and *any* parameter choice.
+
+That's the same underlying reason Day 24 already ruled out the Type I/II functional-response route: chemostat-style prey growth contributes a fixed restoring force (the `-D`/`-2mD` term above) that neither a saturating predation term nor a delayed one can get around.
 
 ### Checking the Algebra Numerically
 
@@ -391,11 +399,11 @@ hopf_check <- check_hopf_feasibility()
 hopf_check
 ```
 
-| N\* | P\* | alpha | beta | gamma | beta·gamma | 2·m·alpha | Hopf possible? |
-|------|------|------|------|------|------|------|------|
-| 0.600 | 0.667 | 1.667 | 0.600 | 0.333 | 0.200 | 1.000 | **FALSE** |
+| N\*   | P\*   | alpha | beta  | gamma | beta·gamma | 2·m·alpha | Hopf possible? |
+|-------|-------|-------|-------|-------|------------|-----------|----------------|
+| 0.600 | 0.667 | 1.667 | 0.600 | 0.333 | 0.200      | 1.000     | **FALSE**      |
 
-`beta*gamma = 0.2` against `2*m*alpha = 1.0` -- not close, and by the derivation above it never can be, for any of these parameters.
+`beta*gamma = 0.2` against `2*m*alpha = 1.0`.It's not close, and by the derivation above it never can be, for any of these parameters.
 
 ### Simulating It Anyway
 
@@ -438,7 +446,7 @@ run_predator_prey_delay <- function(tau, state0 = c(N = 1, P = 0.1), t_max = 300
 }
 ```
 
-Perturbed well away from equilibrium (`N=1` vs `N*=0.6`, `P=0.1` vs `P*=0.667`), since a system started exactly at a stable fixed point never oscillates regardless of `tau` -- this is a genuine test of whether delay lets a real perturbation grow into a sustained oscillation instead of damping back out. `tau` swept up to 40, two orders of magnitude past the model's own natural timescales (`1/D`, `1/m`):
+Perturbed well away from equilibrium (`N=1` vs `N*=0.6`, `P=0.1` vs `P*=0.667`), since a system started exactly at a stable fixed point never oscillates regardless of `tau`. This is a test of whether delay lets a real perturbation grow into a sustained oscillation instead of damping back out. `tau` swept up to 40, two orders of magnitude past the model's own natural timescales (`1/D`, `1/m`):
 
 ```{r delay-sweep}
 #| message: false
@@ -449,15 +457,15 @@ delay_sweep_df
 ```
 
 | tau | rel. amplitude of P |
-|-----|----------------------|
-| 0 | 1.8×10⁻¹⁰ |
-| 0.5 | 1.6×10⁻⁹ |
-| 1 | 1.1×10⁻⁸ |
-| 2 | 2.4×10⁻⁷ |
-| 5 | 6.7×10⁻⁵ |
-| 10 | 3.9×10⁻³ |
-| 20 | 6.9×10⁻² |
-| 40 | 0.250 |
+|-----|---------------------|
+| 0   | 1.8×10⁻¹⁰           |
+| 0.5 | 1.6×10⁻⁹            |
+| 1   | 1.1×10⁻⁸            |
+| 2   | 2.4×10⁻⁷            |
+| 5   | 6.7×10⁻⁵            |
+| 10  | 3.9×10⁻³            |
+| 20  | 6.9×10⁻²            |
+| 40  | 0.250               |
 
 ```{r delay-amplitude-plot}
 #| message: false
@@ -467,11 +475,11 @@ ggplot(delay_sweep_df, aes(x = tau, y = rel_amplitude_P)) +
   geom_point(color = "#55A868", size = 1.5) +
   labs(x = "tau (delay in predator conversion)", y = "Relative amplitude of P (settled)",
        title = "Does delay reintroduce the oscillation the instantaneous model doesn't have?",
-       subtitle = "Perturbed start (N=1, P=0.1) -- analytic prediction: no, for any tau") +
+       subtitle = "Perturbed start (N=1, P=0.1) — analytic prediction: no, for any tau") +
   theme_minimal()
 ```
 
-Read on its own, that plot looks worrying for the analytic result -- amplitude climbing smoothly from near-zero up to 0.25 by `tau=40` looks exactly like a trend heading toward real oscillation. The time series at `tau=40` tells a different story:
+Read on its own, that plot looks worrying for the analytic result - amplitude climbing smoothly from near-zero up to 0.25 by `tau=40` looks exactly like a trend heading toward real oscillation. The time series at `tau=40` tells a different story:
 
 ```{r delay-timeseries}
 #| message: false
@@ -490,34 +498,32 @@ ggplot(longest_delay_ts, aes(x = time)) +
   geom_hline(yintercept = hopf_check$P_star, linetype = "dotted", color = "grey40") +
   labs(x = "Time", y = "Biomass", color = NULL,
        title = "Time series at tau = 40 (the longest delay tested)",
-       subtitle = "Dotted lines = analytic equilibrium N*, P* -- both unchanged by tau, as derived above") +
+       subtitle = "Dotted lines = analytic equilibrium N*, P* — both unchanged by tau, as derived above") +
   theme_minimal()
 ```
 
 ## What This Shows
 
-Both `N` and `P` move **monotonically** toward the dotted equilibrium lines for the entire 300 time units -- no overshoot, no crossing back and forth, none of the up-down-up-down signature a real oscillation would show. What the delay does produce is a visible staircase: distinct steps roughly every 40 time units, matching `tau` itself, since the growth rate is periodically "informed" by a signal from exactly `tau` ago. That staircase is a genuine delay effect, but it's a shape imposed on a monotonic approach to equilibrium, not evidence of a limit cycle.
+Both `N` and `P` move monotonically toward the dotted equilibrium lines for the entire 300 time units.There is no overshoot, no crossing back and forth, none of the up-down-up-down signature a real oscillation would show. What the delay does produce is a visible staircase: distinct steps roughly every 40 time units, matching `tau` itself, since the growth rate is periodically "informed" by a signal from exactly `tau` ago. That staircase is a genuine delay effect, but it's a shape imposed on a monotonic approach to equilibrium, not evidence of a limit cycle.
 
-That reframes the amplitude sweep: `rel_amplitude_P` is climbing with `tau` not because oscillation is building, but because larger delays relax more slowly (the same critical-slowing-down pattern flagged repeatedly elsewhere in this project -- Day 18, Day 23's scan-rate check, Day 24's Type II wobble), so the fixed `t_max = 300` / late-window-starts-at-`t > 180` sampling catches the system still mid-approach rather than settled. The "amplitude" being measured there is really "how far an unfinished monotonic relaxation has drifted within the sampling window," not a real oscillation's size.
+That reframes the amplitude sweep: `rel_amplitude_P` is climbing with `tau` not because oscillation is building, but because larger delays relax more slowly (the same critical-slowing-down pattern flagged repeatedly elsewhere in this project - Day 18, Day 23's scan-rate check, Day 24's Type II wobble), so the fixed `t_max = 300` / late-window-starts-at-`t > 180` sampling catches the system still mid-approach rather than settled. The "amplitude" being measured there is really "how far an unfinished monotonic relaxation has drifted within the sampling window," not a real oscillation's size.
 
-**The maths and the simulation agree: a Hopf bifurcation is impossible for this delayed-conversion model, for any tested delay.** Chemostat-style prey growth blocks this route to hysteresis the same way it blocked Type I and Type II functional-response changes on Day 24. The one loose end is methodological rather than substantive: confirming that `rel_amplitude_P` actually decays to ~0 at `tau=40` given enough time, rather than plateauing (which the algebra says is impossible, but is worth catching directly rather than assuming), needs a rerun with a much longer `t_max`.
+The maths and the simulation agree: a Hopf bifurcation is impossible for this delayed-conversion model, for any tested delay. Chemostat-style prey growth blocks this route to hysteresis the same way it blocked Type I and Type II functional-response changes on Day 24. The one loose end is methodological rather than substantive: confirming that `rel_amplitude_P` actually decays to \~0 at `tau=40` given enough time, rather than plateauing (which the algebra says is impossible, but is worth catching directly rather than assuming), needs a rerun with a much longer `t_max`.
 
 ------------------------------------------------------------------------
 
 ## What This All Adds Up To
 
-A real range, not two guessed points, and the ranking Day 24 could only sketch out now has actual curves behind it: alpha dominant by a wide margin, and not just "moves a lot" but sitting on a genuine threshold that the anchovy's own calibration happens to sit right at the foot of. gamma and kappa are both real but minor by comparison, confirming rather than overturning Day 24's rough read. The two bugs along the way -- the mis-scoped `tryCatch` and the collapsing percent labels -- are both worth remembering for any future sweep across a wide parameter range: construction-time errors need the `tryCatch` at the sweep level, not the simulation level, and log-scale axes need labels without a fixed rounding floor.
+A real range, not two guessed points, and the ranking Day 24 could only sketch out now has actual curves behind it: alpha dominant by a wide margin, and not just "moves a lot" but sitting on a genuine threshold that the anchovy's own calibration happens to sit right at the foot of. gamma and kappa are both real but minor by comparison, confirming rather than overturning Day 24's rough read.
 
-The time-delay predator-prey model closes out a second thread from Day 24's "What's Next" on the same day: a full analytic derivation (equilibrium unchanged by `tau`, characteristic equation reduces correctly to Day 24's own result at `tau=0`, and the Hopf condition `beta*gamma > 2*m*alpha` reduces via the equilibrium relation to `-a*m*P* - 2*m*D`, always negative) proves a Hopf bifurcation is impossible here for any delay, and the simulation backs it up once the amplitude sweep's misleading climb is read correctly against the actual time series. Two for two now -- Type II saturation (Day 24) and time delay (today) both ruled out analytically, both confirmed empirically, both for the same underlying reason: chemostat-style prey growth.
+The time-delay predator-prey model closes out a second thread from Day 24's "What's Next" on the same day: a full analytic derivation (equilibrium unchanged by `tau`, characteristic equation reduces correctly to Day 24's own result at `tau=0`, and the Hopf condition `beta*gamma > 2*m*alpha` reduces via the equilibrium relation to `-a*m*P* - 2*m*D`, always negative) proves a Hopf bifurcation is impossible here for any delay, and the simulation backs it up once the amplitude sweep's misleading climb is read correctly against the actual time series.
 
 ------------------------------------------------------------------------
 
 ## What's Next
 
-- ~~Rerun the `alpha`/`gamma`/`kappa` juvenile-pileup isolation as a real sweep~~ -- done today: alpha dominant (27.5 orders of magnitude, a genuine threshold the anchovy's own value sits at the foot of), kappa modest (2.6), gamma close to flat (1.3).
-- **Pin down alpha's transition window more precisely**, the same way the `capacity_mult` window got refined on Day 24 -- a denser sweep over roughly `[0.05, 0.3]` at the same `t_run` to bracket where the steep climb actually starts and ends.
-- **Check whether the `gamma = 305.8` dip is real or an under-settled transient** -- rerun just that point (and its neighbours) at a longer `t_run` than 600 to see whether it's critical slowing down near a smaller feature, the same check Day 24 flagged for its own default-species Forward spike.
-- ~~Give the toy predator-prey model a time delay~~ -- done today: analytically impossible (the Hopf condition `beta*gamma > 2*m*alpha` reduces to `-a*m*P* - 2*m*D`, always negative for positive parameters), and the `tau=40` time series confirms it -- a monotonic, staircase-shaped approach to equilibrium, not an oscillation, despite the amplitude sweep's misleading upward trend.
-- **Confirm `rel_amplitude_P` actually decays to ~0 at large `tau` given enough time**, rather than plateauing -- rerun `tau=40` (and perhaps larger) with a much longer `t_max` than 300. The algebra says a plateau is impossible, which is exactly why it's worth checking directly rather than assuming.
-- **Try a feedback-loop variant of the predator-prey model**, such as switching prey growth from chemostat to logistic (`r*N*(1-N/K)`), to test whether that -- rather than time delay or size structure -- is what unlocks mizer's hysteresis. Still open from Day 24, and now the more promising direction given delay and Type II saturation have both been ruled out for the same structural reason.
-- **Fix `save_plot()`'s silently-truncated filenames** -- the two new delay-experiment PNGs saved to disk missing their `.png` extension and (for the longer filename) part of the name itself (`... tau40.png` became `... tau4`), almost certainly a Windows `MAX_PATH` (260-character) limit hit by this project's deeply nested folder path. Worth shortening `save_plot()`'s output filenames or moving `interesting_plots/` closer to the drive root before it silently clips something less recoverable than a plot.
+- **Pin down alpha's transition window more precisely**, the same way the `capacity_mult` window got refined on Day 24, i.e a denser sweep over roughly `[0.05, 0.3]` at the same `t_run` to bracket where the steep climb actually starts and ends.
+- **Check whether the `gamma = 305.8` dip is real or an under-settled transient**: Rerun just that point (and its neighbours) at a longer `t_run` than 600 to see whether it's critical slowing down near a smaller feature, the same check Day 24 flagged for its own default-species Forward spike.
+- **Confirm `rel_amplitude_P` actually decays to \~0 at large `tau` given enough time**, rather than plateauing. Rerun `tau=40` (and perhaps larger) with a much longer `t_max` than 300. The algebra says a plateau is impossible, which is exactly why it's worth checking directly rather than assuming.
+- **Try a feedback-loop variant of the predator-prey model**, such as switching prey growth from chemostat to logistic (`r*N*(1-N/K)`), to test whether that is what unlocks mizer's hysteresis. Still open from Day 24, and now the more promising direction given delay and Type II saturation have both been ruled out for the same structural reason.
+- **Fix `save_plot()`'s silently-truncated filenames** as the delay-experiment PNGs saved to disk missing their `.png` extension and (for the longer filename) part of the name itself (`... tau40.png` became `... tau4`), almost certainly a Windows `MAX_PATH` (260-character) limit hit by this project's deeply nested folder path. Worth shortening `save_plot()`'s output filenames or moving `interesting_plots/` closer to the drive root before it silently clips something less recoverable than a plot.
