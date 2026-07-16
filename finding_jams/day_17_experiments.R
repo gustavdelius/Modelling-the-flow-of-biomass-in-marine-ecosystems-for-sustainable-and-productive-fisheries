@@ -46,7 +46,9 @@ make_limit_cycle_sim <- function(params, t_total = 600, effort = 0) {
           method = "predictor-corrector")
 }
 
-
+params_only_resource_different <- make_params()
+lim_cycle_only_resource <- make_limit_cycle_sim(params_only_resource_different)
+plotHover(getBiomass(lim_cycle_only_resource),tlim=c(550,600))
 ############# Experiment 1: Finding where the species goes extinct ############
 
 test_constant_fishing <- function(effort, lambda = 2.05, t_total = 600) {
@@ -99,7 +101,7 @@ for (i in seq_along(efforts_fishing)) {
 
 # Experiment 2: Seeing whether resource alone can cause oscillations
 
-#make_params <- function(resource_decrease = 0.001) {
+make_params <- function(resource_decrease = 0.001) {
   params <- newSingleSpeciesParams(
     species_name = "Anchovy"
   )
@@ -112,7 +114,7 @@ for (i in seq_along(efforts_fishing)) {
 # Runs the two-stage perturbation needed to kick the system onto the limit cycle.
 # Stage 1 (t=0–10): run with depleted resource to destabilise.
 # Stage 2 (t=10): knock down mature fish by 1000×, then run to t_total.
-#make_limit_cycle_sim <- function(params, t_total = 600, effort = 0) {
+make_limit_cycle_sim <- function(params, t_total = 600, effort = 0) {
   params@initial_n_pp[] <- params@cc_pp * 0.1
   
   sim_init <- project(params, t_max = 10, dt = 0.1, t_save = 0.2,

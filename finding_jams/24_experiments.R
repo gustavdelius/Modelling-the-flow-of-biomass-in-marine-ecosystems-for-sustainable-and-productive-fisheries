@@ -104,7 +104,18 @@ plot_bifurcation <- function(df, x_label, title, subtitle = NULL) {
 
 dir.create("interesting_plots", showWarnings = FALSE)
 
+# Windows MAX_PATH (260 chars) has silently truncated filenames -- even the
+# .png extension itself -- once combined with this repo's long, deeply
+# nested folder path. Keep names short at the call site; this is a
+# defensive last resort so a long one truncates safely instead of silently.
 save_plot <- function(plot, filename, width = 8, height = 6, dpi = 150) {
+  max_name <- 40
+  if (nchar(filename) > max_name) {
+    ext      <- tools::file_ext(filename)
+    base     <- tools::file_path_sans_ext(filename)
+    filename <- paste0(substr(base, 1, max_name - nchar(ext) - 1), ".", ext)
+    warning(sprintf("save_plot(): filename too long, truncated to '%s'", filename))
+  }
   ggsave(file.path("interesting_plots", filename), plot = plot,
          width = width, height = height, dpi = dpi)
 }
@@ -150,7 +161,7 @@ bif_cc_refine_plot <- plot_bifurcation(
 )
 bif_cc_refine_plot
 
-save_plot(bif_cc_refine_plot, "Bifurcation - capacity_mult refined 1.2-2.3.png")
+save_plot(bif_cc_refine_plot, "bif_cm_refine.png")
 
 ################################################################################
 # Pin down both edges numerically, not just by eye on the plot
@@ -278,7 +289,7 @@ bif_multi_plot <- ggplot(bif_multi_df, aes(x = value, y = biomass, color = direc
   theme_minimal()
 bif_multi_plot
 
-save_plot(bif_multi_plot, "Bifurcation - capacity_mult across resource rates.png", width = 18, height = 5)
+save_plot(bif_multi_plot, "bif_cm_x_rates.png", width = 18, height = 5)
 
 ################################################################################
 # Reading the bifurcation point off each panel numerically
@@ -367,7 +378,7 @@ bif_multi_refine_plot <- ggplot(bif_multi_refine_df, aes(x = value, y = biomass,
   theme_minimal()
 bif_multi_refine_plot
 
-save_plot(bif_multi_refine_plot, "Bifurcation - capacity_mult across resource rates, refined 1-15.png",
+save_plot(bif_multi_refine_plot, "bif_cm_x_rates_r.png",
          width = 18, height = 5)
 
 ################################################################################
@@ -592,7 +603,7 @@ pp_fresh_plot <- ggplot(pp_fresh_df, aes(x = K, y = p_final)) +
   theme_minimal()
 pp_fresh_plot
 
-save_plot(pp_fresh_plot, "Predator-prey toy model - fresh runs vs K.png")
+save_plot(pp_fresh_plot, "pp_fresh_vs_K.png")
 
 # Self-contained transition finder, not reused from the capacity_mult
 # section above -- that's exactly the kind of cross-section dependency that
@@ -700,7 +711,7 @@ bif_default_plot <- plot_bifurcation(
 )
 bif_default_plot
 
-save_plot(bif_default_plot, "Bifurcation - capacity_mult, default species params.png")
+save_plot(bif_default_plot, "bif_cm_default.png")
 
 edge_calls_default <- bif_default_df %>%
   filter(branch == "max") %>%
@@ -759,7 +770,7 @@ bif_default_refine_plot <- plot_bifurcation(
 )
 bif_default_refine_plot
 
-save_plot(bif_default_refine_plot, "Bifurcation - capacity_mult, default species, refined 0.5-8.png")
+save_plot(bif_default_refine_plot, "bif_cm_default_r.png")
 
 edge_calls_default_refine <- bif_default_refine_df %>%
   filter(branch == "max") %>%
@@ -839,7 +850,7 @@ default_spectrum_plot <- ggplot(default_spectrum_df, aes(x = w, y = biomass_dens
   theme_minimal()
 default_spectrum_plot
 
-save_plot(default_spectrum_plot, "Size spectrum - default species params.png")
+save_plot(default_spectrum_plot, "spectrum_default.png")
 
 # Same catchable_fraction() quantification Day 19 used for the anchovy, so
 # the two are directly comparable numbers, not just similar-looking plots.
@@ -985,7 +996,7 @@ pp_typeII_plot <- ggplot(pp_typeII_df, aes(x = K, y = p_final)) +
   theme_minimal()
 pp_typeII_plot
 
-save_plot(pp_typeII_plot, "Predator-prey toy model - Type II, fresh runs vs K.png")
+save_plot(pp_typeII_plot, "pp_typeII_vs_K.png")
 
 find_transition_pp_typeII <- function(df) {
   df         <- df %>% arrange(K)
@@ -1087,7 +1098,7 @@ pp_typeII_carried_plot <- ggplot(pp_typeII_carried_df,
   theme_minimal()
 pp_typeII_carried_plot
 
-save_plot(pp_typeII_carried_plot, "Predator-prey toy model - Type II, forward-backward.png")
+save_plot(pp_typeII_carried_plot, "pp_typeII_fwdbwd.png")
 
 cat(paste0(
   "Type II forward/backward check: if Forward and Backward overlap everywhere in\n",

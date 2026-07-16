@@ -1,9 +1,12 @@
 lines <- readLines("finding_jams/23_experiments.R")
 eval(parse(text = c(
   lines[1:12],     # libraries
-  lines[247:252],  # dir.create / save_plot
-  lines[635:677],  # make_second_order_params_balanced (fixed version)
-  lines[679:722]   # run_bifurcation_sweep
+  lines[247:263],  # dir.create / save_plot (line range shifted when
+                   # save_plot() gained a defensive filename-length check --
+                   # if 23_experiments.R's save_plot block moves again,
+                   # these indices need rechecking against that file)
+  lines[646:688],  # make_second_order_params_balanced (fixed version)
+  lines[690:733]   # run_bifurcation_sweep
 )), envir = .GlobalEnv)
 
 # Cut-down version, not written back to 23_experiments.R: 12 points (vs 20)
@@ -37,7 +40,7 @@ bif_balanced_plot <- ggplot(bif_balanced_df,
   theme_minimal()
 bif_balanced_plot
 
-save_plot(bif_balanced_plot, "Bifurcation - balanced setup across diffusion strengths (quick).png",
+save_plot(bif_balanced_plot, "bif_balanced_diff_quick.png",
          width = 16, height = 5)
 
 cat("PLOTSET2_QUICK DONE\n")

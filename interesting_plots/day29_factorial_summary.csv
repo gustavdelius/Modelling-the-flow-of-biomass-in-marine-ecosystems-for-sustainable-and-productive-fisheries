@@ -1,0 +1,5 @@
+"body","rates","bifurcation_type","n"
+"anchovy","anchovy","stable",19
+"anchovy","cod","stable",20
+"cod","anchovy","stable",20
+"cod","cod","stable",20

@@ -246,12 +246,23 @@ snake_plot_fwd
 
 dir.create("interesting_plots", showWarnings = FALSE)
 
+# Windows MAX_PATH (260 chars) has silently truncated filenames -- even the
+# .png extension itself -- once combined with this repo's long, deeply
+# nested folder path. Keep names short at the call site; this is a
+# defensive last resort so a long one truncates safely instead of silently.
 save_plot <- function(plot, filename, width = 8, height = 6, dpi = 150) {
+  max_name <- 40
+  if (nchar(filename) > max_name) {
+    ext      <- tools::file_ext(filename)
+    base     <- tools::file_path_sans_ext(filename)
+    filename <- paste0(substr(base, 1, max_name - nchar(ext) - 1), ".", ext)
+    warning(sprintf("save_plot(): filename too long, truncated to '%s'", filename))
+  }
   ggsave(file.path("interesting_plots", filename), plot = plot,
          width = width, height = height, dpi = dpi)
 }
 
-save_plot(snake_plot_fwd, "Phase diagram - snake, capacity rows.png")
+save_plot(snake_plot_fwd, "phase_snake.png")
 
 ################################################################################
 # The other intuitive routes: reversed, and axis order swapped
@@ -374,7 +385,7 @@ routes_plot <- ggplot(routes_df, aes(x = resource_decrease, y = capacity_mult)) 
   theme_minimal()
 routes_plot
 
-save_plot(routes_plot, "Phase diagram - three routes compared.png", width = 12, height = 5)
+save_plot(routes_plot, "phase_routes.png", width = 12, height = 5)
 
 ################################################################################
 # Follow-up 1: scan-rate dependence
@@ -454,7 +465,7 @@ scan_rate_plot <- ggplot(scan_rate_df, aes(x = resource_decrease, y = capacity_m
   theme_minimal()
 scan_rate_plot
 
-save_plot(scan_rate_plot, "Scan-rate dependence, three routes.png", width = 12, height = 10)
+save_plot(scan_rate_plot, "scan_rate_routes.png", width = 12, height = 10)
 
 ################################################################################
 # Follow-up 2: genuine perturbation retest of the Fixed-point cells
@@ -562,7 +573,7 @@ fine_grid_plot <- ggplot(fine_grid_df, aes(x = resource_decrease, y = capacity_m
   theme_minimal()
 fine_grid_plot
 
-save_plot(fine_grid_plot, "Phase diagram - densified 9x7 grid.png", width = 9, height = 7)
+save_plot(fine_grid_plot, "phase_grid_9x7.png", width = 9, height = 7)
 
 ################################################################################
 # Follow-up 4: refining capacity_mult in [3, 10]
@@ -604,7 +615,7 @@ refine_grid_plot <- ggplot(refine_grid_df, aes(x = resource_decrease, y = capaci
   theme_minimal()
 refine_grid_plot
 
-save_plot(refine_grid_plot, "Phase diagram - refined capacity 3-10.png", width = 8, height = 6)
+save_plot(refine_grid_plot, "phase_cap_3_10.png", width = 8, height = 6)
 
 ################################################################################
 # Follow-up 5: bifurcation sweeps revisited -- was Day 22's "no hysteresis"
@@ -761,7 +772,7 @@ bif_cc_plot <- plot_bifurcation(bif_cc_df, "capacity_mult",
 bif_kr_combined <- bif_rd_plot | bif_cc_plot
 bif_kr_combined
 
-save_plot(bif_kr_combined, "Bifurcation - resource_decrease vs capacity_mult (balance=FALSE).png",
+save_plot(bif_kr_combined, "bif_rd_vs_cm.png",
          width = 12, height = 5)
 
 ################################################################################
@@ -800,5 +811,5 @@ bif_balanced_plot <- ggplot(bif_balanced_df,
   theme_minimal()
 bif_balanced_plot
 
-save_plot(bif_balanced_plot, "Bifurcation - balanced setup across diffusion strengths.png",
+save_plot(bif_balanced_plot, "bif_balanced_diff.png",
          width = 16, height = 5)

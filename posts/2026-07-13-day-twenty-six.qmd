@@ -9,12 +9,12 @@ format:
     theme: flatly
     code-fold: true
 categories: [research, mizer, juvenile-pileup, alpha, time-delay, hopf-bifurcation, predator-prey, blog]
-description: "Three loose ends from Day 25 closed: a refined alpha sweep pins the juvenile-pileup transition to a narrow (0.105, 0.178) window, the gamma = 305.8 dip turns out to flip between present and absent as t_run grows, and the tau = 40/80 amplitude climb is confirmed to decay to machine-precision zero. Separately, moving the delay onto the prey's own self-limitation (rather than the predator's conversion) produces a genuine Hopf bifurcation -- confirmed analytically and by simulation, though its amplitude drives prey biomass unphysically negative well past onset. A third variant, delaying only the predator's intake term, derives a real threshold on the prey's renewal rate but doesn't show the predicted oscillation within the delays tested."
+description: "Three Day 25 loose ends closed: the juvenile-pileup alpha transition is pinned to (0.105, 0.178), the gamma = 305.8 dip is traced to an unsettled oscillation rather than a real effect, and the tau = 40/80 amplitude climb is confirmed to decay to zero. Separately, delaying the prey's self-limitation (rather than the predator's conversion) is shown to produce a genuine Hopf bifurcation, though its amplitude drives prey biomass unphysically negative past onset; a third variant, delaying only the predator's intake term, derives a real threshold on D but doesn't show the predicted oscillation within the delays tested."
 ---
 
 ## Where Day 25 Left Us
 
-Day 25 closed the alpha/gamma/kappa juvenile-pileup sweep and ruled out a Hopf bifurcation for the time-delay predator-prey model analytically, but left three threads open: pin down alpha's transition window more precisely, check whether the gamma = 305.8 dip was real or an under-settled transient, and confirm the tau = 40/80 amplitude climb actually decays to zero given a longer `t_max` rather than plateauing. All three are closed today, in `26_experiments.R`. Along the way, a direct question came up about the delay model itself — if a time delay usually destabilises systems, why did Day 25 find it couldn't here — which led to re-deriving the Hopf condition for two different places the delay could sit, one of which does produce one.
+Day 25 closed the juvenile-pileup sweep and ruled out a Hopf bifurcation for the time-delay predator-prey model, but left three threads open: pin down $\alpha$'s transition window, check whether the $\gamma=305.8$ dip was real or a transient, and confirm the $\tau=40/80$ amplitude climb actually decays to zero. All three are closed today, in `26_experiments.R`. A further question ( if delay usually destabilises systems, why couldn't it here? ) led to re-deriving the Hopf condition for two other places the delay could sit, one of which does produce one.
 
 ------------------------------------------------------------------------
 
@@ -118,7 +118,7 @@ run_param_sweep <- function(param_name, param_seq, capacity_mult = 10,
 
 ## Pinning Down Alpha's Transition Window
 
-Day 25's 15-point alpha sweep found the catchable fraction jumps roughly 8 orders of magnitude somewhere between `alpha = 0.057` and `alpha = 0.28` — a genuine viability threshold, but the grid was never dense enough to say exactly where the steep part starts and ends. Same move as Day 24's `capacity_mult` refinement: 25 points, log-spaced, zoomed into `[0.05, 0.3]`, at the same `t_run = 600` so the two sweeps stay directly comparable.
+Day 25's 15-point $\alpha$ sweep found the catchable fraction jumps roughly 8 orders of magnitude between $\alpha=0.057$ and $\alpha=0.28$, but the grid wasn't dense enough to say where the steep part starts and ends. Same move as Day 24's `capacity_mult` refinement: 25 log-spaced points zoomed into $[0.05, 0.3]$, at the same `t_run = 600` for direct comparability.
 
 ```{r alpha-refine}
 #| message: false
@@ -127,7 +127,7 @@ alpha_seq_refine <- exp(seq(log(0.05), log(0.3), length.out = 25))
 alpha_refine_df  <- run_param_sweep("alpha", alpha_seq_refine)
 ```
 
-Unlike `capacity_mult`'s collapse bifurcation, there's no natural alive/dead split here — `catchable_fraction` rises smoothly (if steeply) from near-zero to a real plateau, not a bistable jump at one point. So the "transition window" is bracketed with two threshold crossings instead of one: where the climb clearly starts (still under 0.1%) and where it's clearly finished (already over 10%):
+Unlike `capacity_mult`'s collapse bifurcation, there's no natural alive/dead split here. `catchable_fraction` rises smoothly from near-zero to a plateau, not a bistable jump. So the window is bracketed with two threshold crossings: where the climb clearly starts (under 0.1%) and where it's clearly finished (over 10%):
 
 ```{r find-crossing}
 #| message: false
@@ -170,18 +170,13 @@ ggplot(alpha_refine_df %>% filter(is.na(error)), aes(x = value, y = catchable_fr
   theme_minimal()
 ```
 
-| edge | bracket |
-|---|---|
-| Climb starts (crosses 0.1%) | `alpha ∈ (0.1055, 0.1137]` |
-| Climb ends (crosses 10%) | `alpha ∈ (0.1651, 0.1779]` |
-
-The whole steep part of the climb is compressed into a genuinely narrow window, `alpha ≈ 0.105–0.178` — much tighter than Day 25's coarse "somewhere between 0.057 and 0.28." The anchovy's own `alpha = 0.1` sits at `0.0237%` catchable fraction, just below the 0.1% "climb starts" threshold — confirming Day 25's "sits right at the foot of the climb" with an actual number behind it rather than an eyeball read.
+The steep part of the climb is compressed into a narrow window, $\alpha \approx 0.105\text{–}0.178$ which is much tighter than Day 25's coarse "0.057 to 0.28." The anchovy's own $\alpha = 0.1$ sits at $0.0237\%$ catchable fraction, just below the 0.1% "climb starts" threshold. This confirms Day 25's "foot of the climb" read with an actual number.
 
 ------------------------------------------------------------------------
 
 ## Is the Gamma = 305.8 Dip Real, or an Under-Settled Transient?
 
-Day 25's 15-point gamma sweep found one point that breaks monotonicity: `gamma = 305.8` read `9.48e-5`, dipping below both its neighbours (`231 → 2.45e-4`, `404 → 4.03e-4`) at `t_run = 600`. Flagged at the time as possibly critical slowing down — the same explanation Day 24 used for its own default-species Forward-branch spike. This reruns exactly that point and its immediate neighbours (located dynamically off the original 15-point grid, not hardcoded) at increasingly long `t_run`.
+Day 25's 15-point $\gamma$ sweep found one point breaking monotonicity. This code block reruns that point and its neighbours (located dynamically off the original grid) at increasingly long `t_run`.
 
 ```{r gamma-dip-setup}
 #| message: false
@@ -226,28 +221,15 @@ ggplot(gamma_dip_check_df, aes(x = t_run, y = catchable_fraction, color = factor
   theme_minimal()
 ```
 
-| gamma | t_run=600 | t_run=1200 | t_run=2400 | t_run=4800 |
-|---|---|---|---|---|
-| 231.2 | 2.45e-4 | 2.19e-4 | 2.32e-4 | 2.86e-4 |
-| 305.8 | 9.48e-5 | 1.45e-4 | **3.03e-4** | 9.73e-5 |
-| 404.4 | 4.03e-4 | 3.39e-4 | 1.51e-4 | 1.50e-4 |
+This isn't "the dip shrinks and disappears" (critical slowing down) or "the dip holds steady" (a real feature) - it flips non-monotonically, and at `t_run = 2400` the ordering of all three points scrambles, not just the middle one. That's not what a converging transient looks like.
 
-| t_run | dip still present? |
-|---|---|
-| 600 | TRUE |
-| 1200 | TRUE |
-| 2400 | **FALSE** |
-| 4800 | TRUE |
-
-This isn't "the dip shrinks and disappears" (critical slowing down) or "the dip holds steady" (a real feature) — it flips non-monotonically, and at `t_run = 2400` the ordering of all three points scrambles, not just the middle one (`305.8` becomes the *highest* of the three, and `404.4` drops below `231.2`). That's not what a converging transient looks like.
-
-The likely explanation: `catchable_fraction_at()` doesn't average over a settled window — it reads a single snapshot at the last saved timestep of `t_max`. If the system at this operating point (`capacity_mult = 10`, `resource_decrease = 0.001` — the fixed baseline every juvenile-pileup sweep since Day 24 has used) is still gently oscillating rather than sitting at a true fixed point, then varying `t_max` just samples different *phases* of that oscillation, not different amounts of settling time. That's consistent with Day 22/23's own phase-diagram work: `capacity_mult = 10` sits just past where Day 23's refined `[3, 10]` grid found "a complete reversal" from fixed-point to oscillating. The noise floor this reveals (values bouncing 2–3x between reruns) is negligible next to alpha's 27.5-order-of-magnitude range, but it's comparable to or larger than gamma's and kappa's entire reported ranges — so those two "close to flat" / "modest effect" conclusions from Day 25 may be sampling noise from an unsettled oscillation rather than a real parameter effect. Directly checking whether this operating point is actually oscillating (a real time series, not single-snapshot reads) is the natural follow-up.
+The likely explanation: `catchable_fraction_at()` reads a single snapshot at the last saved timestep, not an average over a settled window. If the system at this operating point (`capacity_mult = 10`, `resource_decrease = 0.001`, the fixed baseline every juvenile-pileup sweep since Day 24 has used) is still gently oscillating rather than sitting at a true fixed point, varying `t_max` just samples different *phases*, not different amounts of settling time, which is consistent with Day 23's refined $[3,10]$ grid finding a reversal from fixed-point to oscillating right around `capacity_mult = 10`. That noise floor (values bouncing 2–3x between reruns) is negligible next to $\alpha$'s 27.5-order-of-magnitude range, but comparable to or larger than $\gamma$'s and $\kappa$'s entire reported ranges, so those "flat"/"modest effect" Day 25 conclusions may be sampling noise rather than a real parameter effect. Checking directly whether this operating point is actually oscillating is the natural follow-up.
 
 ------------------------------------------------------------------------
 
 ## Confirming the Amplitude Decay for the Conversion-Delay Model
 
-Day 25's time-delay predator-prey model (delay on the predator's conversion of intake into biomass) was proven analytically to never support a Hopf bifurcation, for any delay or parameters — but `rel_amplitude_P` was still climbing with `tau` across the tested range (up to 0.25 at `tau = 40`), which the algebra says must eventually decay rather than plateau. Reproducing Day 25's model exactly first, to confirm the base case, then extending `t_max` well past the original 300:
+Day 25's time-delay model (delay on the predator's conversion of intake into biomass) was proven analytically to never support a Hopf bifurcation, but `rel_amplitude_P` was still climbing with $\tau$ across the tested range (up to 0.25 at $\tau=40$), which the algebra says must eventually decay rather than plateau. Reproducing Day 25's model first to confirm the base case, then extending `t_max` well past the original 300:
 
 ```{r delay-reproduce}
 #| message: false
@@ -319,16 +301,7 @@ ggplot(decay_check_df, aes(x = t_max, y = rel_amplitude_P, color = factor(tau)))
   theme_minimal()
 ```
 
-| t_max | tau=40 | tau=80 |
-|---|---|---|
-| 300 | 0.2495 | 0.2513 |
-| 600 | 0.0484 | 0.2448 |
-| 1200 | 8.00e-4 | 0.0463 |
-| 2400 | 1.51e-7 | 5.18e-4 |
-| 4800 | 4.16e-15 | 8.34e-8 |
-| 9600 | 1.67e-16 | 1.67e-15 |
-
-Both `tau` values decay across 15 orders of magnitude to machine-precision zero — not a plateau. A separate endpoint check (distance from the trajectory's final `N, P` to the analytic equilibrium) confirms it directly: both `tau = 40` and `tau = 80` land within `3.7e-15` of `(N^*, P^*)` by `t_max = 9600`. That closes Day 25's third loose end: the climbing amplitude sweep was measuring an unfinished monotonic relaxation, not a real or growing oscillation, exactly as the algebra predicted.
+Both $\tau$ values decay across 15 orders of magnitude to machine-precision zero, which is clearly not a plateau. An endpoint check (distance from the trajectory's final $N,P$ to the analytic equilibrium) confirms it directly: both land within $3.7\times10^{-15}$ of $(N^*,P^*)$ by `t_max=9600`. That closes Day 25's third loose end: the climbing amplitude was an unfinished monotonic relaxation, not a real or growing oscillation, exactly as predicted.
 
 ------------------------------------------------------------------------
 
@@ -336,24 +309,30 @@ Both `tau` values decay across 15 orders of magnitude to machine-precision zero 
 
 Day 25's model delays the predator's *conversion* of intake into biomass, but leaves the prey's own self-limitation instantaneous:
 
-```
-dN/dt = D(K - N(t))       - aN(t)P(t)
-dP/dt = eaN(t-tau)P(t-tau) - mP(t)
-```
+$$\begin{aligned}
+\frac{dN}{dt} &= D(K - N(t)) - aN(t)P(t) \\
+\frac{dP}{dt} &= eaN(t-\tau)P(t-\tau) - mP(t)
+\end{aligned}$$
 
-Linearising around equilibrium and substituting `n, p ~ e^(lambda t)` gives the characteristic equation `(lambda+alpha)(lambda+m-me^(-lambda tau)) + beta gamma e^(-lambda tau) = 0`, with `alpha = D + aP^*`, `beta = aN^*`, `gamma = eaP^*`. Setting `lambda = i omega` (the only way a root can cross from stable to unstable as `tau` grows) and matching `|P(i omega)| = |Q(i omega)|` reduces this to a quadratic in `u = omega^2`:
+**Step 1: Linearise.** Substituting $n,p\sim e^{\lambda t}$ around equilibrium gives the characteristic equation, with $\alpha=D+aP^*$, $\beta=aN^*$, $\gamma=eaP^*$:
 
-```
-u^2 + alpha^2 u + beta gamma (2 m alpha - beta gamma) = 0
-```
+$$(\lambda+\alpha)\left(\lambda+m-me^{-\lambda\tau}\right) + \beta\gamma e^{-\lambda\tau} = 0$$
 
-By Vieta's formulas, the sum of the two roots is `-alpha^2` (always negative), so a positive root — a genuine crossing frequency — can only exist if the *product*, `beta gamma (2 m alpha - beta gamma)`, is negative, i.e. if `beta gamma > 2 m alpha`. Substituting the actual definitions and simplifying (using the equilibrium relation `eaN^* = m`):
+**Step 2: Find the Hopf condition.** Setting $\lambda=i\omega$ and matching $|P(i\omega)|=|Q(i\omega)|$ reduces this to a quadratic in $u=\omega^2$:
 
-```
-beta gamma - 2 m alpha = -a m P^* - 2 m D
-```
+$$u^2 + \alpha^2 u + \beta\gamma\left(2m\alpha - \beta\gamma\right) = 0$$
 
-Factoring out `-mD` (after substituting `P^* = D(K-N^*)/(aN^*)`) gives a strikingly clean closed form: `beta gamma - 2 m alpha = -mD(K+N^*)/N^*`. Every quantity in that bracket is positive, so `D` sits as a bare positive multiplier on an unconditionally negative expression — for *any* positive `D, a, e, m, K`, this can never be positive. The undelayed prey renewal term `D` is doing all the work: it's a restoring force that acts at full strength regardless of `tau`, and it's strong enough here to prevent any Hopf bifurcation, no matter the delay.
+By Vieta's formulas, the sum of the roots is $-\alpha^2$ (always negative), so a positive root exists only if the *product*, $\beta\gamma(2m\alpha-\beta\gamma)$, is negative, i.e. $\beta\gamma>2m\alpha$.
+
+**Step 3: Check whether that can ever hold.** Substituting and simplifying (using $eaN^*=m$):
+
+$$\beta\gamma - 2m\alpha = -amP^* - 2mD$$
+
+Factoring out $-mD$ (after substituting $P^*=D(K-N^*)/(aN^*)$) gives a clean closed form:
+
+$$\beta\gamma - 2m\alpha = -\frac{mD(K+N^*)}{N^*}$$
+
+Every quantity in that bracket is positive, so this can never be positive for *any* positive $D,a,e,m,K$. The undelayed prey renewal term $D$ is a restoring force acting at full strength regardless of $\tau$, strong enough here to prevent any Hopf bifurcation.
 
 That raised an obvious question: what if the delay sat somewhere else?
 
@@ -361,38 +340,36 @@ That raised an obvious question: what if the delay sat somewhere else?
 
 ## A Model That Does Support a Hopf Bifurcation: Delay the Prey's Self-Limitation Instead
 
-Moving the delay onto the prey's own self-limitation term instead — `dN/dt = D(K - N(t-tau)) - aN(t)P(t)`, predation and conversion now instantaneous — is the classical route to delay-induced instability, the two-species analogue of Hutchinson's single-species delayed logistic equation.
+Moving the delay onto the prey's own self-limitation term instead $\frac{dN}{dt} = D(K - N(t-\tau)) - aN(t)P(t)$ ,predation and conversion now instantaneous, is the classical route to delay-induced instability, the two-species analogue of Hutchinson's single-species delayed logistic equation.
 
 ### Working Out the Maths
 
-**Step 1 — the equilibrium is unchanged.** At a constant solution the delayed term equals its instantaneous value, so `N^* = m/(ea)`, `P^* = D(K-N^*)/(aN^*)` — identical to before.
+**Step 1:** The equilibrium is unchanged: at a constant solution the delayed term equals its instantaneous value, so $N^*=m/(ea)$, $P^*=D(K-N^*)/(aN^*)$.
 
-**Step 2 — linearise.** Writing `N = N^*+n`, `P = P^*+p` and dropping second-order terms gives:
+**Step 2: Linearise.** Writing $N=N^*+n$, $P=P^*+p$ and dropping second-order terms:
 
-```
-dn/dt = -alpha n(t) - beta p(t) - D n(t-tau)     [alpha = a P^*, NOT D+aP^* -- D now
-                                                    sits on its own, as the coefficient
-                                                    of the delayed term]
-dp/dt = gamma n(t)                                [gamma = eaP^*, no delay at all here]
-```
+$$\begin{aligned}
+\frac{dn}{dt} &= -\alpha n(t) - \beta p(t) - D n(t-\tau) \\
+\frac{dp}{dt} &= \gamma n(t)
+\end{aligned}$$
 
-The key structural change from before: `D` has been pulled out of `alpha` entirely and now multiplies the delayed term directly.
+where now $\alpha=aP^*$ (not $D+aP^*$, $D$ now sits on its own as the coefficient of the delayed term), and $\gamma=eaP^*$ carries no delay.
 
-**Step 3 — the characteristic equation.** Substituting the ansatz gives `lambda^2 + alpha lambda + beta gamma + D lambda e^(-lambda tau) = 0`. At `tau=0` this becomes `lambda^2 + (alpha+D)lambda + beta gamma = 0`, and `alpha+D = aP^*+D` is exactly the *old* `alpha` — matching the non-delayed result exactly, as it must.
+**Step 3: Characteristic equation:**
 
-**Step 4 — matching moduli.** Setting `lambda = i omega` and matching `|P(i omega)| = |Q(i omega)|` (same method as before) gives a quadratic in `u = omega^2`:
+$$\lambda^2 + \alpha\lambda + \beta\gamma + D\lambda e^{-\lambda\tau} = 0$$
 
-```
-u^2 + (alpha^2 - D^2 - 2 beta gamma) u + (beta gamma)^2 = 0
-```
+At $\tau=0$ this becomes $\lambda^2+(\alpha+D)\lambda+\beta\gamma=0$, and $\alpha+D=aP^*+D$ is exactly the *old* $\alpha$ from the conversion-delay model, matching Day 24's non-delayed result as it must.
 
-**Step 5 — the sign test.** The product of roots here is `(beta gamma)^2` — always a perfect square, always non-negative. That rules out the "opposite signs" case from the earlier model entirely: both roots always share the same sign, and the sum decides which. Requiring both real (discriminant ≥ 0) and positive (sum > 0), and simplifying, collapses to one clean condition:
+**Step 4: Matching moduli.** Setting $\lambda=i\omega$ gives a quadratic in $u=\omega^2$:
 
-```
-Hopf possible  <=>  alpha < D  <=>  a P^* < D
-```
+$$u^2 + \left(\alpha^2 - D^2 - 2\beta\gamma\right) u + (\beta\gamma)^2 = 0$$
 
-Checked against this project's own reference parameters (`D=1, a=1, e=0.5, m=0.3, K=1` → `P^*=0.667`): `a P^* = 0.667 < D = 1` — the condition **holds**, with the exact same numbers used throughout Days 25–26.
+**Step 5: Sign test.** The product of roots is $(\beta\gamma)^2$, always non-negative as both roots share a sign, and the sum decides which. Requiring both real (discriminant $\geq0$) and positive (sum $>0$) collapses to one condition:
+
+$$\text{Hopf possible} \iff \alpha < D \iff aP^* < D$$
+
+At this project's reference parameters ($D=1,a=1,e=0.5,m=0.3,K=1\to P^*=0.667$): $aP^*=0.667<D=1$ the condition **holds**.
 
 ### Confirming It Numerically
 
@@ -418,9 +395,22 @@ check_hopf_feasibility_selflim <- function(parms = predator_prey_params_delay) {
              hopf_possible = (a * P_star) < D)
 }
 
+hopf_check_selflim <- check_hopf_feasibility_selflim()
+print(hopf_check_selflim)
+cat(sprintf(
+  paste0(
+    "Self-limitation-delay Hopf check: a*P* = %.4f vs D = %.4f -- %s\n",
+    "(derived condition: Hopf possible iff a*P* < D; contrast with the conversion-\n",
+    "delay model, where the analogous condition could never hold for any parameters)\n"
+  ),
+  hopf_check_selflim$alpha_s, hopf_check_selflim$D,
+  ifelse(hopf_check_selflim$hopf_possible, "HOPF POSSIBLE", "not possible")
+))
+
 run_predator_prey_selflim <- function(tau, state0 = c(N = 1, P = 0.1), t_max = 300,
                                       parms = predator_prey_params_delay) {
-  parms$tau <- tau; parms$N0 <- state0[["N"]]
+  parms$tau <- tau
+  parms$N0  <- state0[["N"]]
   out  <- as.data.frame(dede(y = state0, times = seq(0, t_max, by = 0.1),
                              func = predator_prey_rhs_selflim, parms = parms))
   late <- out[out$time > t_max * 0.6, ]
@@ -444,48 +434,42 @@ ggplot(selflim_sweep_df, aes(x = tau, y = rel_amplitude_P)) +
   theme_minimal()
 ```
 
-| tau | rel_amplitude_P | min_N |
-|---|---|---|
-| 2.2 | 0.0204 | 0.579 |
-| **2.4** | **0.661** | **-0.021** |
-| 2.6 | 0.827 | -0.225 |
-| 3 | 1.047 | -0.548 |
-| 5 | 2.029 | -2.346 |
-| 10 | 3.059 | -6.956 |
-| 20 | 4.214 | -15.532 |
+The onset is sharp, between $\tau=2.2$ (amplitude still $0.02$) and $\tau=2.4$ (amplitude jumps to $0.66$), landing almost exactly on the $\tau\approx2.4$ hand estimate. A persistence check at $\tau=10$ across `t_max = 300, 1500, 3000` gives `rel_amplitude_P = 3.06, 2.95, 2.92`, which is steady, confirming a sustained limit cycle rather than an unsettled transient.
 
-The onset is sharp — between `tau = 2.2` (amplitude still `0.02`, essentially flat) and `tau = 2.4` (amplitude jumps to `0.66`) — landing almost exactly on the `tau ≈ 2.4` estimate worked out by hand from the phase-matching condition beforehand. A persistence check at `tau = 10` across `t_max = 300, 1500, 3000` gives `rel_amplitude_P = 3.06, 2.95, 2.92` — steady, not decaying, confirming this is a genuine sustained limit cycle rather than another unsettled transient.
-
-**But there's a real problem with it.** Look at the `min_N` column: `N` (prey biomass) goes negative right at onset and gets dramatically more negative as `tau` grows — down to `-15.5` by `tau = 20`. This toy model has no mechanism (no saturating functional response, no higher-order term) to cap the amplitude of the resulting oscillation, so once you're more than a little past the bifurcation point, the "population" swings through biologically nonsensical negative values. The Hopf bifurcation itself is real and confirmed both analytically and numerically — but this specific model can't be trusted as a faithful biological picture much beyond its onset.
+**But there's a real problem.** The `min_N` column shows $N$ going negative right at onset and dramatically more negative as $\tau$ grows, down to $-15.5$ by $\tau=20$. This toy model has no saturating mechanism to cap the oscillation, so past the bifurcation the "population" swings through biologically nonsensical negative values. The Hopf bifurcation itself is real but the model can't be trusted as a faithful biological picture much beyond its onset.
 
 ------------------------------------------------------------------------
 
 ## A Third Variant: Delay Only the Predator's Intake, Not Its Own Growth
 
-A natural intermediate case: what if only `P(t-tau)` is delayed inside the predator's growth term, while `N(t)` there stays instantaneous?
+A natural intermediate case: what if only $P(t-\tau)$ is delayed inside the predator's growth term, while $N(t)$ there stays instantaneous?
 
-```
-dN/dt = D(K - N(t))       - aN(t)P(t)
-dP/dt = eaN(t)P(t-tau)     - mP(t)
-```
+$$\begin{aligned}
+\frac{dN}{dt} &= D(K - N(t)) - aN(t)P(t) \\
+\frac{dP}{dt} &= eaN(t)P(t-\tau) - mP(t)
+\end{aligned}$$
 
 ### The Maths
 
-Linearising gives `dp/dt = gamma n(t) + m p(t-tau) - m p(t)` — the `n` term loses its delay, but the `m p(t-tau)` term survives (it comes from `N^*` — a constant — multiplying the still-delayed `P(t-tau)`). The characteristic equation becomes `(lambda+alpha)(lambda+m-me^(-lambda tau)) + beta gamma = 0`, with `alpha = D+aP^*` as in the original model, but now `beta gamma` carries no `e^(-lambda tau)` factor at all.
+**Step 1: Linearise.** $\frac{dp}{dt}=\gamma n(t)+mp(t-\tau)-mp(t)$: the $n$ term loses its delay, but $mp(t-\tau)$ survives (it comes from $N^*$, a constant, multiplying the still-delayed $P(t-\tau)$).
 
-Matching moduli gives `u^2 + (alpha^2 - 2 beta gamma) u + beta gamma(2 alpha m + beta gamma) = 0`. The product of roots, `beta gamma(2 alpha m + beta gamma)`, is always positive (every factor is positive) — same situation as the self-limitation model, so both roots share a sign and the sum decides which:
+**Step 2: Characteristic equation**, with $\alpha=D+aP^*$ as in the original model, but now $\beta\gamma$ carries no $e^{-\lambda\tau}$ factor:
 
-```
-Hopf possible  <=>  2 beta gamma > alpha^2
-```
+$$(\lambda+\alpha)\left(\lambda+m-me^{-\lambda\tau}\right) + \beta\gamma = 0$$
 
-Writing `P^* = D*C` (`C = (K-N^*)/(aN^*)`, independent of `D`) and substituting through reduces this to a genuine **threshold on D**, unlike the absolute impossibility of the original model and unlike the self-limitation model's condition (which held outright at the reference parameters):
+**Step 3: Match moduli:**
 
-```
-D < 2 a m C / (1 + a C)^2
-```
+$$u^2 + \left(\alpha^2 - 2\beta\gamma\right) u + \beta\gamma\left(2\alpha m + \beta\gamma\right) = 0$$
 
-At the reference parameters (`N^*=0.6, C=0.667`), that threshold works out to `~0.144`. `D=1` is far above it, so no Hopf is predicted at the reference `D` — tested below alongside `D=0.1`, comfortably under the threshold.
+The product of roots, $\beta\gamma(2\alpha m+\beta\gamma)$, is always positive ; same situation as the self-limitation model, so both roots share a sign and the sum decides which:
+
+$$\text{Hopf possible} \iff 2\beta\gamma > \alpha^2$$
+
+**Step 4: Reduce to a threshold on D.** Writing $P^*=DC$ ($C=(K-N^*)/(aN^*)$, independent of $D$) reduces this to a genuine threshold on $D$, unlike the original model's absolute impossibility or the self-limitation model's condition (which held outright at the reference parameters):
+
+$$D < \frac{2amC}{(1+aC)^2}$$
+
+At the reference parameters ($N^*=0.6, C=0.667$), that threshold works out to $\sim0.144$. $D=1$ is far above it, so no Hopf is predicted there. This is tested below alongside $D=0.1$, comfortably under the threshold.
 
 ### Confirming It Numerically
 
@@ -536,23 +520,24 @@ ggplot(pdelay_sweep_df, aes(x = tau, y = rel_amplitude_P, color = D_label)) +
   theme_minimal()
 ```
 
-At `D=1` (above threshold), `rel_amplitude_P` climbs smoothly from `1.8e-10` to `0.145` by `tau=20` — the same shape as the original conversion-delay model's non-Hopf climb, as expected. At `D=0.1` (below threshold, Hopf predicted), the climb is smaller and equally gradual, reaching only `0.033` by `tau=20`, with no sharp transition visible anywhere in the tested range.
+At $D=1$ (above threshold), `rel_amplitude_P` climbs smoothly from $1.8\times10^{-10}$ to $0.145$ by $\tau=20$, the same non-Hopf shape as the original conversion-delay model. At $D=0.1$ (below threshold, Hopf predicted), the climb is smaller and equally gradual, reaching only $0.033$ by $\tau=20$, with no sharp transition visible.
 
-A persistence check at `D=0.1, tau=10` settles it: `rel_amplitude_P` at `t_max = 300, 1500, 3000` is `0.00164 → 9.18e-14 → 1.04e-15` — collapsing toward machine-precision zero. That's the exact "critical slowing down, not real oscillation" signature from earlier, not a sustained cycle. So even though `D=0.1` genuinely satisfies the derived existence condition, `tau=10` isn't past the real onset for this variant — the true critical `tau` must sit somewhere beyond 20, not yet located. This is a real, if unglamorous, result: the analytic threshold on `D` is correctly derived and internally consistent, but pinning down *where* (in `tau`) the bifurcation actually occurs for a given `D` needs a wider sweep than was run today.
+A persistence check at $D=0.1,\tau=10$ settles it: `rel_amplitude_P` at `t_max = 300, 1500, 3000` is $0.00164\to9.18\times10^{-14}\to1.04\times10^{-15}$ .This is collapsing toward machine-precision zero, the same "critical slowing down" signature as earlier, clearly not a sustained cycle. So even though $D=0.1$ satisfies the derived existence condition, $\tau=10$ isn't past this variant's real onset,so the true critical $\tau$ sits beyond 20, not yet located. The threshold on $D$ is correctly derived, but pinning down *where* the bifurcation occurs for a given $D$ needs a wider sweep.
 
 ------------------------------------------------------------------------
 
 ## What This All Adds Up To
 
-Three loose ends from Day 25 closed cleanly: alpha's transition window is now a precise `(0.105, 0.178)` bracket, the tau = 40/80 amplitude climb is confirmed to decay to machine-precision zero rather than plateau, and the gamma = 305.8 dip turned out to be more interesting than either "real" or "transient" — its non-monotonic flipping points at an unsettled oscillation at the sweep's own operating point, which puts a question mark over gamma and kappa's "modest effect" conclusions from Day 25 that alpha's huge range was never at risk from.
+Three loose ends from Day 25 closed cleanly: $\alpha$'s transition window is now a precise $(0.105, 0.178)$ bracket, the $\tau=40/80$ amplitude climb is confirmed to decay to machine-precision zero, and the $\gamma=305.8$ dip turned out to be neither "real" nor "transient" - its non-monotonic flipping points at an unsettled oscillation at the sweep's own operating point, casting doubt on $\gamma$ and $\kappa$'s "modest"/"flat" Day 25 conclusions.
 
-The deeper result is about *where* a delay sits, not whether delay can destabilise a system in general. Delaying the predator's conversion (Day 25's model) can never produce a Hopf bifurcation here, for any parameters — proven by factoring the destabilising quantity into `-mD(K+N^*)/N^*`, a bare positive `D` multiplying an unconditionally negative bracket. Delaying the prey's own self-limitation instead does produce one, confirmed both by rederiving the condition (`aP^* < D`) and by simulation landing the onset almost exactly where the hand-derived estimate predicted — though the resulting limit cycle's amplitude grows unboundedly past onset, driving prey biomass negative, a real limitation of this toy model rather than of the underlying mechanism. A third, intermediate variant (delay only the predator's intake, not its own growth) derives a genuine threshold on `D` rather than an absolute block, but the specific `tau` tested wasn't far enough to actually see it.
+The deeper result is about *where* a delay sits, not whether delay can destabilise a system in general. Delaying the predator's conversion (Day 25's model) can never produce a Hopf bifurcation, proven by factoring the destabilising quantity into $-mD(K+N^*)/N^*$, a bare positive $D$ multiplying an unconditionally negative bracket. Delaying the prey's self-limitation instead does produce one, confirmed both analytically ($aP^*<D$) and by simulation landing the onset almost exactly where predicted. Though the limit cycle's amplitude grows unboundedly past onset, driving prey biomass negative, a limitation of this toy model rather than the underlying mechanism. A third, intermediate variant (delay only the predator's intake) derives a genuine threshold on $D$ rather than an absolute block, but the tested $\tau$ wasn't far enough to actually see it.
 
 ------------------------------------------------------------------------
 
 ## What's Next
 
-- **Find the actual critical tau for the P-only-delay variant at D=0.1.** Extend `tau_seq_pdelay` well past 20 (e.g. up to 40–60) and rerun the persistence check at each candidate onset to locate where `rel_amplitude_P` stops decaying and starts holding steady.
-- **Characterise how far past onset the self-limitation model's amplitude stays biologically sensible.** `min_N` is already negative at `tau=2.4` (barely past onset) and reaches `-15.5` by `tau=20` — worth finding the `tau` range where `N` stays non-negative, and considering whether a saturating term (a proper functional response, rather than mass-action) would cap the amplitude the way it should.
-- **Check directly whether `capacity_mult=10, resource_decrease=0.001` is actually oscillating**, rather than reading single-timestep snapshots at different `t_max` — a real time series at this exact operating point would settle whether the gamma/kappa sweep's noise floor is genuine unsettled oscillation or something else.
-- **Rerun gamma and kappa's isolation sweeps with a windowed-average read** (the same "late window" convention used throughout the delay-model work) instead of a single final-timestep snapshot, to check whether their "modest"/"flat" Day 25 conclusions survive averaging out whatever phase-sampling noise today's gamma recheck exposed.
+- **Find the actual critical tau for the P-only-delay variant at D=0.1:** Extend `tau_seq_pdelay` well past 20 (e.g. up to 40–60) and rerun the persistence check at each candidate onset to locate where `rel_amplitude_P` stops decaying and starts holding steady.
+- **Characterise how far past onset the self-limitation model's amplitude stays biologically sensible:** `min_N` is already negative at $\tau=2.4$ (barely past onset) and reaches $-15.5$ by $\tau=20$. It's worth finding the $\tau$ range where $N$ stays non-negative, and considering whether a saturating term (a proper functional response, rather than mass-action) would cap the amplitude the way it should.
+- **Check directly whether `capacity_mult=10, resource_decrease=0.001` is actually oscillating:** Rather than reading single-timestep snapshots at different `t_max`. A real time series at this exact operating point would settle whether the gamma/kappa sweep's noise floor is genuine unsettled oscillation or something else.
+- **Rerun gamma and kappa's isolation sweeps:** Do this with a windowed-average read (the same "late window" convention used throughout the delay-model work) instead of a single final-timestep snapshot, to check whether their "modest"/"flat" Day 25 conclusions survive averaging out whatever phase-sampling noise today's gamma recheck exposed.
+- **Carry these toy-model findings back over to the actual size-spectrum (mizer) model:** Everything above was worked out on the abstract two-species predator-prey system, not on the anchovy model itself - the natural next step is checking which of these delay mechanisms, if any, has a real biological analogue in the size-spectrum setting, and whether it could plausibly help explain the juvenile-pileup dynamics this project has been tracking since Day 6.

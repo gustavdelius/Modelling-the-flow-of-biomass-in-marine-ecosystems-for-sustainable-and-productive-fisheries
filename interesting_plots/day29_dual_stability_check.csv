@@ -1,0 +1,5 @@
+"species","linear_verdict","spectral_radius","perturbed_verdict","rel_amplitude","agree"
+"cod (reference)","stable",0.761250163324105,"settled",1.39792382739583e-09,TRUE
+"anchovy (reference)","stable",0.365520738650081,"oscillating",0.809093839603038,FALSE
+"cod (capacity_mult=500x)","stable",0.7612501633241,"settled",1.47970573608187e-10,TRUE
+"anchovy (capacity_mult=500x)","stable",0.356130336968491,"oscillating",1.64506710708457,FALSE

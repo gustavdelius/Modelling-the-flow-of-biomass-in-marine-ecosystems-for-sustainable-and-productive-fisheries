@@ -13,7 +13,18 @@ library(scales)
 
 dir.create("interesting_plots", showWarnings = FALSE)
 
+# Windows MAX_PATH (260 chars) has silently truncated filenames -- even the
+# .png extension itself -- once combined with this repo's long, deeply
+# nested folder path. Keep names short at the call site; this is a
+# defensive last resort so a long one truncates safely instead of silently.
 save_plot <- function(plot, filename, width = 8, height = 6, dpi = 150) {
+  max_name <- 40
+  if (nchar(filename) > max_name) {
+    ext      <- tools::file_ext(filename)
+    base     <- tools::file_path_sans_ext(filename)
+    filename <- paste0(substr(base, 1, max_name - nchar(ext) - 1), ".", ext)
+    warning(sprintf("save_plot(): filename too long, truncated to '%s'", filename))
+  }
   ggsave(file.path("interesting_plots", filename), plot = plot,
          width = width, height = height, dpi = dpi)
 }
@@ -206,7 +217,7 @@ alpha_sweep_plot <- plot_param_sweep(
 )
 alpha_sweep_plot
 
-save_plot(alpha_sweep_plot, "Juvenile-pileup sweep - alpha.png")
+save_plot(alpha_sweep_plot, "juv_alpha.png")
 
 ################################################################################
 # gamma (search volume / intake rate): anchovy = 750, default species' own
@@ -228,7 +239,7 @@ gamma_sweep_plot <- plot_param_sweep(
 )
 gamma_sweep_plot
 
-save_plot(gamma_sweep_plot, "Juvenile-pileup sweep - gamma.png")
+save_plot(gamma_sweep_plot, "juv_gamma.png")
 
 ################################################################################
 # kappa (background resource-spectrum coefficient): anchovy's own value
@@ -250,7 +261,7 @@ kappa_sweep_plot <- plot_param_sweep(
 )
 kappa_sweep_plot
 
-save_plot(kappa_sweep_plot, "Juvenile-pileup sweep - kappa.png")
+save_plot(kappa_sweep_plot, "juv_kappa.png")
 
 ################################################################################
 # Putting the three sweeps side by side, and ranking them the same way Day
@@ -274,7 +285,7 @@ combined_sweep_plot <- ggplot(all_sweeps_df %>% filter(is.na(error)),
   theme_minimal()
 combined_sweep_plot
 
-save_plot(combined_sweep_plot, "Juvenile-pileup sweep - all three parameters.png", width = 14, height = 5)
+save_plot(combined_sweep_plot, "juv_all3.png", width = 14, height = 5)
 
 sweep_magnitude <- all_sweeps_df %>%
   filter(is.na(error), catchable_fraction > 0) %>%
@@ -472,7 +483,7 @@ delay_amplitude_plot <- ggplot(delay_sweep_df, aes(x = tau, y = rel_amplitude_P)
   theme_minimal()
 delay_amplitude_plot
 
-save_plot(delay_amplitude_plot, "Predator-prey toy model - delay sweep amplitude.png")
+save_plot(delay_amplitude_plot, "pp_delay_amp.png")
 
 # A dedicated time-series run at the largest tested delay, to see the
 # transient directly rather than only reading off the settled-window
@@ -496,7 +507,7 @@ delay_timeseries_plot <- ggplot(longest_delay_ts, aes(x = time)) +
   theme_minimal()
 delay_timeseries_plot
 
-save_plot(delay_timeseries_plot, "Predator-prey toy model - delay timeseries tau40.png")
+save_plot(delay_timeseries_plot, "pp_delay_ts_tau40.png")
 
 cat(paste0(
   "Time-delay predator-prey check: if rel_amplitude_P stays small and flat across\n",

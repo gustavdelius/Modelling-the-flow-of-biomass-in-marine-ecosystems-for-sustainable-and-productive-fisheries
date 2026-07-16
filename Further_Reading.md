@@ -93,6 +93,43 @@ The original paper deriving the LWR conservation PDE — the exact traffic-flow 
 
 20.https://rpubs.com/gustav/plankton-anchovy
 
+***
+
+21. Xia, Wolkowicz & Wang (2005) — Transient Oscillations Induced by Delayed Growth Response in the Chemostat
+Journal of Mathematical Biology, 50(5), 489–530
+https://link.springer.com/article/10.1007/s00285-004-0311-5
+A chemostat model (not logistic) where the growth response itself is delayed, producing exactly the damped-spiral-below-onset vs. genuine-limit-cycle-above-onset distinction found in this project's own N-only-delay toy model. Best structural match found for the Day 25-27 DDE work.
+***
+
+22. Zhang (2015) — Periodic Oscillations in a Chemostat Model with Two Discrete Delays
+Discrete Dynamics in Nature and Society, 2015, 306302
+https://doi.org/10.1155/2015/306302
+Two discrete delays (nutrient recycling and nutrient conversion) in a chemostat-type model; a Hopf bifurcation is derived from the characteristic equation as the delays vary. Same derivation style as the pdelay/ndelay conditions worked out in 27_experiments.R, in a proper chemostat framing rather than logistic.
+***
+
+23. Sun, Guo & Liu (2018) — Hopf Bifurcation of a Delayed Chemostat Model with General Monotone Response Functions
+Computational and Applied Mathematics
+https://link.springer.com/article/10.1007/s40314-017-0476-3
+Generalises the delayed-chemostat Hopf condition beyond the specific Type II/III functional responses used so far in this project's toy model.
+***
+
+24. Toth (2008) — Bifurcation Structure of a Chemostat Model for an Age-Structured Predator and Its Prey
+Journal of Biological Dynamics, 2(4), 428–448
+https://www.tandfonline.com/doi/full/10.1080/17513750802360853
+An age-structured predator (not a single ODE compartment) feeding on a chemostat resource -- the closest published analogue to mizer's own size-structured-population-on-a-semichemostat set-up found so far.
+***
+
+25. Smith & Waltman (1995) — The Theory of the Chemostat: Dynamics of Microbial Competition
+Cambridge Studies in Mathematical Biology, Cambridge University Press
+https://www.cambridge.org/9780521470278
+The standard reference text for chemostat dynamics as a dynamical-systems problem, including size-structured extensions. Background reading before the delayed-chemostat papers above.
+***
+
+26. de Roos & Persson (2003) — Competition in Size-Structured Populations: Mechanisms Inducing Cohort Formation and Population Cycles
+Theoretical Population Biology, 63(1), 1–16
+https://pubmed.ncbi.nlm.nih.gov/12464491/
+Distinguishes "juvenile-driven" cycles (a single cohort dominating the dynamics as it moves through the population, when juveniles have the higher mass-specific ingestion rate) from "adult-driven" cycles, in a physiologically structured population model. The formal version of the "juvenile pileup" phenomenon this project has tracked since Day 6 -- check cod_params' own juvenile vs. adult mass-specific feeding rate (getEncounter()*(1-getFeedingLevel()), split at w_mat) against this paper's criterion.
+
 ### Online Tools & Simulations
 
 -   **MIZER official documentation & tutorials** — <https://sizespectrum.org/mizer/>

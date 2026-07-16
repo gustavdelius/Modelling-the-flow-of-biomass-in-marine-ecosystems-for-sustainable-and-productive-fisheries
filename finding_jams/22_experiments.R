@@ -42,8 +42,29 @@ make_second_order_params <- function(lambda = 2.05, resource_decrease = 0.001,
   
   params
 }
+a0    <- 100
+kappa <- a0 * exp(-6.9 * (2.05 - 1))
+no_w  <- round(log(66.5 / 0.0003) / 0.1)
 
+params <- newSingleSpeciesParams(
+  species_name = "Anchovy",
+  w_min = 0.0003, w_max = 66.5, w_mat = 10,
+  no_w = no_w, lambda = 2.05, kappa = kappa,
+  alpha = 0.1, gamma = 750, ks = 0
+) 
+E <- getEncounter(params)      # encounter rate, g/year -- E_i(w)
+f <- getFeedingLevel(params)   # feeding level (satiation, 0-1) -- f_i(w) = E/(E+h)
 
+per_capita_rate <- E * (1 - f)     # realized per-capita consumption, g/year
+
+w     <- params@w
+w_mat <- params@species_params$w_mat
+
+juvenile_rate <- per_capita_rate[1, w < w_mat]
+adult_rate    <- per_capita_rate[1, w >= w_mat]
+
+juvenile_rate - adult_rate
+mean(juvenile_rate) - mean(adult_rate)
 rd_seq <- exp(seq(log(0.0001), log(0.5), length.out = 20))
 
 # live_plot = TRUE passes mizerExperimental's biomass_callback to project(),
@@ -619,12 +640,23 @@ snake_plot_fwd
 
 dir.create("interesting_plots", showWarnings = FALSE)
 
+# Windows MAX_PATH (260 chars) has silently truncated filenames -- even the
+# .png extension itself -- once combined with this repo's long, deeply
+# nested folder path. Keep names short at the call site; this is a
+# defensive last resort so a long one truncates safely instead of silently.
 save_plot <- function(plot, filename, width = 8, height = 6, dpi = 150) {
+  max_name <- 40
+  if (nchar(filename) > max_name) {
+    ext      <- tools::file_ext(filename)
+    base     <- tools::file_path_sans_ext(filename)
+    filename <- paste0(substr(base, 1, max_name - nchar(ext) - 1), ".", ext)
+    warning(sprintf("save_plot(): filename too long, truncated to '%s'", filename))
+  }
   ggsave(file.path("interesting_plots", filename), plot = plot,
          width = width, height = height, dpi = dpi)
 }
 
-save_plot(snake_plot_fwd, "Phase diagram - snake, capacity rows.png")
+save_plot(snake_plot_fwd, "phase_snake.png")
 
 ################################################################################
 # The other intuitive routes: reversed, and axis order swapped
@@ -747,4 +779,4 @@ routes_plot <- ggplot(routes_df, aes(x = resource_decrease, y = capacity_mult)) 
   theme_minimal()
 routes_plot
 
-save_plot(routes_plot, "Phase diagram - three routes compared.png", width = 12, height = 5)
+save_plot(routes_plot, "phase_routes.png", width = 12, height = 5)

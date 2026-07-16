@@ -1,0 +1,5 @@
+"body","rates","resource_decrease","capacity_mult","effort","spectral_radius","stable","hopf_period","bifurcation_type","error"
+"anchovy","anchovy",0.001,10,0,0.351067713481866,TRUE,104.271545639283,"stable",NA
+"cod","anchovy",0.001,10,0,0.71164420473694,TRUE,307.721677645799,"stable",NA
+"anchovy","cod",0.001,10,0,0.999999999443529,TRUE,550772829.956196,"stable",NA
+"cod","cod",0.001,10,0,0.999999999874749,TRUE,550386303.358086,"stable",NA

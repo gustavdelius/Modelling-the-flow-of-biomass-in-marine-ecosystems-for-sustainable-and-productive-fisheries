@@ -1,0 +1,184 @@
+---
+title: "Day 28: Carrying the Hopf Hunt to the Real Cod Model - Stable Everywhere Tested, and Adults Out-Eat Juveniles"
+author: "Samia"
+date: "2026-07-15"
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    theme: flatly
+    code-fold: true
+categories: [research, mizer, hopf-bifurcation, cod, stability-analysis, blog]
+description: "Days 25-27's toy predator-prey model is carried over to the real, calibrated single-species cod model, using a new experimental mizer feature (getStability()/steadyNewton(stability=), from PR #452) that linearises the actual size-spectrum dynamics at a steady state instead of a two-variable ODE. Both a direct simulated bifurcation sweep and the analytic eigenvalue check agree: across the whole tested range of resource renewal rate and resource carrying capacity, cod's steady state stays stable (spectral_radius pinned near 0.51-0.76, essentially insensitive to either parameter) -- no Hopf bifurcation found, in contrast to the anchovy paradox-of-enrichment collapse found in Days 22-24 over a similar capacity_mult range. A parallel check of whether juveniles or adults have the higher mass-specific feeding rate (the de Roos & Persson criterion for juvenile- vs adult-driven cycles) hit an R vector-recycling bug before the fix revealed the real answer: both cod and Day 22's anchovy parameters come back adult-driven, not juvenile-driven -- a real caveat on the 'juvenile pileup' framing this project has used since Day 6."
+---
+
+## Where Day 27 Left Us
+
+Day 27 finished mapping all four ways a single discrete delay can sit inside the toy predator-prey model's intake term , two absolute-impossible, two absolute-possible, and closed with two open threads: check whether the *real* cod parameters actually produce a Hopf bifurcation, and carry the toy-model findings back to the actual size-spectrum model rather than leaving them as abstract ODE results. Both are what today is about, using a newly-installed experimental mizer feature rather than another hand-derived characteristic equation.
+
+------------------------------------------------------------------------
+
+## A New Tool: `getStability()` from mizer PR #452
+
+Everything in Days 25-27 relied on writing down a characteristic equation by hand and finding where its roots cross the imaginary axis. That doesn't scale to the real cod model - there's no closed form for a discretised size-spectrum PDE. `getStability()` (installed via `pak::pkg_install("sizespectrum/mizer#452")`) does the equivalent numerically: it linearises mizer's actual one-step-ahead map $G(N) = A(N)^{-1}S(N)$ at a steady state by direct numerical differentiation, and returns the eigenvalues of that linearisation. The steady state is stable iff the **spectral radius** (largest eigenvalue modulus) is below 1 and critically, a **Hopf bifurcation specifically** requires the *destabilising* eigenvalue to be complex, not real. A real eigenvalue crossing 1 is a different, non-oscillatory kind of instability (collapse/extinction-type), so `spectral_radius >= 1` alone can't tell the two apart -- exactly the same "sum condition isn't sufficient, check the discriminant" lesson from Day 27's P-delay correction, just with eigenvalue type standing in for the discriminant this time.
+
+Two checks against results already known to work, before trusting this on `cod_params`: a sanity check against mizer's own built-in `NS_params` (matching the PR's own test suite claim that it comes back stable), and a reduced-vs-full agreement check (`include_resource = FALSE`, the quasi-static approximation, vs `TRUE`, perturbing the resource explicitly too) on `cod_params` itself. Both passed before any of the results below were trusted.
+
+```{r builder}
+#| message: false
+#| warning: false
+#| output: false
+library(mizer)
+library(mizerExperimental)
+library(dplyr)
+library(ggplot2)
+library(patchwork)
+library(future)
+library(future.apply)
+plan(multisession)
+
+# Read-only: cod_params.rds is never written back to. Every perturbation
+# below goes through resource_limitation(), which returns a NEW params
+# object -- this binding itself is never reassigned.
+cod_params <- readRDS("cod_params.rds")
+
+# balance=FALSE is required, not just stylistic: setResource() errors
+# outright if resource_rate is given while balance resolves to TRUE (its
+# default for resource_semichemostat dynamics), since with balance=TRUE the
+# other resource parameter is always computed FOR you to preserve the
+# current production=consumption steady state -- exactly the perturbation
+# this sweep is trying to introduce.
+resource_limitation <- function(params, resource_decrease) {
+  new_rate <- getResourceRate(params) * resource_decrease
+  setResource(params, resource_rate = new_rate, balance = FALSE)
+}
+```
+
+------------------------------------------------------------------------
+
+## Does Slowing the Resource's Renewal Destabilise Cod? A Direct Simulation Says No
+
+Same "windowed read after a settling period" convention as every sweep since Day 20, but read as a genuine bifurcation diagram: every local max/min of biomass in the late window of a simulation becomes its own point, so a fixed point shows as a single dot and a limit cycle would show as two branches.
+
+```{r bifurcation-sweep}
+#| message: false
+#| warning: false
+#| eval: false
+make_limit_cycle_sim <- function(params, t_total = 600, effort = 0) {
+  params@initial_n_pp[] <- params@cc_pp * 0.1
+  sim_init <- project(params, t_max = 10, dt = 0.1, t_save = 0.2,
+                      progress_bar = FALSE, effort = 0, method = "predictor-corrector")
+  idx  <- params@w >= 10 & params@w <= 100
+  last <- dim(sim_init@n)[1]
+  sim_init@n[last, , idx] <- sim_init@n[last, , idx] / 1e3
+  project(sim_init, t_max = t_total - 10, dt = 0.1, t_save = 0.2,
+          progress_bar = FALSE, effort = effort, method = "predictor-corrector")
+}
+
+resource_decrease_seq <- exp(seq(log(0.001), log(1), length.out = 12))
+# ... resource_bifurcation_point() perturbs the resource rate, runs the
+# above, and returns every late-window local extremum -- full definition in
+# 28_experiments.R.
+```
+
+All twelve tested points, spanning `resource_decrease` from `0.001` to `1`, came back `"settled"`. Not one point produced a min/max branch split. Biomass scales up smoothly by three orders of magnitude as the resource renews faster (more food, more standing biomass, no surprise there), but nothing about that relationship destabilises the fixed point anywhere in the tested range.
+
+------------------------------------------------------------------------
+
+## Predicted vs Simulated: They Agree, But the Prediction Is Suspiciously Flat
+
+Rerunning the same `resource_decrease` grid through `steadyNewton(..., stability = TRUE)` instead of a full simulation:
+
+```{r stability-sweep}
+#| message: false
+#| warning: false
+#| eval: false
+stability_sweep_point <- function(resource_decrease, params = cod_params) {
+  p        <- resource_limitation(params, resource_decrease)
+  p_steady <- steadyNewton(p, stability = TRUE)
+  attr(p_steady, "stability")
+}
+```
+
+`stable = TRUE` at all twelve points, matching the simulation exactly. But look at `spectral_radius`: it's `0.508413331747...` at *every single point*, agreeing to eleven decimal places regardless of whether the resource renews at 0.1% or 100% of its default rate. That's not "stable across a wide range" so much as "completely insensitive to this parameter" - under the quasi-static resource approximation (`include_resource = FALSE`, the default), the fish dynamics' own linearisation apparently doesn't see `resource_decrease` moving at all. `hopf_period` bounces around unpredictably (64 to 186, no visible pattern) while `spectral_radius` stays frozen - consistent with it tracking whatever complex eigenvalue happens to sit *nearest* the unit circle (per its definition) rather than the actual dominant, real-valued eigenvalue setting `spectral_radius` i.e. noise from a non-dominant pair, not a real signal. Worth checking the `include_resource = TRUE` mode across this same sweep (only checked at a single point so far) before trusting that this parameter is genuinely irrelevant to cod's stability rather than an artifact of the reduced approximation.
+
+------------------------------------------------------------------------
+
+## Widening the Search: A 2D Grid Over Resource Rate and Capacity
+
+Days 22-24 found that *raising* `capacity_mult` (the resource's carrying capacity) past a threshold around 7 destabilised the anchovy model into oscillation - a paradox-of-enrichment signature, though never confirmed there as specifically Hopf (Day 27 only later showed the operating point at `capacity_mult=10` was in fact flat, not oscillating, muddying that finding further). Worth checking directly whether cod shows anything similar over the same kind of range, and whether it's actually Hopf-type if it does.
+
+```{r hopf-grid}
+#| message: false
+#| warning: false
+#| eval: false
+resource_limitation_2d <- function(params, resource_decrease, capacity_mult) {
+  new_rate     <- getResourceRate(params) * resource_decrease
+  new_capacity <- getResourceCapacity(params) * capacity_mult
+  setResource(params, resource_rate = new_rate, resource_capacity = new_capacity, balance = FALSE)
+}
+
+check_hopf_grid_point <- function(resource_decrease, capacity_mult, params = cod_params, effort = 0) {
+  p        <- resource_limitation_2d(params, resource_decrease, capacity_mult)
+  p_steady <- steadyNewton(p, effort = effort, stability = TRUE)
+  stab     <- attr(p_steady, "stability")
+  dominant <- stab$eigenvalues[1]
+  is_complex <- abs(Im(dominant)) > 1e-8
+  data.frame(spectral_radius = stab$spectral_radius, stable = stab$stable,
+             bifurcation_type = if (stab$stable) "stable" else if (is_complex) "hopf" else "non-oscillatory")
+}
+
+capacity_mult_seq <- exp(seq(log(1), log(20), length.out = 10))
+```
+
+`resource_decrease` (12 points, `0.001`-`1`) crossed with `capacity_mult` (10 points, `1`-`20`, the same direction Days 22-24 found destabilisation in) gives 120 grid points. **All 120 came back `"stable"`.** `spectral_radius` ranges from `0.761250163324095` to `0.7612501633240114` across the entire grid - again essentially frozen, this time under *both* parameters simultaneously, not just one. Extending `capacity_mult` up to 20 - comfortably past where the anchovy model destabilised - didn't move cod off its fixed point at all. Whatever mechanism drove the anchovy paradox-of-enrichment finding, cod doesn't reproduce it over this range, at least not through this pair of levers.
+
+Each grid point costs a `steadyNewton()` convergence *plus* a full numerical-differentiation Jacobian (`n_active = 200` confirmed from the sweep above, so `getStability()` runs on the order of 400 extra full solver evaluations per point, centred differences). Flattened to one job of 120 independent points and dispatched across `future_lapply()` workers (`plan(multisession)`) rather than run sequentially, once this turned out to be the actual bottleneck rather than the Newton solve itself.
+
+------------------------------------------------------------------------
+
+## Checking the Juvenile-vs-Adult Mechanism (de Roos & Persson)
+
+Both the direct simulation and `getStability()` agreeing on "stable everywhere tested" raises the obvious next question: is the resource-rate/capacity axis even the right place to be looking? de Roos & Persson (2003), added to `Further_Reading.md` this session alongside several delayed-chemostat Hopf papers. This should help give a concrete, checkable criterion for a completely different candidate mechanism: whichever life stage has the *higher mass-specific* (per body mass) feeding rate determines whether a population shows juvenile-driven or adult-driven cycles. This is directly testable on `cod_params` via mizer's own encounter/feeding-level machinery:
+
+```{r juvenile-adult-rate}
+#| message: false
+#| warning: false
+#| eval: false
+E <- getEncounter(cod_params)      # encounter rate, g/year
+f <- getFeedingLevel(cod_params)   # feeding level (satiation), 0-1
+
+per_capita_rate    <- E * (1 - f)          # realised per-capita intake, g/year
+mass_specific_rate <- per_capita_rate / cod_params@w
+
+w     <- cod_params@w
+w_mat <- cod_params@species_params$w_mat
+
+juvenile_rate <- mass_specific_rate[1, w < w_mat]
+adult_rate    <- mass_specific_rate[1, w >= w_mat]
+```
+
+The first attempt at the comparison, `juvenile_rate - adult_rate`, printed a long named vector with an obviously wrong shape: values climbing steadily more negative, then jumping back up near where they started, repeating that pattern several times, alongside an R warning about mismatched lengths. The cause: `juvenile_rate` and `adult_rate` are per-weight-bin vectors with *different numbers of elements* (the weight grid doesn't split evenly at `w_mat`), so subtracting them directly doesn't compare juveniles to adults at all - R silently recycles the shorter vector to match the longer one's length, and the "resets" in the output are just where the recycled vector wraps back to its own start. Not a finding, a bug. Summarising each side to a single number before comparing fixes it:
+
+``` r
+mean(juvenile_rate) - mean(adult_rate)
+```
+
+| params                    | mean(juvenile) - mean(adult) |
+|---------------------------|------------------------------|
+| Day 22's (anchovy) params | -321.2177                    |
+| `cod_params`              | -14194.29                    |
+
+Both negative: in **both** parameter sets, adults have the higher mass-specific feeding rate, not juveniles - the signature de Roos & Persson associate with *adult-driven* cycles, not juvenile-driven ones. That's a real caveat worth sitting with: the mechanism this whole project has informally called "juvenile pileup" since Day 6 doesn't show the juvenile-driven signature this specific criterion checks for, in either species' own calibrated parameters. It doesn't rule out a juvenile-pileup-style bottleneck existing for some other reason (this is one specific mechanism from one specific paper, not an exhaustive test), but it's evidence against *this* particular explanation for it.
+
+The two numbers also aren't remotely the same scale - cod's imbalance is about 44x starker than anchovy's, even after dividing by body weight to get a mass-specific rate. Worth being cautious about reading too much into that gap directly, since it could reflect a genuine biological difference between the species, or just a difference in how each parameter set's intake-rate scaling was calibrated, but I have not yet checked which.
+
+------------------------------------------------------------------------
+
+## What's Next
+
+- **Check whether the \~44x gap in imbalance** between the two is a real biological difference or a calibration artifact.
+- **Actually run the fishing-effort grid** (`effort = 0.5`) and compare its 120-point classification against the unfished grid computed today.
+- **Check `include_resource = TRUE` across the full `resource_decrease` sweep**, not just at one point, to see whether `spectral_radius`'s near-total insensitivity to `resource_decrease` survives dropping the quasi-static resource assumption, or whether that's an artifact of the reduced mode specifically.
+- **Read the newly-added chemostat/Hopf papers** (`Further_Reading.md` #21-26): with this session's null result in mind - particularly Toth (2008), whose age-structured-predator-in-a-chemostat model found that age structure *alone* can trigger a Hopf bifurcation, but only in some dilution-rate regimes and not others. Worth checking whether cod's parameters simply sit outside the regime where that mechanism would show up, rather than concluding the mechanism doesn't apply at all.
+- **Widen the grid itself**: Both swept parameters topped out at values chosen to match the anchovy work's own range (`capacity_mult` up to 20, mirroring Days 22-24). Cod's own parameters may need a wider or differently-centred range before any instability shows up, if one exists at all.

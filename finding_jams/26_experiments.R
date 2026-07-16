@@ -13,7 +13,18 @@ library(scales)
 
 dir.create("interesting_plots", showWarnings = FALSE)
 
+# Windows MAX_PATH (260 chars) has silently truncated filenames -- even the
+# .png extension itself -- once combined with this repo's long, deeply
+# nested folder path. Keep names short at the call site; this is a
+# defensive last resort so a long one truncates safely instead of silently.
 save_plot <- function(plot, filename, width = 8, height = 6, dpi = 150) {
+  max_name <- 40
+  if (nchar(filename) > max_name) {
+    ext      <- tools::file_ext(filename)
+    base     <- tools::file_path_sans_ext(filename)
+    filename <- paste0(substr(base, 1, max_name - nchar(ext) - 1), ".", ext)
+    warning(sprintf("save_plot(): filename too long, truncated to '%s'", filename))
+  }
   ggsave(file.path("interesting_plots", filename), plot = plot,
          width = width, height = height, dpi = dpi)
 }
@@ -185,7 +196,7 @@ alpha_refine_plot <- ggplot(alpha_refine_df %>% filter(is.na(error)),
   theme_minimal()
 alpha_refine_plot
 
-save_plot(alpha_refine_plot, "Alpha transition window refined.png")
+save_plot(alpha_refine_plot, "alpha_window_refine.png")
 
 ################################################################################
 # 2. Is the gamma = 305.8 dip real, or an under-settled transient?
@@ -257,7 +268,7 @@ gamma_dip_plot <- ggplot(gamma_dip_check_df,
   theme_minimal()
 gamma_dip_plot
 
-save_plot(gamma_dip_plot, "Gamma dip check - t_run convergence.png")
+save_plot(gamma_dip_plot, "gamma_dip_check.png")
 
 cat(sprintf(
   paste0(
@@ -391,7 +402,7 @@ delay_amplitude_plot <- ggplot(delay_sweep_df, aes(x = tau, y = rel_amplitude_P)
   theme_minimal()
 delay_amplitude_plot
 
-save_plot(delay_amplitude_plot, "Predator-prey toy model - delay sweep amplitude - check.png")
+save_plot(delay_amplitude_plot, "pp_delay_amp_check.png")
 
 # Dedicated time-series run at the largest tested delay -- if delay were
 # going to produce a growing oscillation instead of damping to the fixed
@@ -415,7 +426,7 @@ delay_timeseries_plot <- ggplot(longest_delay_ts, aes(x = time)) +
   theme_minimal()
 delay_timeseries_plot
 
-save_plot(delay_timeseries_plot, "Predator-prey toy model - delay timeseries tau40 - check.png")
+save_plot(delay_timeseries_plot, "pp_delay_ts_check.png")
 
 cat(paste0(
   "Time-delay predator-prey check: if rel_amplitude_P stays small and flat across\n",
@@ -506,7 +517,7 @@ decay_check_plot <- ggplot(decay_check_df, aes(x = t_max, y = rel_amplitude_P,
   theme_minimal()
 decay_check_plot
 
-save_plot(decay_check_plot, "Predator-prey toy model - amplitude decay check.png")
+save_plot(decay_check_plot, "pp_amp_decay_check.png")
 
 # Direct endpoint check, not just the windowed amplitude metric: how close
 # is the trajectory to the analytic equilibrium at the very end of the
@@ -670,7 +681,7 @@ selflim_amplitude_plot <- ggplot(selflim_sweep_df, aes(x = tau, y = rel_amplitud
   theme_minimal()
 selflim_amplitude_plot
 
-save_plot(selflim_amplitude_plot, "Predator-prey toy model - selflim delay sweep amplitude.png")
+save_plot(selflim_amplitude_plot, "pp_selflim_amp.png")
 
 ################################################################################
 # Confirming it's a genuine sustained oscillation, not another relaxation
@@ -730,7 +741,7 @@ selflim_ts_plot <- ggplot(selflim_ts_both, aes(x = time, y = P)) +
   theme_minimal()
 selflim_ts_plot
 
-save_plot(selflim_ts_plot, "Predator-prey toy model - selflim timeseries below vs above onset.png",
+save_plot(selflim_ts_plot, "pp_selflim_ts.png",
          width = 8, height = 8)
 
 ################################################################################
@@ -884,7 +895,7 @@ pdelay_amplitude_plot <- ggplot(pdelay_sweep_df, aes(x = tau, y = rel_amplitude_
   theme_minimal()
 pdelay_amplitude_plot
 
-save_plot(pdelay_amplitude_plot, "Predator-prey toy model - pdelay sweep amplitude, D above and below threshold.png")
+save_plot(pdelay_amplitude_plot, "pp_pdelay_amp.png")
 
 ################################################################################
 # Persistence check at D=0.1 (below threshold): confirm any oscillation
