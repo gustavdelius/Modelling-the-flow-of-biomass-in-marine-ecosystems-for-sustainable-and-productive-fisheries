@@ -454,7 +454,7 @@ Fixed by testing every value at one **shared, fixed** `tau` per sweep, above tha
 Four ways to place a single discrete delay in this predator-prey system have now been tried across Days 25-27:
 
 | Delay placement | Day 26 verdict | Corrected verdict |
-|------------------------|------------------------|------------------------|
+|----|----|----|
 | Predator's conversion of intake into growth (`N`, `P` both delayed) | Impossible, any parameters | Unchanged |
 | Prey's own self-limitation (`N(t-tau)` in `dN/dt`) | Possible, confirmed by simulation | Unchanged, onset `tau ~ 2.4` |
 | Predator's intake term, `P` only (`N(t)` instantaneous) | "Genuine threshold `D < 0.144`" | **Impossible, any parameters** |

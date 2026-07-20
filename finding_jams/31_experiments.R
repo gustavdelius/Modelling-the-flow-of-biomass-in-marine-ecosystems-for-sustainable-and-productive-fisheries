@@ -1,0 +1,409 @@
+library(mizer)
+library(mizerExperimental)
+library(dplyr)
+library(ggplot2)
+library(scales)
+
+# No future/future.apply here, unlike every grid-based script since Day 28
+# -- the bifurcation sweep in Section 1 carries state from each step into
+# the next, so its points are inherently sequential and can't be farmed
+# out to parallel workers the way an independent grid can.
+
+dir.create("interesting_plots", showWarnings = FALSE)
+
+# Windows MAX_PATH (260 chars) truncation guard -- unchanged since
+# 29_experiments.R.
+save_plot <- function(plot, filename, width = 8, height = 6, dpi = 150) {
+  max_name <- 40
+  if (nchar(filename) > max_name) {
+    ext      <- tools::file_ext(filename)
+    base     <- tools::file_path_sans_ext(filename)
+    filename <- paste0(substr(base, 1, max_name - nchar(ext) - 1), ".", ext)
+    warning(sprintf("save_plot(): filename too long, truncated to '%s'", filename))
+  }
+  ggsave(file.path("interesting_plots", filename), plot = plot,
+         width = width, height = height, dpi = dpi)
+}
+
+################################################################################
+# Day 30 closed with two threads explicitly left as methodology-only:
+#
+#   1. The q sweep (Section 4 there) had its grid, its build function, and
+#      its propagation safety-check written, but the 7x120-point grid
+#      itself hadn't finished running -- no heatmap, no verdict on whether
+#      mizer's own search-volume exponent produces a threshold the way
+#      lambda did. Section 1 below finishes that thread, but as a classic
+#      forward/backward bifurcation diagram (the format every
+#      resource_decrease/capacity_mult sweep has used since Day 18) rather
+#      than a perturbed-amplitude heatmap -- q swept directly with min/max
+#      late-window biomass plotted, not a grid of oscillating/settled
+#      verdicts.
+#
+#   2. The corrected competitiveness metric -- dw-weighting
+#      mean_mass_specific_rate() instead of an unweighted mean() over
+#      mizer's unequal-width bins -- had the fix written and a single
+#      before/after ratio printed, but no explicit final call on whether
+#      cod and anchovy actually flip from adult- to juvenile-driven (or
+#      stay put) once corrected. Section 2 below carries that through to
+#      an explicit verdict for both species.
+################################################################################
+
+################################################################################
+# Section 0: rebuild cod + shared helpers (self-contained convention, same
+# as every script since Day 20 -- redefined here rather than sourced).
+################################################################################
+
+# Read-only: cod_params.rds is never written back to.
+cod_params <- readRDS("cod_params.rds")
+
+resource_limitation_2d_cod <- function(params, resource_decrease, capacity_mult) {
+  new_rate     <- getResourceRate(params) * resource_decrease
+  new_capacity <- getResourceCapacity(params) * capacity_mult
+  setResource(params, resource_rate = new_rate, resource_capacity = new_capacity, balance = FALSE)
+}
+
+################################################################################
+# Section 1: finish the q sweep -- as a classic forward/backward bifurcation
+# diagram, not a perturbed-amplitude heatmap
+#
+# NOT de Roos & Persson's q (the juvenile/adult competitiveness ratio
+# Section 2 below deals with) -- this is mizer's own species_params column,
+# SearchVolume = gamma * w^q, consumed directly by getEncounter(). q is a
+# genuine column on the real, fully-calibrated cod_params object, so it's
+# applied straight to it via given_species_params() -- no
+# newSingleSpeciesParams() reconstruction, no partial-calibration caveat.
+# Mortality, erepro, R_max, gear, and cod's own native lambda all stay
+# exactly as fitted; only q changes.
+#
+# Every earlier q pass asked "does this (resource_decrease, capacity_mult,
+# q) point oscillate under an artificial kick" -- a grid of binary
+# verdicts. This instead reuses the exact bifurcation-diagram method every
+# resource_decrease/capacity_mult sweep has used since Day 18 (Day 23's
+# Follow-up 5 generalised it into run_bifurcation_sweep()/
+# plot_bifurcation()): sweep q itself forward then backward, carrying each
+# step's own converged state into the next rather than re-perturbing from
+# scratch each time, and plot max/min late-window biomass per step.
+# Branches collapsing onto a single curve = fixed point; branches fanning
+# apart into separate max/min lines = a genuine limit cycle; forward and
+# backward branches disagreeing at the same q = hysteresis, not just a
+# q-dependent threshold.
+#
+# resource_decrease and capacity_mult held fixed at (0.001, 10) -- the
+# corner of the standard 12x10 grid where Day 30's lambda sweep found its
+# oscillating band (capacity_mult >= ~10, independent of resource_decrease)
+# -- giving q the best chance of revealing similar structure in a 1D slice,
+# rather than picking an arbitrary point that's null for every mechanism
+# tried so far.
+################################################################################
+
+native_cod_q <- unname(cod_params@species_params$q[1])
+cat(sprintf("cod_params.rds's own native q (search-volume exponent): %.4g\n", native_cod_q))
+
+# given_species_params() has been a silent no-op before in this project --
+# D_ext gets attached but never consumed without a follow-up
+# setExtDiffusion() call (unresolved since Day 20), and Day 29 separately
+# found capacity_mult sitting unused in an early make_anchovy_params()
+# draft. q feeds into SearchVolume, which mizer may cache at construction
+# time rather than recompute live -- so before trusting the sweep below,
+# confirm directly that search_vol/getEncounter() actually move when q
+# changes.
+q_probe_base <- cod_params
+q_probe_low  <- cod_params
+given_species_params(q_probe_low)$q <- native_cod_q - 0.3
+
+search_vol_changed <- !isTRUE(all.equal(q_probe_base@search_vol, q_probe_low@search_vol))
+encounter_changed  <- !isTRUE(all.equal(getEncounter(q_probe_base), getEncounter(q_probe_low)))
+
+cat(sprintf("q propagation check: search_vol changed = %s, getEncounter() changed = %s.\n",
+           search_vol_changed, encounter_changed))
+if (!search_vol_changed && !encounter_changed) {
+  stop(paste(
+    "given_species_params(params)$q <- value does NOT change search_vol or",
+    "getEncounter() -- q is being cached at construction time, so the sweep",
+    "below would silently sweep nothing. Stopping before wasting the run;",
+    "switch to species_params(params)$q <- value (full replacement,",
+    "triggers recalculation) instead."
+  ))
+}
+
+# q applied straight to the real cod_params object -- see the header note.
+build_cod_q_variant <- function(q, resource_decrease, capacity_mult) {
+  p <- cod_params
+  given_species_params(p)$q <- q
+  resource_limitation_2d_cod(p, resource_decrease, capacity_mult)
+}
+
+# Generic forward/backward bifurcation sweep -- direct port of Day 23's
+# run_bifurcation_sweep() (Follow-up 5 there) onto cod's own project()
+# convention (predictor-corrector, dt=0.1, t_save=0.2) in place of the
+# anchovy-template tr_bdf2 call that version used; same
+# forward-then-backward, state-carried-between-steps logic either way.
+run_bifurcation_sweep_cod <- function(param_seq, param_name, fixed_params = list(),
+                                      params_fn = build_cod_q_variant, t_run = 600) {
+  run_one_direction <- function(seq_vals, init_n = NULL, init_n_pp = NULL) {
+    out       <- data.frame(value = seq_vals, max_bm = NA_real_, min_bm = NA_real_)
+    state_n   <- init_n
+    state_npp <- init_n_pp
+
+    for (i in seq_along(seq_vals)) {
+      args <- fixed_params
+      args[[param_name]] <- seq_vals[i]
+      p <- do.call(params_fn, args)
+      if (!is.null(state_n)) {
+        p@initial_n[]    <- state_n
+        p@initial_n_pp[] <- state_npp
+      }
+      sim <- project(p, t_max = t_run, dt = 0.1, t_save = 0.2,
+                     progress_bar = FALSE, effort = 0, method = "predictor-corrector")
+      bm   <- rowSums(getBiomass(sim))
+      tv   <- as.numeric(names(bm))
+      late <- bm[tv > t_run * 0.6]
+      last <- dim(sim@n)[1]
+
+      state_n   <- sim@n[last, , ]
+      state_npp <- sim@n_pp[last, ]
+
+      out$max_bm[i] <- max(late)
+      out$min_bm[i] <- min(late)
+    }
+    list(df = out, n_final = state_n, npp_final = state_npp)
+  }
+
+  fwd    <- run_one_direction(param_seq)
+  bwd    <- run_one_direction(rev(param_seq), init_n = fwd$n_final, init_n_pp = fwd$npp_final)
+  bwd_df <- bwd$df[order(bwd$df$value), ]
+
+  bind_rows(
+    data.frame(value = fwd$df$value, biomass = fwd$df$max_bm, direction = "Forward",  branch = "max"),
+    data.frame(value = fwd$df$value, biomass = fwd$df$min_bm, direction = "Forward",  branch = "min"),
+    data.frame(value = bwd_df$value, biomass = bwd_df$max_bm, direction = "Backward", branch = "max"),
+    data.frame(value = bwd_df$value, biomass = bwd_df$min_bm, direction = "Backward", branch = "min")
+  )
+}
+
+plot_bifurcation_cod <- function(df, x_label, title, subtitle = NULL) {
+  ggplot(df, aes(x = value, y = biomass, color = direction, linetype = branch)) +
+    geom_line(linewidth = 1) +
+    geom_point(size = 1.2) +
+    labs(x = x_label, y = "Biomass", title = title, subtitle = subtitle) +
+    theme_minimal()
+}
+
+# Centred on cod's own fitted value, +/- 0.3 -- same "bracket the native
+# value" convention as Day 30's lambda_seq, walked at 21 points so the
+# forward/backward branches actually trace a readable curve rather than
+# the coarse 7-value bracket the old heatmap grid used.
+q_seq_bif <- seq(native_cod_q - 0.3, native_cod_q + 0.3, length.out = 21)
+
+bif_q_df <- run_bifurcation_sweep_cod(
+  q_seq_bif, "q",
+  fixed_params = list(resource_decrease = 0.001, capacity_mult = 10),
+  t_run = 600
+)
+
+write.csv(bif_q_df, file.path("interesting_plots", "day31_cod_q_bifurcation.csv"),
+          row.names = FALSE)
+
+bif_q_plot <- plot_bifurcation_cod(
+  bif_q_df, "q (search-volume exponent)",
+  "Cod bifurcation diagram: search-volume exponent q swept forward and backward",
+  sprintf(
+    "resource_decrease=0.001, capacity_mult=10 fixed (Day 30's lambda-oscillating corner) -- native q=%.3g; branches collapsing onto one curve = fixed point, fanning apart = limit cycle",
+    native_cod_q
+  )
+)
+bif_q_plot
+
+save_plot(bif_q_plot, "day31_cod_q_bifurcation.png", width = 9, height = 6)
+
+# Verdict: per q value, is the max/min spread big enough to call a limit
+# cycle (same 1e-6 relative-amplitude threshold used throughout this
+# project), and do the forward/backward branches actually disagree
+# (hysteresis) rather than retracing each other.
+bif_q_check <- bif_q_df %>%
+  tidyr::pivot_wider(names_from = c(direction, branch), values_from = biomass) %>%
+  mutate(
+    rel_amplitude_fwd = (Forward_max - Forward_min) / ((Forward_max + Forward_min) / 2),
+    rel_amplitude_bwd = (Backward_max - Backward_min) / ((Backward_max + Backward_min) / 2),
+    hysteresis_gap    = abs(Forward_max - Backward_max) + abs(Forward_min - Backward_min)
+  )
+print(bif_q_check %>% select(value, rel_amplitude_fwd, rel_amplitude_bwd, hysteresis_gap))
+
+n_oscillating_q  <- sum(bif_q_check$rel_amplitude_fwd > 1e-6 | bif_q_check$rel_amplitude_bwd > 1e-6, na.rm = TRUE)
+max_hysteresis_q <- bif_q_check$value[which.max(bif_q_check$hysteresis_gap)]
+
+q_verdict <- if (n_oscillating_q == 0) {
+  sprintf(
+    "flat -- 0/%d q values cross the 1e-6 relative-amplitude threshold at (resource_decrease=0.001, capacity_mult=10); no forward/backward branch separation either (largest hysteresis gap at q=%.3g, still negligible)",
+    nrow(bif_q_check), max_hysteresis_q
+  )
+} else {
+  sprintf(
+    "%d/%d q values cross into oscillation at this fixed point; largest forward/backward gap at q=%.3g",
+    n_oscillating_q, nrow(bif_q_check), max_hysteresis_q
+  )
+}
+cat(sprintf("\nSection 1 verdict: %s.\n", q_verdict))
+
+################################################################################
+# Section 2: finish the corrected competitiveness metric
+#
+# Day 29's mean_mass_specific_rate() took a plain mean() over
+# mass_specific_rate[idx], where idx selects the juvenile or adult weight
+# bins. mizer's weight grid is logarithmically spaced -- dw grows with w --
+# so an unweighted mean() treats every bin as equally important regardless
+# of how much weight range it actually represents, systematically
+# overweighting the smallest individuals in each stage. Day 30 wrote the
+# dw-weighted fix (weighted.mean(..., w = dw)) and printed one ratio
+# comparison; this section is that same fix, carried through to an
+# explicit adult- vs juvenile-driven call for both species -- the thing
+# Day 29's original metric was actually being used for.
+#
+# Self-contained: redefines make_anchovy_params()/anchovy_params here too,
+# same convention as every script since Day 20.
+################################################################################
+
+make_anchovy_params <- function(lambda = 2.05, resource_decrease = 0.01,
+                                capacity_mult = 10, second_order = TRUE,
+                                ext_diff = 0.00, alpha = 0.1, gamma = 750,
+                                ks = 0, kappa_override = NULL) {
+  a0    <- 100
+  kappa <- if (is.null(kappa_override)) a0 * exp(-6.9 * (lambda - 1)) else kappa_override
+  no_w  <- round(log(66.5 / 0.0003) / 0.1)
+
+  params <- newSingleSpeciesParams(
+    species_name = "Anchovy",
+    w_min = 0.0003, w_max = 66.5, w_mat = 10,
+    no_w = no_w, lambda = lambda, kappa = kappa,
+    alpha = alpha, gamma = gamma, ks = ks
+  )
+
+  given_species_params(params)$D_ext <- ext_diff
+  params <- setBevertonHolt(params)
+
+  default_capacity <- getResourceCapacity(params)
+  r  <- getResourceRate(params) * resource_decrease
+  cc <- default_capacity * capacity_mult
+
+  params <- setResource(params, resource_rate = r, resource_capacity = cc,
+                        resource_dynamics = "resource_semichemostat",
+                        balance = FALSE)
+
+  if (second_order) {
+    second_order_w(params) <- c(flux = "centred", bin_average = TRUE)
+  }
+
+  params
+}
+anchovy_params <- make_anchovy_params()
+
+# Day 29's ORIGINAL metric, unchanged -- kept here so the corrected version
+# below is compared against a freshly-generated number, not a remembered
+# one.
+mean_mass_specific_rate <- function(params, idx = TRUE) {
+  E <- getEncounter(params)
+  f <- getFeedingLevel(params)
+  per_capita_rate    <- (E * (1 - f))[1, ]
+  mass_specific_rate <- per_capita_rate / params@w
+  mean(mass_specific_rate[idx])
+}
+
+# The fix: weight each bin by dw (the actual width of weight it
+# represents) instead of counting every bin equally -- a Riemann-sum-
+# consistent average rather than an average-over-indices.
+mean_mass_specific_rate_weighted <- function(params, idx = TRUE) {
+  E <- getEncounter(params)
+  f <- getFeedingLevel(params)
+  per_capita_rate    <- (E * (1 - f))[1, ]
+  mass_specific_rate <- per_capita_rate / params@w
+  weighted.mean(mass_specific_rate[idx], w = params@dw[idx])
+}
+
+corrected_timescale_summary <- function(params, label) {
+  w_mat <- params@species_params$w_mat[1]
+  w     <- params@w
+
+  msr_juv_unweighted <- mean_mass_specific_rate(params, w < w_mat)
+  msr_ad_unweighted  <- mean_mass_specific_rate(params, w >= w_mat)
+  msr_juv_weighted   <- mean_mass_specific_rate_weighted(params, w < w_mat)
+  msr_ad_weighted    <- mean_mass_specific_rate_weighted(params, w >= w_mat)
+
+  ratio_unweighted <- msr_juv_unweighted / msr_ad_unweighted
+  ratio_weighted   <- msr_juv_weighted / msr_ad_weighted
+
+  # >1 = juveniles out-eat adults on a mass-specific basis (juvenile-
+  # driven, de Roos & Persson's q<1 regime); <1 = adult-driven (q>1).
+  # Read directly off the weighted ratio, not the unweighted one -- that's
+  # the entire point of the fix.
+  stage_driven <- if (ratio_weighted > 1) "juvenile-driven" else "adult-driven"
+  flipped      <- (ratio_unweighted > 1) != (ratio_weighted > 1)
+
+  data.frame(
+    species                          = label,
+    juvenile_adult_ratio_unweighted  = ratio_unweighted,
+    q_equivalent_unweighted          = 2 / (ratio_unweighted + 1),
+    juvenile_adult_ratio_dw_weighted = ratio_weighted,
+    q_equivalent_dw_weighted         = 2 / (ratio_weighted + 1),
+    stage_driven_corrected           = stage_driven,
+    verdict_flipped                  = flipped
+  )
+}
+
+corrected_timescale_df <- bind_rows(
+  corrected_timescale_summary(cod_params, "cod"),
+  corrected_timescale_summary(anchovy_params, "anchovy")
+)
+print(corrected_timescale_df)
+write.csv(corrected_timescale_df, file.path("interesting_plots", "day31_corrected_timescale.csv"),
+          row.names = FALSE)
+
+cat("\nSection 2 verdict, per species (dw-weighted, the corrected metric):\n")
+for (i in seq_len(nrow(corrected_timescale_df))) {
+  row <- corrected_timescale_df[i, ]
+  cat(sprintf(
+    "  %s: ratio %.4g -> %.4g (unweighted -> dw-weighted), q_equivalent=%.4g -- %s%s\n",
+    row$species, row$juvenile_adult_ratio_unweighted, row$juvenile_adult_ratio_dw_weighted,
+    row$q_equivalent_dw_weighted, row$stage_driven_corrected,
+    if (row$verdict_flipped) " (FLIPPED from the unweighted call)" else " (unchanged from the unweighted call)"
+  ))
+}
+
+corrected_timescale_plot_df <- corrected_timescale_df %>%
+  select(species, juvenile_adult_ratio_unweighted, juvenile_adult_ratio_dw_weighted) %>%
+  tidyr::pivot_longer(cols = starts_with("juvenile_adult_ratio"),
+                      names_to = "method", values_to = "ratio") %>%
+  mutate(method = ifelse(method == "juvenile_adult_ratio_unweighted", "unweighted mean()", "dw-weighted mean"))
+
+corrected_timescale_plot <- ggplot(corrected_timescale_plot_df,
+                                   aes(x = species, y = ratio, fill = method)) +
+  geom_col(position = "dodge") +
+  geom_hline(yintercept = 1, linetype = "dashed", color = "grey30") +
+  labs(x = NULL, y = "juvenile / adult mass-specific intake ratio",
+       fill = NULL,
+       title = "Correcting Day 29's competitiveness metric for mizer's unequal-width bins",
+       subtitle = "Above the dashed line = juvenile-driven, below = adult-driven") +
+  theme_minimal()
+corrected_timescale_plot
+
+save_plot(corrected_timescale_plot, "day31_corrected_timescale.png", width = 8)
+
+################################################################################
+# Section 3: summary -- programmatic readout, not asserted conclusions.
+################################################################################
+
+cat("\n===== Day 31 summary =====\n")
+cat(sprintf(
+  "Section 1 (finished cod q sweep, %d-point forward/backward bifurcation diagram): %s\n",
+  length(q_seq_bif), q_verdict
+))
+cat(sprintf(
+  "Section 2 (finished corrected competitiveness metric): cod %s (ratio %.4g -> %.4g)%s; anchovy %s (ratio %.4g -> %.4g)%s.\n",
+  corrected_timescale_df$stage_driven_corrected[corrected_timescale_df$species == "cod"],
+  corrected_timescale_df$juvenile_adult_ratio_unweighted[corrected_timescale_df$species == "cod"],
+  corrected_timescale_df$juvenile_adult_ratio_dw_weighted[corrected_timescale_df$species == "cod"],
+  if (corrected_timescale_df$verdict_flipped[corrected_timescale_df$species == "cod"]) ", FLIPPED" else ", unchanged",
+  corrected_timescale_df$stage_driven_corrected[corrected_timescale_df$species == "anchovy"],
+  corrected_timescale_df$juvenile_adult_ratio_unweighted[corrected_timescale_df$species == "anchovy"],
+  corrected_timescale_df$juvenile_adult_ratio_dw_weighted[corrected_timescale_df$species == "anchovy"],
+  if (corrected_timescale_df$verdict_flipped[corrected_timescale_df$species == "anchovy"]) ", FLIPPED" else ", unchanged"
+))

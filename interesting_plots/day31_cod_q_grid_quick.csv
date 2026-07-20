@@ -1,0 +1,9 @@
+"resource_decrease","capacity_mult","rel_amplitude","perturbed_verdict","error","q"
+0.001,1,4.65628005634917e-09,"settled",NA,0.5
+1,1,3.85999386173224e-11,"settled",NA,0.5
+0.001,20,5.84075835918104e-10,"settled",NA,0.5
+1,20,7.36963569940825e-16,"settled",NA,0.5
+0.001,1,4.11586380826093e-08,"settled",NA,1.1
+1,1,1.53842328662084e-11,"settled",NA,1.1
+0.001,20,4.6750149997622e-13,"settled",NA,1.1
+1,20,9.1411051912365e-14,"settled",NA,1.1
