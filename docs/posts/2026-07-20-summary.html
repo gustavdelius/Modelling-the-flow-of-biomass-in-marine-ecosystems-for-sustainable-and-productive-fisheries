@@ -1,0 +1,687 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.9.38">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="author" content="Samia">
+<meta name="dcterms.date" content="2026-07-20">
+<meta name="description" content="A synthesis of Days 1-30: from the original traffic-jam analogy through a genuine, if modest, food-limitation oscillation in a toy anchovy model, a precisely-pinned but narrow hysteresis window, a fully classified delay-differential-equation theory, and finally the real, calibrated cod model.It was stable across every grid tested until a much wider, coarser scan found it oscillating at extreme resource starvation, with a qualitatively different collapse mode sitting right next to it.">
+
+<title>Summary: What Thirty Days Actually Found – Modelling-the-flow-of-biomass</title>
+<style>
+/* Default styles provided by pandoc.
+** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+*/
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+</style>
+
+
+<script src="../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../">
+<script src="../site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="../site_libs/quarto-html/popper.min.js"></script>
+<script src="../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-15634bcf2e68342d4ad2dfa704d543f6.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../site_libs/bootstrap/bootstrap-9a9447a135e5b1c05e5522b7712596fa.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "navbar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "end",
+  "type": "overlay",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+
+  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
+  <script defer="" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+
+<script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN" && texText && texText.data) {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
+</script>
+
+<link rel="stylesheet" href="../styles.css">
+</head>
+
+<body class="nav-fixed quarto-light">
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+    <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container mx-auto">
+    <a class="navbar-brand" href="../index.html">
+    <span class="navbar-title">Modelling-the-flow-of-biomass</span>
+    </a>
+  </div>
+            <div id="quarto-search" class="" title="Search"></div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" role="menu" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll me-auto">
+  <li class="nav-item">
+    <a class="nav-link" href="../index.html"> 
+<span class="menu-text">Home</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../about.html"> 
+<span class="menu-text">About</span></a>
+  </li>  
+</ul>
+          </div> <!-- /navcollapse -->
+            <div class="quarto-navbar-tools">
+</div>
+      </div> <!-- /container-fluid -->
+    </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
+<!-- sidebar -->
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">On this page</h2>
+   
+  <ul>
+  <li><a href="#why-this-post-exists" id="toc-why-this-post-exists" class="nav-link active" data-scroll-target="#why-this-post-exists">Why This Post Exists</a></li>
+  <li><a href="#the-starting-idea" id="toc-the-starting-idea" class="nav-link" data-scroll-target="#the-starting-idea">The Starting Idea</a></li>
+  <li><a href="#act-one-finding-a-real-oscillation-and-what-drives-it-days-1-10" id="toc-act-one-finding-a-real-oscillation-and-what-drives-it-days-1-10" class="nav-link" data-scroll-target="#act-one-finding-a-real-oscillation-and-what-drives-it-days-1-10">Act One: Finding a Real Oscillation, and What Drives It (Days 1-10)</a></li>
+  <li><a href="#act-two-rigor---wave-theory-generation-time-and-the-unstable-fixed-point-days-11-18" id="toc-act-two-rigor---wave-theory-generation-time-and-the-unstable-fixed-point-days-11-18" class="nav-link" data-scroll-target="#act-two-rigor---wave-theory-generation-time-and-the-unstable-fixed-point-days-11-18">Act Two: Rigor - Wave Theory, Generation Time, and the Unstable Fixed Point (Days 11-18)</a></li>
+  <li><a href="#act-three-the-hysteresis-investigation-days-19-24" id="toc-act-three-the-hysteresis-investigation-days-19-24" class="nav-link" data-scroll-target="#act-three-the-hysteresis-investigation-days-19-24">Act Three: The Hysteresis Investigation (Days 19-24)</a></li>
+  <li><a href="#act-four-alpha-and-delay-differential-equations-days-25-27" id="toc-act-four-alpha-and-delay-differential-equations-days-25-27" class="nav-link" data-scroll-target="#act-four-alpha-and-delay-differential-equations-days-25-27">Act Four: Alpha, and Delay Differential Equations (Days 25-27)</a></li>
+  <li><a href="#act-five-back-to-the-real-cod-model-days-28-30" id="toc-act-five-back-to-the-real-cod-model-days-28-30" class="nav-link" data-scroll-target="#act-five-back-to-the-real-cod-model-days-28-30">Act Five: Back to the Real Cod Model (Days 28-30)</a></li>
+  <li><a href="#recurring-methodological-lessons" id="toc-recurring-methodological-lessons" class="nav-link" data-scroll-target="#recurring-methodological-lessons">Recurring Methodological Lessons</a></li>
+  </ul>
+</nav>
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title">Summary: What Thirty Days Actually Found</h1>
+  <div class="quarto-categories">
+    <div class="quarto-category">research</div>
+    <div class="quarto-category">mizer</div>
+    <div class="quarto-category">summary</div>
+    <div class="quarto-category">hopf-bifurcation</div>
+    <div class="quarto-category">cod</div>
+    <div class="quarto-category">size-spectrum</div>
+    <div class="quarto-category">hysteresis</div>
+    <div class="quarto-category">blog</div>
+  </div>
+  </div>
+
+<div>
+  <div class="description">
+    A synthesis of Days 1-30: from the original traffic-jam analogy through a genuine, if modest, food-limitation oscillation in a toy anchovy model, a precisely-pinned but narrow hysteresis window, a fully classified delay-differential-equation theory, and finally the real, calibrated cod model.It was stable across every grid tested until a much wider, coarser scan found it oscillating at extreme resource starvation, with a qualitatively different collapse mode sitting right next to it.
+  </div>
+</div>
+
+
+<div class="quarto-title-meta">
+
+    <div>
+    <div class="quarto-title-meta-heading">Author</div>
+    <div class="quarto-title-meta-contents">
+             <p>Samia </p>
+          </div>
+  </div>
+    
+    <div>
+    <div class="quarto-title-meta-heading">Published</div>
+    <div class="quarto-title-meta-contents">
+      <p class="date">July 20, 2026</p>
+    </div>
+  </div>
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<section id="why-this-post-exists" class="level2">
+<h2 class="anchored" data-anchor-id="why-this-post-exists">Why This Post Exists</h2>
+<p>Thirty days in, with results scattered across dozens of individual posts, corrections layered on corrections, and dead ends that turned out to matter as much as the results they blocked, that’s worth doing properly rather than leaving as a TODO. This post is that document, read back over every day-by-day post from Day One through Day 30 and organised by the arc of the actual investigation rather than by date.</p>
+<hr>
+</section>
+<section id="the-starting-idea" class="level2">
+<h2 class="anchored" data-anchor-id="the-starting-idea">The Starting Idea</h2>
+<p>The project began with a single analogy: fish biomass moving through size space behaves like traffic moving through a road network. A transport system with density-dependent flux, cars slowing down as the road gets crowded, fish growing more slowly as food per individual drops, can jam when the feedback between density and flow rate is strong enough. Just as metered on-ramps can relieve a motorway jam without adding capacity, targeted fishing might in principle relieve a size-spectrum “jam” rather than simply remove biomass from it. Days 1-2 were about getting <code>mizer</code> itself to move at all - the model initialises very close to its own steady state, so the very first technical hurdle was learning to perturb it hard enough to see any dynamics before there was anything to analyse.</p>
+<hr>
+</section>
+<section id="act-one-finding-a-real-oscillation-and-what-drives-it-days-1-10" class="level2">
+<h2 class="anchored" data-anchor-id="act-one-finding-a-real-oscillation-and-what-drives-it-days-1-10">Act One: Finding a Real Oscillation, and What Drives It (Days 1-10)</h2>
+<p>Day 3’s real breakthrough was realising that “reducing the resource rate” has to mean <em>scaling</em> the existing power-law curve, not replacing it with a constant - the two are different models, not different strengths of the same one. That unlocked the first genuine transient oscillations, and Day 4 mapped a rough stability boundary in <span class="math inline">\((\beta,\sigma)\)</span> space using <em>relative</em> amplitude (peak-to-peak over the mean), since absolute amplitude is confounded by how the steady-state biomass itself shifts with those parameters.</p>
+<p>Day 6 delivered a necessary correction: the oscillations found so far turned out to be numerical ringing from the default integrator, not real dynamics - they vanished entirely under mizer’s more accurate predictor-corrector scheme. The real oscillation came from adapting a two-species anchovy/plankton model (from an RPubs example) with resource replenishment suppressed to ~0.1% of default, and it survived the switch to the accurate integrator, confirming it as a genuine limit cycle with a period of roughly 7-9 years.</p>
+<p>Day 7 pinned down the mechanism: a food-limitation cycle concentrated almost entirely in juvenile size classes. Feeding level at the smallest fish crashes to around 0.24 (a quarter of maximum intake) at the resource trough while larger fish stay essentially saturated throughout. Day 8’s FFT analysis confirmed this was one fundamental frequency with harmonics (not two competing timescales), found a clean power-law scaling of period with maturation size (<span class="math inline">\(\text{period} \sim w_{mat}^{0.2}\)</span>, <span class="math inline">\(R^2=0.9974\)</span>).</p>
+<p>Days 9-10 turned to fishing as an intervention. The first attempts at “fish only near the biomass peaks” looked like they worsened the juvenile bottleneck rather than relieving it, and it took real debugging (a selectivity-function bug, then isolating the actual cause) to establish that <strong>fishing frequency, not size-selectivity, was the dominant lever</strong> - a peaks-only schedule fishing too rarely concentrates pressure into short, damaging bursts, and widening the fishing window fixed most of the problem.</p>
+<hr>
+</section>
+<section id="act-two-rigor---wave-theory-generation-time-and-the-unstable-fixed-point-days-11-18" class="level2">
+<h2 class="anchored" data-anchor-id="act-two-rigor---wave-theory-generation-time-and-the-unstable-fixed-point-days-11-18">Act Two: Rigor - Wave Theory, Generation Time, and the Unstable Fixed Point (Days 11-18)</h2>
+<p>Day 11 caught its own near-miss: an apparent “bifurcation” in the phase-vs-size-class plot at <span class="math inline">\(\lambda=2.05\)</span> turned out to be nothing more than <code>Arg()</code> wrapping modulo <span class="math inline">\(2\pi\)</span>, not a real structural change - confirmed directly against the underlying heatmap, which showed no corresponding change in the raw dynamics. A from-scratch derivation of how phase <em>should</em> depend on growth rate then failed its own direct check against the data, pointing at the fixed, steady-state growth rate assumption as the culprit rather than the model itself.</p>
+<p>Days 12-13 fixed exactly that: replacing the fixed growth-rate snapshot with the real, time-varying growth field and tracking actual cohorts through it pulled the generation-time estimate from 2.38 years (steady-state) back up to about 3.27 (cohort-tracked) - much closer to the original “about three generations” intuition than the more careful-looking calculation had first suggested. Days 14-15 were pure theory: working through the method of characteristics, gradient catastrophe, shock waves, and rarefaction waves as the formal PDE foundation underneath everything the project had been doing with cohort tracking and phase.</p>
+<p>Day 16 introduced <code>steadyNewton()</code>, which can locate a steady state directly regardless of whether it’s stable - crucially, the <em>unstable</em> fixed point that the limit cycle actually orbits. Once the earlier (Euler-based) estimate was redone properly with the predictor-corrector integrator, the limit cycle’s time-averaged biomass exceeded the unstable fixed point by a real but modest 13-23% (not the ~94% the less accurate method had suggested), and a duty-cycle decomposition explained exactly where that gain comes from: an asymmetric relaxation-oscillator shape, not a symmetric wobble. The size-spectrum comparison showed this isn’t a uniform scaling either - it’s a genuine cohort wave, with juvenile sizes depleted on average and large adults elevated. Fishing at realistic effort (0-0.5) barely touched it: mean biomass dropped only 6%, and yield scaled roughly linearly with no sign of a maximum-sustainable-yield peak in that range.</p>
+<p>Day 17 found where fishing <em>does</em> eventually kill the cycle - effort <span class="math inline">\(\approx 8\)</span>, an order of magnitude past anything realistic, via a gradual, damped-spiral transition rather than a sudden collapse (a supercritical Hopf signature). Day 18 confirmed the limit cycle is a genuine, wide-basin global attractor (five perturbations spanning three orders of magnitude all converged to the same orbit), but a first hysteresis test left the supercritical-vs-subcritical question wide open: the forward and backward sweeps disagreed by more than could be dismissed as an artefact of where the sweep happened to start.</p>
+<hr>
+</section>
+<section id="act-three-the-hysteresis-investigation-days-19-24" class="level2">
+<h2 class="anchored" data-anchor-id="act-three-the-hysteresis-investigation-days-19-24">Act Three: The Hysteresis Investigation (Days 19-24)</h2>
+<p>This stretch is the project’s longest sustained debugging arc, and it’s worth reading as one continuous story even though it spans six days and several dead ends.</p>
+<p>Day 19 found that <code>balance = FALSE</code> appeared to kill the oscillation outright - until a controlled A/B comparison showed it was actually starving the population across the whole tested range, not stabilising it. Separately, feeding-kernel shape (<code>beta</code>/<code>sigma</code>) was shown to set oscillation amplitude directly, and an 8x yield gap between two kernels turned out to be a size-selectivity artefact: the higher-amplitude kernel’s extra biomass was almost entirely juveniles below the gear’s catchable-size cutoff, not extra mature stock.</p>
+<p>Day 20 widened the sweep and found a much bigger hysteresis gap than Day 18’s - but the external diffusion array had been built as a flat constant rather than mizer’s intended allometric <span class="math inline">\(D_{ext}(w) = D_{ext,i}\cdot w^{n+1}\)</span> shape, so the result needed reproducing properly. Day 21 fixed that and watched hysteresis play out directly in biomass time series rather than just settled max/min summaries, confirming a clear forward/backward disagreement at <code>resource_decrease = 0.05</code>.</p>
+<p>Day 22 fixed a Beverton-Holt double-build bug and switched the resource setup to <code>balance = FALSE, resource_level = 0.5</code> - which cleared the backwards (more-resource-goes-extinct) result, but also flattened the oscillation and hysteresis it was meant to preserve. Diffusion strength was ruled out as the cause; the actual issue was a missing perturbation-kick step that had silently disappeared from every sweep since Day 20. Switching from <code>resource_level</code> (not an independent capacity control, it turns out) to setting <code>capacity_mult</code> and <code>resource_decrease</code> directly recovered real oscillation, specifically a <strong>paradox-of-enrichment signature</strong>: <em>raising</em> carrying capacity past a threshold destabilised the fixed point, the opposite of the “lower the capacity” hypothesis the search had started from.</p>
+<p>Day 23 confirmed, via a snake-sweep phase diagram checked three different ways (forward, reversed, transposed) plus scan-rate, perturbation, and resolution checks, a genuinely clean <strong>“no path dependence” result - but only for <code>capacity_mult &gt;= 3</code></strong>. Below that, a classic bifurcation sweep found a real hysteresis loop right at the collapse boundary, and two hypotheses for why <code>capacity_mult = 1</code> collapses entirely (an over-strong perturbation kick; a rate/capacity mismatch) were both directly refuted. Day 24 refined that loop down to a precisely bracketed <strong><code>(1.30, 1.41)</code></strong> window - about 8% relative width, an order of magnitude tighter than Day 23’s rough bracket - and confirmed it survives two robustness checks: a faster-replenishing resource shifts and narrows it exactly as predicted, and swapping in a completely different (mizer default) species reproduces the same collapse-then-rise shape with a comparably narrow (~12%) window.</p>
+<p>The sharpest result of this whole arc is a <strong>bare, non-size-structured two-ODE predator-prey toy model</strong>, built specifically to test whether size resolution is even necessary. It reproduces mizer’s collapse threshold <em>exactly</em> (a textbook Tilman <span class="math inline">\(R^*\)</span>/transcritical bifurcation), but shows <strong>no hysteresis at all</strong> - chemostat-style prey growth structurally forbids it (Rosenzweig’s paradox-of-enrichment argument: the Jacobian’s trace stays negative no matter the predation term’s shape). So the collapse threshold itself doesn’t need size structure; the hysteresis around it apparently does. Separately, Day 24 also showed the severe juvenile-biomass pileup this project had been carrying since Day 6 (only ~0.03% of anchovy biomass “catchable” at maturity) is <strong>specific to this project’s own anchovy calibration</strong>, not a general mizer feature - mizer’s own default species shows a much milder version of the same skew (~7% catchable).</p>
+<hr>
+</section>
+<section id="act-four-alpha-and-delay-differential-equations-days-25-27" class="level2">
+<h2 class="anchored" data-anchor-id="act-four-alpha-and-delay-differential-equations-days-25-27">Act Four: Alpha, and Delay Differential Equations (Days 25-27)</h2>
+<p>Day 25 ran the real parameter sweep the juvenile-pileup question had needed all along - not two guessed points but a proper range for <span class="math inline">\(\alpha\)</span>, <span class="math inline">\(\gamma\)</span>, and <span class="math inline">\(\kappa\)</span> each. <span class="math inline">\(\alpha\)</span> dominates by a huge margin (a 27.5-order-of-magnitude range in catchable fraction) ; it’s a viability threshold. The anchovy’s own calibrated <span class="math inline">\(\alpha=0.1\)</span> sits right at the foot of that climb. <span class="math inline">\(\gamma\)</span> and <span class="math inline">\(\kappa\)</span> are real but minor by comparison.</p>
+<p>The same day, a time-delay predator-prey model (delaying the predator’s <em>conversion</em> of intake into growth) was proven, both analytically and by simulation, to be <strong>structurally incapable of a Hopf bifurcation for any delay or parameter choice</strong>: the undelayed prey-renewal term acts as a restoring force strong enough to block it outright. That raised the natural question of whether a delay placed somewhere <em>else</em> in the same system would behave differently.</p>
+<p>Day 26 answered it: delaying the prey’s own self-limitation term instead <strong>does</strong> produce a genuine Hopf bifurcation (confirmed analytically and by simulation, onset near <span class="math inline">\(\tau \approx 2.4\)</span>), though the toy model’s lack of a saturating functional response lets the resulting cycle drive prey biomass unphysically negative past onset. A third variant, delaying only the predator’s intake term, was reported that day as conditionally possible, with “a genuine threshold <span class="math inline">\(D &lt; 0.144\)</span>.”</p>
+<p>Day 27 caught that claim as wrong: it had checked only that the characteristic quadratic’s roots <em>sum</em> to something positive, not that they’re <em>real</em> - the discriminant condition was never checked, and once it was, the two conditions turned out never to overlap for any parameter choice. That delay placement is <strong>structurally impossible</strong>, not conditional. A fourth, previously untried placement (delaying only the prey term inside the predator’s intake) was then derived and shown to be <strong>always possible for any parameters</strong>, with a closed-form critical delay after nondimensionalising the whole system down to two ratios. The final tally across all four ways a single delay can sit in this model: <strong>two absolute-impossible, two absolute-possible</strong> - a clean, even split.</p>
+<hr>
+</section>
+<section id="act-five-back-to-the-real-cod-model-days-28-30" class="level2">
+<h2 class="anchored" data-anchor-id="act-five-back-to-the-real-cod-model-days-28-30">Act Five: Back to the Real Cod Model (Days 28-30)</h2>
+<p>Day 28 brought all of this theory to bear on the actual, calibrated cod model for the first time, using a new experimental mizer feature (<code>getStability()</code>/<code>steadyNewton(stability = TRUE)</code>, from PR #452) that linearises mizer’s own numerical map directly rather than requiring a hand-derived characteristic equation. Both a direct simulated sweep and the analytic eigenvalue check agreed: <strong>cod stayed stable across every point tested</strong> (<code>resource_decrease</code> 0.001-1 crossed with <code>capacity_mult</code> 1-20, 120 points) - no sign of anchovy’s paradox-of-enrichment behaviour. A juvenile-vs-adult feeding-rate check (after fixing an R vector-recycling bug that had silently compared mismatched-length vectors) found <strong>both</strong> cod and anchovy adult-driven by de Roos &amp; Persson’s criterion - a real caveat on the “juvenile pileup” framing this project had carried informally since Day 6.</p>
+<p>Day 29 fixed that metric properly - a <em>ratio</em>, not a difference, since a difference isn’t comparable across differently-calibrated species. That flipped the classification entirely: both species are juvenile-driven, and <strong>cod is the more skewed of the two</strong> (juveniles out-eating adults ~13x vs.&nbsp;anchovy’s ~6x), the opposite of what Day 28 had reported. Four separate, deliberately different searches for a lever that would destabilise cod or anchovy (relaxing the reproduction cap, size-selective fishing, pushing <code>capacity_mult</code> to 500x, a body-size/intake-rate factorial) all came back null - and the real finding of the day was methodological, not parametric: <code>getStability()</code> only proves <em>local</em> stability. Perturbing the actual simulation directly, rather than trusting the linearisation, revealed <strong>anchovy oscillating across 80 of 120 grid points that <code>getStability()</code> had called uniformly stable</strong> (<code>rel_amplitude</code> up to 1.41) - cod, notably, agreed between both methods at every point checked.</p>
+<p>Day 30 pushed further on cod specifically. A <code>lambda</code> sweep found a real oscillatory threshold between <span class="math inline">\(\lambda=2.00\)</span> and <span class="math inline">\(2.05\)</span> - but built on a flawed mental model of mizer’s own scaling identity (kappa is derived from lambda via a separate, ad hoc empirical formula in this project’s code, not through the classical scaling relation), and the resulting oscillations turned out to be too small to matter next to cod’s mean biomass anyway. The more consequential result came from a deliberately coarse but much wider reconnaissance scan - <code>resource_decrease</code> down to <span class="math inline">\(10^{-7}\)</span> and <code>capacity_mult</code> down to <span class="math inline">\(10^{-3}\)</span> (an actively <em>shrunk</em> capacity, never tested before) up to <span class="math inline">\(10^2\)</span>. <strong>Cod does oscillate</strong>, with <code>rel_amplitude</code> up to 0.041 at extreme resource starvation - territory no grid since Day 24 had ever reached - but that oscillation is real and small, a ripple against cod’s standing biomass rather than anything close to a boom-bust cycle. Sitting right next to it is a more important finding: <strong>shrinking <code>capacity_mult</code> below baseline doesn’t produce a milder version of the same story - it collapses the population outright</strong>, a qualitatively different failure mode that neither <code>getStability()</code> nor any of the earlier perturbed-amplitude grids were built to distinguish from oscillation until Day 30’s explicit collapse check.</p>
+<hr>
+</section>
+<section id="recurring-methodological-lessons" class="level2">
+<h2 class="anchored" data-anchor-id="recurring-methodological-lessons">Recurring Methodological Lessons</h2>
+<p>A few lessons surfaced more than once, in different forms, across the thirty days:</p>
+<ul>
+<li><strong>Verify oscillations under a second, more accurate integration method before trusting them.</strong> Day 6’s entire premise rested on this - the original “oscillations” were pure numerical ringing from the default integrator.</li>
+<li><strong>Scaling a power law and replacing it with a constant are different models.</strong> Day 3’s key realisation, and the reason the first four days produced only transient, not sustained, dynamics.</li>
+<li><strong>Use relative amplitude, not absolute, when comparing across parameter values with different baseline scales.</strong> Established Day 4, reused in every amplitude-based sweep since.</li>
+<li><strong>mizer’s weight grid is logarithmically spaced - a plain <code>mean()</code>/<code>sum()</code> over it silently misweights small vs.&nbsp;large individuals.</strong> This specific bug recurred at least three times under different names: Day 19’s <code>catchable_fraction</code> (fixed by weighting with <code>dw</code>), and twice in the juvenile/adult competitiveness metric itself (Day 28’s difference-vs-ratio bug on Day 29, then the unweighted-mean bug caught fresh on Day 30).</li>
+<li><strong>Differences aren’t comparable across differently-calibrated systems - use ratios.</strong> The exact fix that flipped cod and anchovy’s classification between Day 28 and Day 29.</li>
+<li><strong>A coarse grid can only ever overestimate the width of a hysteresis or bistable region.</strong> Demonstrated repeatedly - Day 23’s <code>[3,10]</code> plateau, the <code>capacity_mult</code> hysteresis loop refined across Days 23-24, and the default-species hysteresis window refined within Day 24 itself.</li>
+<li><strong>A purely local (linearised) stability check can miss real, large-amplitude dynamics reachable from a large-enough perturbation.</strong> Day 29’s central finding, and the reason cod’s own “stable everywhere” verdict from Day 28 needed revisiting by Day 30.</li>
+<li><strong>State-carrying (“chained”) sweeps are essential for detecting hysteresis, but they actively break models with no immigration term and an absorbing zero state.</strong> Day 24’s toy predator-prey model needed fresh starts, not chained sweeps, once a single harsh early value could otherwise drag every later point down with it.</li>
+<li><strong>A quadratic’s roots summing to something positive isn’t enough to prove a Hopf crossing exists - the discriminant has to be checked too.</strong> Day 26’s error, caught and fixed on Day 27.</li>
+<li><strong>Critical slowing down near a bifurcation can look like either a shrinking-but-real effect or pure sampling noise.</strong> This recurred across Days 18, 23, 24, 25, and 26, and cost at least one clean conclusion (Day 25’s <code>gamma</code>/<code>kappa</code> sweep) a full day of re-verification before it could be trusted.</li>
+</ul>
+
+
+</section>
+
+</main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp('/' + window.location.host + '/');
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+</div> <!-- /content -->
+
+
+
+
+</body></html>

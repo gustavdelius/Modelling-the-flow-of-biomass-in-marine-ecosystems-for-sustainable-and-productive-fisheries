@@ -1,0 +1,101 @@
+---
+title: "Summary: What Thirty Days Actually Found"
+author: "Samia"
+date: "2026-07-20"
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    theme: flatly
+categories: [research, mizer, summary, hopf-bifurcation, cod, size-spectrum, hysteresis, blog]
+description: "A synthesis of Days 1-30: from the original traffic-jam analogy through a genuine, if modest, food-limitation oscillation in a toy anchovy model, a precisely-pinned but narrow hysteresis window, a fully classified delay-differential-equation theory, and finally the real, calibrated cod model.It was stable across every grid tested until a much wider, coarser scan found it oscillating at extreme resource starvation, with a qualitatively different collapse mode sitting right next to it."
+---
+
+## Why This Post Exists
+
+Thirty days in, with results scattered across dozens of individual posts, corrections layered on corrections, and dead ends that turned out to matter as much as the results they blocked, that's worth doing properly rather than leaving as a TODO. This post is that document, read back over every day-by-day post from Day One through Day 30 and organised by the arc of the actual investigation rather than by date.
+
+------------------------------------------------------------------------
+
+## The Starting Idea
+
+The project began with a single analogy: fish biomass moving through size space behaves like traffic moving through a road network. A transport system with density-dependent flux, cars slowing down as the road gets crowded, fish growing more slowly as food per individual drops, can jam when the feedback between density and flow rate is strong enough. Just as metered on-ramps can relieve a motorway jam without adding capacity, targeted fishing might in principle relieve a size-spectrum "jam" rather than simply remove biomass from it. Days 1-2 were about getting `mizer` itself to move at all - the model initialises very close to its own steady state, so the very first technical hurdle was learning to perturb it hard enough to see any dynamics before there was anything to analyse.
+
+------------------------------------------------------------------------
+
+## Act One: Finding a Real Oscillation, and What Drives It (Days 1-10)
+
+Day 3's real breakthrough was realising that "reducing the resource rate" has to mean *scaling* the existing power-law curve, not replacing it with a constant - the two are different models, not different strengths of the same one. That unlocked the first genuine transient oscillations, and Day 4 mapped a rough stability boundary in $(\beta,\sigma)$ space using *relative* amplitude (peak-to-peak over the mean), since absolute amplitude is confounded by how the steady-state biomass itself shifts with those parameters.
+
+Day 6 delivered a necessary correction: the oscillations found so far turned out to be numerical ringing from the default integrator, not real dynamics - they vanished entirely under mizer's more accurate predictor-corrector scheme. The real oscillation came from adapting a two-species anchovy/plankton model (from an RPubs example) with resource replenishment suppressed to \~0.1% of default, and it survived the switch to the accurate integrator, confirming it as a genuine limit cycle with a period of roughly 7-9 years.
+
+Day 7 pinned down the mechanism: a food-limitation cycle concentrated almost entirely in juvenile size classes. Feeding level at the smallest fish crashes to around 0.24 (a quarter of maximum intake) at the resource trough while larger fish stay essentially saturated throughout. Day 8's FFT analysis confirmed this was one fundamental frequency with harmonics (not two competing timescales), found a clean power-law scaling of period with maturation size ($\text{period} \sim w_{mat}^{0.2}$, $R^2=0.9974$).
+
+Days 9-10 turned to fishing as an intervention. The first attempts at "fish only near the biomass peaks" looked like they worsened the juvenile bottleneck rather than relieving it, and it took real debugging (a selectivity-function bug, then isolating the actual cause) to establish that **fishing frequency, not size-selectivity, was the dominant lever** - a peaks-only schedule fishing too rarely concentrates pressure into short, damaging bursts, and widening the fishing window fixed most of the problem.
+
+------------------------------------------------------------------------
+
+## Act Two: Rigor - Wave Theory, Generation Time, and the Unstable Fixed Point (Days 11-18)
+
+Day 11 caught its own near-miss: an apparent "bifurcation" in the phase-vs-size-class plot at $\lambda=2.05$ turned out to be nothing more than `Arg()` wrapping modulo $2\pi$, not a real structural change - confirmed directly against the underlying heatmap, which showed no corresponding change in the raw dynamics. A from-scratch derivation of how phase *should* depend on growth rate then failed its own direct check against the data, pointing at the fixed, steady-state growth rate assumption as the culprit rather than the model itself.
+
+Days 12-13 fixed exactly that: replacing the fixed growth-rate snapshot with the real, time-varying growth field and tracking actual cohorts through it pulled the generation-time estimate from 2.38 years (steady-state) back up to about 3.27 (cohort-tracked) - much closer to the original "about three generations" intuition than the more careful-looking calculation had first suggested. Days 14-15 were pure theory: working through the method of characteristics, gradient catastrophe, shock waves, and rarefaction waves as the formal PDE foundation underneath everything the project had been doing with cohort tracking and phase.
+
+Day 16 introduced `steadyNewton()`, which can locate a steady state directly regardless of whether it's stable - crucially, the *unstable* fixed point that the limit cycle actually orbits. Once the earlier (Euler-based) estimate was redone properly with the predictor-corrector integrator, the limit cycle's time-averaged biomass exceeded the unstable fixed point by a real but modest 13-23% (not the \~94% the less accurate method had suggested), and a duty-cycle decomposition explained exactly where that gain comes from: an asymmetric relaxation-oscillator shape, not a symmetric wobble. The size-spectrum comparison showed this isn't a uniform scaling either - it's a genuine cohort wave, with juvenile sizes depleted on average and large adults elevated. Fishing at realistic effort (0-0.5) barely touched it: mean biomass dropped only 6%, and yield scaled roughly linearly with no sign of a maximum-sustainable-yield peak in that range.
+
+Day 17 found where fishing *does* eventually kill the cycle - effort $\approx 8$, an order of magnitude past anything realistic, via a gradual, damped-spiral transition rather than a sudden collapse (a supercritical Hopf signature). Day 18 confirmed the limit cycle is a genuine, wide-basin global attractor (five perturbations spanning three orders of magnitude all converged to the same orbit), but a first hysteresis test left the supercritical-vs-subcritical question wide open: the forward and backward sweeps disagreed by more than could be dismissed as an artefact of where the sweep happened to start.
+
+------------------------------------------------------------------------
+
+## Act Three: The Hysteresis Investigation (Days 19-24)
+
+This stretch is the project's longest sustained debugging arc, and it's worth reading as one continuous story even though it spans six days and several dead ends.
+
+Day 19 found that `balance = FALSE` appeared to kill the oscillation outright - until a controlled A/B comparison showed it was actually starving the population across the whole tested range, not stabilising it. Separately, feeding-kernel shape (`beta`/`sigma`) was shown to set oscillation amplitude directly, and an 8x yield gap between two kernels turned out to be a size-selectivity artefact: the higher-amplitude kernel's extra biomass was almost entirely juveniles below the gear's catchable-size cutoff, not extra mature stock.
+
+Day 20 widened the sweep and found a much bigger hysteresis gap than Day 18's - but the external diffusion array had been built as a flat constant rather than mizer's intended allometric $D_{ext}(w) = D_{ext,i}\cdot w^{n+1}$ shape, so the result needed reproducing properly. Day 21 fixed that and watched hysteresis play out directly in biomass time series rather than just settled max/min summaries, confirming a clear forward/backward disagreement at `resource_decrease = 0.05`.
+
+Day 22 fixed a Beverton-Holt double-build bug and switched the resource setup to `balance = FALSE, resource_level = 0.5` - which cleared the backwards (more-resource-goes-extinct) result, but also flattened the oscillation and hysteresis it was meant to preserve. Diffusion strength was ruled out as the cause; the actual issue was a missing perturbation-kick step that had silently disappeared from every sweep since Day 20. Switching from `resource_level` (not an independent capacity control, it turns out) to setting `capacity_mult` and `resource_decrease` directly recovered real oscillation, specifically a **paradox-of-enrichment signature**: *raising* carrying capacity past a threshold destabilised the fixed point, the opposite of the "lower the capacity" hypothesis the search had started from.
+
+Day 23 confirmed, via a snake-sweep phase diagram checked three different ways (forward, reversed, transposed) plus scan-rate, perturbation, and resolution checks, a genuinely clean **"no path dependence" result - but only for `capacity_mult >= 3`**. Below that, a classic bifurcation sweep found a real hysteresis loop right at the collapse boundary, and two hypotheses for why `capacity_mult = 1` collapses entirely (an over-strong perturbation kick; a rate/capacity mismatch) were both directly refuted. Day 24 refined that loop down to a precisely bracketed **`(1.30, 1.41)`** window - about 8% relative width, an order of magnitude tighter than Day 23's rough bracket - and confirmed it survives two robustness checks: a faster-replenishing resource shifts and narrows it exactly as predicted, and swapping in a completely different (mizer default) species reproduces the same collapse-then-rise shape with a comparably narrow (\~12%) window.
+
+The sharpest result of this whole arc is a **bare, non-size-structured two-ODE predator-prey toy model**, built specifically to test whether size resolution is even necessary. It reproduces mizer's collapse threshold *exactly* (a textbook Tilman $R^*$/transcritical bifurcation), but shows **no hysteresis at all** - chemostat-style prey growth structurally forbids it (Rosenzweig's paradox-of-enrichment argument: the Jacobian's trace stays negative no matter the predation term's shape). So the collapse threshold itself doesn't need size structure; the hysteresis around it apparently does. Separately, Day 24 also showed the severe juvenile-biomass pileup this project had been carrying since Day 6 (only \~0.03% of anchovy biomass "catchable" at maturity) is **specific to this project's own anchovy calibration**, not a general mizer feature - mizer's own default species shows a much milder version of the same skew (\~7% catchable).
+
+------------------------------------------------------------------------
+
+## Act Four: Alpha, and Delay Differential Equations (Days 25-27)
+
+Day 25 ran the real parameter sweep the juvenile-pileup question had needed all along - not two guessed points but a proper range for $\alpha$, $\gamma$, and $\kappa$ each. $\alpha$ dominates by a huge margin (a 27.5-order-of-magnitude range in catchable fraction) ; it's a viability threshold. The anchovy's own calibrated $\alpha=0.1$ sits right at the foot of that climb. $\gamma$ and $\kappa$ are real but minor by comparison.
+
+The same day, a time-delay predator-prey model (delaying the predator's *conversion* of intake into growth) was proven, both analytically and by simulation, to be **structurally incapable of a Hopf bifurcation for any delay or parameter choice**: the undelayed prey-renewal term acts as a restoring force strong enough to block it outright. That raised the natural question of whether a delay placed somewhere *else* in the same system would behave differently.
+
+Day 26 answered it: delaying the prey's own self-limitation term instead **does** produce a genuine Hopf bifurcation (confirmed analytically and by simulation, onset near $\tau \approx 2.4$), though the toy model's lack of a saturating functional response lets the resulting cycle drive prey biomass unphysically negative past onset. A third variant, delaying only the predator's intake term, was reported that day as conditionally possible, with "a genuine threshold $D < 0.144$."
+
+Day 27 caught that claim as wrong: it had checked only that the characteristic quadratic's roots *sum* to something positive, not that they're *real* - the discriminant condition was never checked, and once it was, the two conditions turned out never to overlap for any parameter choice. That delay placement is **structurally impossible**, not conditional. A fourth, previously untried placement (delaying only the prey term inside the predator's intake) was then derived and shown to be **always possible for any parameters**, with a closed-form critical delay after nondimensionalising the whole system down to two ratios. The final tally across all four ways a single delay can sit in this model: **two absolute-impossible, two absolute-possible** - a clean, even split.
+
+------------------------------------------------------------------------
+
+## Act Five: Back to the Real Cod Model (Days 28-30)
+
+Day 28 brought all of this theory to bear on the actual, calibrated cod model for the first time, using a new experimental mizer feature (`getStability()`/`steadyNewton(stability = TRUE)`, from PR #452) that linearises mizer's own numerical map directly rather than requiring a hand-derived characteristic equation. Both a direct simulated sweep and the analytic eigenvalue check agreed: **cod stayed stable across every point tested** (`resource_decrease` 0.001-1 crossed with `capacity_mult` 1-20, 120 points) - no sign of anchovy's paradox-of-enrichment behaviour.
+
+Four separate, deliberately different searches for a lever that would destabilise cod or anchovy (relaxing the reproduction cap, size-selective fishing, pushing `capacity_mult` to 500x, a body-size/intake-rate factorial) all came back null - and the real finding of the day was methodological, not parametric: `getStability()` only proves *local* stability. Perturbing the actual simulation directly, rather than trusting the linearisation, revealed **anchovy oscillating across 80 of 120 grid points that `getStability()` had called uniformly stable** (`rel_amplitude` up to 1.41) - cod, notably, agreed between both methods at every point checked.
+
+Day 30 pushed further on cod specifically. A `lambda` sweep found a real oscillatory threshold between $\lambda=2.00$ and $2.05$ - but built on a flawed mental model of mizer's own scaling identity (kappa is derived from lambda via a separate, ad hoc empirical formula in this project's code, not through the classical scaling relation), and the resulting oscillations turned out to be too small to matter next to cod's mean biomass anyway. The more consequential result came from a deliberately coarse but much wider reconnaissance scan - `resource_decrease` down to $10^{-7}$ and `capacity_mult` down to $10^{-3}$ (an actively *shrunk* capacity, never tested before) up to $10^2$. **Cod does oscillate**, with `rel_amplitude` up to 0.041 at extreme resource starvation - territory no grid since Day 24 had ever reached - but that oscillation is real and small, a ripple against cod's standing biomass rather than anything close to a boom-bust cycle. Sitting right next to it is a more important finding: **shrinking `capacity_mult` below baseline doesn't produce a milder version of the same story, instead, it collapses the population outright**, a qualitatively different failure mode that neither `getStability()` nor any of the earlier perturbed-amplitude grids were built to distinguish from oscillation until Day 30's explicit collapse check.
+
+------------------------------------------------------------------------
+
+## Recurring Methodological Lessons
+
+A few lessons surfaced more than once, in different forms, across the thirty days:
+
+- **Verify oscillations under a second, more accurate integration method before trusting them.** Day 6's entire premise rested on this - the original "oscillations" were pure numerical ringing from the default integrator.
+- **Scaling a power law and replacing it with a constant are different models.** Day 3's key realisation, and the reason the first four days produced only transient, not sustained, dynamics.
+- **Use relative amplitude, not absolute, when comparing across parameter values with different baseline scales.** Established Day 4, reused in every amplitude-based sweep since.
+- **mizer's weight grid is logarithmically spaced - a plain `mean()`/`sum()` over it silently misweights small vs. large individuals.** This specific bug recurred at least three times under different names: Day 19's `catchable_fraction` (fixed by weighting with `dw`), and twice in the juvenile/adult competitiveness metric itself (Day 28's difference-vs-ratio bug on Day 29, then the unweighted-mean bug caught fresh on Day 30).
+- **Differences aren't comparable across differently-calibrated systems - use ratios.** The exact fix that flipped cod and anchovy's classification between Day 28 and Day 29.
+- **A coarse grid can only ever overestimate the width of a hysteresis or bistable region.** Demonstrated repeatedly - Day 23's `[3,10]` plateau, the `capacity_mult` hysteresis loop refined across Days 23-24, and the default-species hysteresis window refined within Day 24 itself.
+- **A purely local (linearised) stability check can miss real, large-amplitude dynamics reachable from a large-enough perturbation.** Day 29's central finding, and the reason cod's own "stable everywhere" verdict from Day 28 needed revisiting by Day 30.
+- **State-carrying ("chained") sweeps are essential for detecting hysteresis, but they actively break models with no immigration term and an absorbing zero state.** Day 24's toy predator-prey model needed fresh starts, not chained sweeps, once a single harsh early value could otherwise drag every later point down with it.
+- **A quadratic's roots summing to something positive isn't enough to prove a Hopf crossing exists - the discriminant has to be checked too.** Day 26's error, caught and fixed on Day 27.
+- **Critical slowing down near a bifurcation can look like either a shrinking-but-real effect or pure sampling noise.** This recurred across Days 18, 23, 24, 25, and 26, and cost at least one clean conclusion (Day 25's `gamma`/`kappa` sweep) a full day of re-verification before it could be trusted.
