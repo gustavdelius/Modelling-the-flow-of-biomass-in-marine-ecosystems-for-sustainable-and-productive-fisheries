@@ -36,7 +36,7 @@ save_plot <- function(plot, filename, width = 8, height = 6, dpi = 150) {
 #      forward/backward bifurcation diagram (the format every
 #      resource_decrease/capacity_mult sweep has used since Day 18) rather
 #      than a perturbed-amplitude heatmap -- q swept directly with min/max
-#      late-window biomass plotted, not a grid of oscillating/settled
+#      late-window yield plotted, not a grid of oscillating/settled
 #      verdicts.
 #
 #   2. The corrected competitiveness metric -- dw-weighting
@@ -82,18 +82,20 @@ resource_limitation_2d_cod <- function(params, resource_decrease, capacity_mult)
 # Follow-up 5 generalised it into run_bifurcation_sweep()/
 # plot_bifurcation()): sweep q itself forward then backward, carrying each
 # step's own converged state into the next rather than re-perturbing from
-# scratch each time, and plot max/min late-window biomass per step.
+# scratch each time, and plot max/min late-window yield per step.
 # Branches collapsing onto a single curve = fixed point; branches fanning
 # apart into separate max/min lines = a genuine limit cycle; forward and
 # backward branches disagreeing at the same q = hysteresis, not just a
 # q-dependent threshold.
 #
-# resource_decrease and capacity_mult held fixed at (0.001, 10) -- the
-# corner of the standard 12x10 grid where Day 30's lambda sweep found its
-# oscillating band (capacity_mult >= ~10, independent of resource_decrease)
-# -- giving q the best chance of revealing similar structure in a 1D slice,
-# rather than picking an arbitrary point that's null for every mechanism
-# tried so far.
+# resource_decrease and capacity_mult held fixed at (1e-7, 1000) -- Day 30's
+# broad scan found native cod_params' own largest oscillation
+# (rel_amplitude=0.041) at resource_decrease=1e-7, capacity_mult=1
+# (extreme resource starvation, at cod's native carrying capacity); this
+# pushes capacity_mult an order of magnitude past the 100x that scan's own
+# widest range covered, giving q the best chance of revealing similar
+# structure in a 1D slice rather than picking an arbitrary point that's
+# null for every mechanism tried so far.
 ################################################################################
 
 native_cod_q <- unname(cod_params@species_params$q[1])
@@ -138,10 +140,19 @@ build_cod_q_variant <- function(q, resource_decrease, capacity_mult) {
 # convention (predictor-corrector, dt=0.1, t_save=0.2) in place of the
 # anchovy-template tr_bdf2 call that version used; same
 # forward-then-backward, state-carried-between-steps logic either way.
+#
+# metric_fn/effort generalise this beyond biomass: getYield() is
+# identically zero under effort=0 (Day 23's own convention, since those
+# sweeps were about stability, not fishing), so plotting yield's min/max
+# requires actually fishing the population -- effort is a parameter here,
+# not hardcoded, so the caller has to make that choice explicitly rather
+# than the sweep silently reusing a setting tuned for a different metric.
 run_bifurcation_sweep_cod <- function(param_seq, param_name, fixed_params = list(),
-                                      params_fn = build_cod_q_variant, t_run = 600) {
+                                      params_fn = build_cod_q_variant, t_run = 600,
+                                      effort = 0,
+                                      metric_fn = function(sim) rowSums(getBiomass(sim))) {
   run_one_direction <- function(seq_vals, init_n = NULL, init_n_pp = NULL) {
-    out       <- data.frame(value = seq_vals, max_bm = NA_real_, min_bm = NA_real_)
+    out       <- data.frame(value = seq_vals, max_metric = NA_real_, min_metric = NA_real_)
     state_n   <- init_n
     state_npp <- init_n_pp
 
@@ -154,17 +165,17 @@ run_bifurcation_sweep_cod <- function(param_seq, param_name, fixed_params = list
         p@initial_n_pp[] <- state_npp
       }
       sim <- project(p, t_max = t_run, dt = 0.1, t_save = 0.2,
-                     progress_bar = FALSE, effort = 0, method = "predictor-corrector")
-      bm   <- rowSums(getBiomass(sim))
-      tv   <- as.numeric(names(bm))
-      late <- bm[tv > t_run * 0.6]
+                     progress_bar = FALSE, effort = effort, method = "predictor-corrector")
+      mv   <- metric_fn(sim)
+      tv   <- as.numeric(names(mv))
+      late <- mv[tv > t_run * 0.6]
       last <- dim(sim@n)[1]
 
       state_n   <- sim@n[last, , ]
       state_npp <- sim@n_pp[last, ]
 
-      out$max_bm[i] <- max(late)
-      out$min_bm[i] <- min(late)
+      out$max_metric[i] <- max(late)
+      out$min_metric[i] <- min(late)
     }
     list(df = out, n_final = state_n, npp_final = state_npp)
   }
@@ -174,18 +185,18 @@ run_bifurcation_sweep_cod <- function(param_seq, param_name, fixed_params = list
   bwd_df <- bwd$df[order(bwd$df$value), ]
 
   bind_rows(
-    data.frame(value = fwd$df$value, biomass = fwd$df$max_bm, direction = "Forward",  branch = "max"),
-    data.frame(value = fwd$df$value, biomass = fwd$df$min_bm, direction = "Forward",  branch = "min"),
-    data.frame(value = bwd_df$value, biomass = bwd_df$max_bm, direction = "Backward", branch = "max"),
-    data.frame(value = bwd_df$value, biomass = bwd_df$min_bm, direction = "Backward", branch = "min")
+    data.frame(value = fwd$df$value, metric = fwd$df$max_metric, direction = "Forward",  branch = "max"),
+    data.frame(value = fwd$df$value, metric = fwd$df$min_metric, direction = "Forward",  branch = "min"),
+    data.frame(value = bwd_df$value, metric = bwd_df$max_metric, direction = "Backward", branch = "max"),
+    data.frame(value = bwd_df$value, metric = bwd_df$min_metric, direction = "Backward", branch = "min")
   )
 }
 
-plot_bifurcation_cod <- function(df, x_label, title, subtitle = NULL) {
-  ggplot(df, aes(x = value, y = biomass, color = direction, linetype = branch)) +
+plot_bifurcation_cod <- function(df, x_label, y_label, title, subtitle = NULL) {
+  ggplot(df, aes(x = value, y = metric, color = direction, linetype = branch)) +
     geom_line(linewidth = 1) +
     geom_point(size = 1.2) +
-    labs(x = x_label, y = "Biomass", title = title, subtitle = subtitle) +
+    labs(x = x_label, y = y_label, title = title, subtitle = subtitle) +
     theme_minimal()
 }
 
@@ -195,33 +206,42 @@ plot_bifurcation_cod <- function(df, x_label, title, subtitle = NULL) {
 # the coarse 7-value bracket the old heatmap grid used.
 q_seq_bif <- seq(native_cod_q - 0.3, native_cod_q + 0.3, length.out = 21)
 
+# effort=1 -- cod_params' own calibrated fishing gear at its native
+# intensity, not the effort=0 used for every stability-only sweep so far.
+# Yield is identically zero at effort=0 (nothing is being caught), so
+# there's no "unfished yield bifurcation diagram" to fall back on the way
+# there was for biomass; this is also the first cod sweep in this project
+# to actually fish the population, which Day 29's "What's Next" flagged as
+# still outstanding ("introduce fishing mortality against yield").
 bif_q_df <- run_bifurcation_sweep_cod(
   q_seq_bif, "q",
-  fixed_params = list(resource_decrease = 0.001, capacity_mult = 10),
-  t_run = 600
+  fixed_params = list(resource_decrease = 1e-7, capacity_mult = 1000),
+  t_run = 600, effort = 1,
+  metric_fn = function(sim) rowSums(getYield(sim))
 )
 
-write.csv(bif_q_df, file.path("interesting_plots", "day31_cod_q_bifurcation.csv"),
+write.csv(bif_q_df, file.path("interesting_plots", "day31_cod_q_yield_bifurcation.csv"),
           row.names = FALSE)
 
 bif_q_plot <- plot_bifurcation_cod(
-  bif_q_df, "q (search-volume exponent)",
-  "Cod bifurcation diagram: search-volume exponent q swept forward and backward",
+  bif_q_df, "q (search-volume exponent)", "Yield",
+  "Cod bifurcation diagram: yield vs. search-volume exponent q, swept forward and backward",
   sprintf(
-    "resource_decrease=0.001, capacity_mult=10 fixed (Day 30's lambda-oscillating corner) -- native q=%.3g; branches collapsing onto one curve = fixed point, fanning apart = limit cycle",
+    "resource_decrease=1e-7, capacity_mult=1000, effort=1 fixed (Day 30's broad-scan starvation corner, pushed past its own capacity_mult range, at cod's native fishing intensity) -- native q=%.3g; branches collapsing onto one curve = fixed point, fanning apart = limit cycle",
     native_cod_q
   )
 )
 bif_q_plot
 
-save_plot(bif_q_plot, "day31_cod_q_bifurcation.png", width = 9, height = 6)
+save_plot(bif_q_plot, "day31_cod_q_yield_bifurcation.png", width = 9, height = 6)
 
 # Verdict: per q value, is the max/min spread big enough to call a limit
 # cycle (same 1e-6 relative-amplitude threshold used throughout this
 # project), and do the forward/backward branches actually disagree
-# (hysteresis) rather than retracing each other.
+# (hysteresis) rather than retracing each other. Same logic as the
+# biomass version, just applied to yield's own max/min instead.
 bif_q_check <- bif_q_df %>%
-  tidyr::pivot_wider(names_from = c(direction, branch), values_from = biomass) %>%
+  tidyr::pivot_wider(names_from = c(direction, branch), values_from = metric) %>%
   mutate(
     rel_amplitude_fwd = (Forward_max - Forward_min) / ((Forward_max + Forward_min) / 2),
     rel_amplitude_bwd = (Backward_max - Backward_min) / ((Backward_max + Backward_min) / 2),
@@ -234,7 +254,7 @@ max_hysteresis_q <- bif_q_check$value[which.max(bif_q_check$hysteresis_gap)]
 
 q_verdict <- if (n_oscillating_q == 0) {
   sprintf(
-    "flat -- 0/%d q values cross the 1e-6 relative-amplitude threshold at (resource_decrease=0.001, capacity_mult=10); no forward/backward branch separation either (largest hysteresis gap at q=%.3g, still negligible)",
+    "flat -- 0/%d q values cross the 1e-6 relative-amplitude threshold at (resource_decrease=1e-7, capacity_mult=1000); no forward/backward branch separation either (largest hysteresis gap at q=%.3g, still negligible)",
     nrow(bif_q_check), max_hysteresis_q
   )
 } else {

@@ -1,0 +1,1104 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.9.38">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="author" content="Samia">
+<meta name="dcterms.date" content="2026-07-16">
+<meta name="description" content="Fixing the juvenile/adult metric to a ratio flips both species to juvenile-driven, cod more skewed than anchovy. Four targeted Hopf-bifurcation searches all come back null, but perturbing the simulation directly, rather than trusting getStability()’s linearisation, finds anchovy genuinely oscillating across two-thirds of a grid getStability() called stable, while cod stays settled.">
+
+<title>Day 29: Four Null Results, and a Perturbed Simulation Catches an Oscillation getStability() Missed – Modelling-the-flow-of-biomass</title>
+<style>
+/* Default styles provided by pandoc.
+** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+*/
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../">
+<script src="../site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="../site_libs/quarto-html/popper.min.js"></script>
+<script src="../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-15634bcf2e68342d4ad2dfa704d543f6.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../site_libs/bootstrap/bootstrap-9a9447a135e5b1c05e5522b7712596fa.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "navbar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "end",
+  "type": "overlay",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+
+
+<link rel="stylesheet" href="../styles.css">
+</head>
+
+<body class="nav-fixed quarto-light">
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+    <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container mx-auto">
+    <a class="navbar-brand" href="../index.html">
+    <span class="navbar-title">Modelling-the-flow-of-biomass</span>
+    </a>
+  </div>
+            <div id="quarto-search" class="" title="Search"></div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" role="menu" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll me-auto">
+  <li class="nav-item">
+    <a class="nav-link" href="../index.html"> 
+<span class="menu-text">Home</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../about.html"> 
+<span class="menu-text">About</span></a>
+  </li>  
+</ul>
+          </div> <!-- /navcollapse -->
+            <div class="quarto-navbar-tools">
+</div>
+      </div> <!-- /container-fluid -->
+    </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
+<!-- sidebar -->
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">On this page</h2>
+   
+  <ul>
+  <li><a href="#where-day-28-left-us" id="toc-where-day-28-left-us" class="nav-link active" data-scroll-target="#where-day-28-left-us">Where Day 28 Left Us</a></li>
+  <li><a href="#setup" id="toc-setup" class="nav-link" data-scroll-target="#setup">Setup</a></li>
+  <li><a href="#fixing-the-competitiveness-metric-a-ratio-not-a-difference" id="toc-fixing-the-competitiveness-metric-a-ratio-not-a-difference" class="nav-link" data-scroll-target="#fixing-the-competitiveness-metric-a-ratio-not-a-difference">Fixing the Competitiveness Metric: A Ratio, Not a Difference</a></li>
+  <li><a href="#a-method-matched-grid-getstability-on-anchovy-too" id="toc-a-method-matched-grid-getstability-on-anchovy-too" class="nav-link" data-scroll-target="#a-method-matched-grid-getstability-on-anchovy-too">A Method-Matched Grid: getStability() on Anchovy Too</a></li>
+  <li><a href="#isolating-the-lever-body-size-vs-intake-rate-parameters" id="toc-isolating-the-lever-body-size-vs-intake-rate-parameters" class="nav-link" data-scroll-target="#isolating-the-lever-body-size-vs-intake-rate-parameters">Isolating the Lever: Body Size vs Intake-Rate Parameters</a></li>
+  <li><a href="#three-ideas-for-actually-causing-an-oscillation-all-come-back-null" id="toc-three-ideas-for-actually-causing-an-oscillation-all-come-back-null" class="nav-link" data-scroll-target="#three-ideas-for-actually-causing-an-oscillation-all-come-back-null">Three Ideas for Actually Causing an Oscillation – All Come Back Null</a>
+  <ul class="collapse">
+  <li><a href="#idea-1-relax-the-reproduction-cap" id="toc-idea-1-relax-the-reproduction-cap" class="nav-link" data-scroll-target="#idea-1-relax-the-reproduction-cap">Idea 1: Relax the Reproduction Cap</a></li>
+  <li><a href="#idea-2-selectivesize-targeted-fishing" id="toc-idea-2-selectivesize-targeted-fishing" class="nav-link" data-scroll-target="#idea-2-selectivesize-targeted-fishing">Idea 2: Selective/Size-Targeted Fishing</a></li>
+  <li><a href="#idea-3-push-capacity_mult-further" id="toc-idea-3-push-capacity_mult-further" class="nav-link" data-scroll-target="#idea-3-push-capacity_mult-further">Idea 3: Push capacity_mult Further</a></li>
+  </ul></li>
+  <li><a href="#when-every-idea-comes-back-null-perturbing-the-simulation-instead-of-trusting-the-linearisation" id="toc-when-every-idea-comes-back-null-perturbing-the-simulation-instead-of-trusting-the-linearisation" class="nav-link" data-scroll-target="#when-every-idea-comes-back-null-perturbing-the-simulation-instead-of-trusting-the-linearisation">When Every Idea Comes Back Null: Perturbing the Simulation Instead of Trusting the Linearisation</a></li>
+  <li><a href="#the-full-picture-a-continuous-amplitude-heatmap" id="toc-the-full-picture-a-continuous-amplitude-heatmap" class="nav-link" data-scroll-target="#the-full-picture-a-continuous-amplitude-heatmap">The Full Picture: A Continuous Amplitude Heatmap</a></li>
+  <li><a href="#what-this-all-adds-up-to" id="toc-what-this-all-adds-up-to" class="nav-link" data-scroll-target="#what-this-all-adds-up-to">What This All Adds Up To</a></li>
+  <li><a href="#whats-next" id="toc-whats-next" class="nav-link" data-scroll-target="#whats-next">What’s Next</a></li>
+  </ul>
+</nav>
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title">Day 29: Four Null Results, and a Perturbed Simulation Catches an Oscillation getStability() Missed</h1>
+  <div class="quarto-categories">
+    <div class="quarto-category">research</div>
+    <div class="quarto-category">mizer</div>
+    <div class="quarto-category">hopf-bifurcation</div>
+    <div class="quarto-category">de-roos-persson</div>
+    <div class="quarto-category">stability-analysis</div>
+    <div class="quarto-category">blog</div>
+  </div>
+  </div>
+
+<div>
+  <div class="description">
+    Fixing the juvenile/adult metric to a ratio flips both species to juvenile-driven, cod more skewed than anchovy. Four targeted Hopf-bifurcation searches all come back null, but perturbing the simulation directly, rather than trusting getStability()’s linearisation, finds anchovy genuinely oscillating across two-thirds of a grid getStability() called stable, while cod stays settled.
+  </div>
+</div>
+
+
+<div class="quarto-title-meta">
+
+    <div>
+    <div class="quarto-title-meta-heading">Author</div>
+    <div class="quarto-title-meta-contents">
+             <p>Samia </p>
+          </div>
+  </div>
+    
+    <div>
+    <div class="quarto-title-meta-heading">Published</div>
+    <div class="quarto-title-meta-contents">
+      <p class="date">July 16, 2026</p>
+    </div>
+  </div>
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<section id="where-day-28-left-us" class="level2">
+<h2 class="anchored" data-anchor-id="where-day-28-left-us">Where Day 28 Left Us</h2>
+<p>Day 28 found <code>cod_params</code> stable everywhere tested (<code>spectral_radius</code> pinned near 0.51-0.76 across a 120-point <code>resource_decrease</code> x <code>capacity_mult</code> grid), and read both cod and the anchovy calibration as “adult-driven” by de Roos &amp; Persson’s (2003) mass-specific-ingestion-rate criterion. A follow-up read of the same paper lineage (Soudijn, de Roos et al.&nbsp;2017) suggested the real lever might be a resource-vs-consumer <em>timescale separation</em> rather than the raw competitive-asymmetry sign alone, and three concrete ideas came out of that discussion for actually inducing a Hopf bifurcation: relaxing the reproduction cap, size-selective fishing, and pushing <code>capacity_mult</code> further than the 20x already tested.</p>
+<p>Today runs all three, plus a method-matched <code>getStability()</code> grid for anchovy and a body-size x intake-rate factorial to isolate whichever lever turned out to matter. All four come back null. The interesting result of the day turns out to be about the <em>method itself</em>. Perturbing the actual simulation away from steady state, rather than trusting <code>getStability()</code>’s linearisation, finds a real, substantial anchovy oscillation that every grid up to that point had called stable.</p>
+<hr>
+</section>
+<section id="setup" class="level2">
+<h2 class="anchored" data-anchor-id="setup">Setup</h2>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(mizer)</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(mizerExperimental)</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(dplyr)</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(ggplot2)</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(future)</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(future.apply)</span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(scales)</span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a><span class="fu">plan</span>(multisession)</span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a><span class="fu">dir.create</span>(<span class="st">"interesting_plots"</span>, <span class="at">showWarnings =</span> <span class="cn">FALSE</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+</div>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>cod_params <span class="ot">&lt;-</span> <span class="fu">readRDS</span>(<span class="st">"../cod_params.rds"</span>)</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>make_anchovy_params <span class="ot">&lt;-</span> <span class="cf">function</span>(<span class="at">lambda =</span> <span class="fl">2.05</span>, <span class="at">resource_decrease =</span> <span class="fl">0.01</span>,</span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>                                <span class="at">capacity_mult =</span> <span class="dv">10</span>, <span class="at">second_order =</span> <span class="cn">TRUE</span>,</span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>                                <span class="at">ext_diff =</span> <span class="fl">0.00</span>, <span class="at">alpha =</span> <span class="fl">0.1</span>, <span class="at">gamma =</span> <span class="dv">750</span>,</span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>                                <span class="at">ks =</span> <span class="dv">0</span>, <span class="at">kappa_override =</span> <span class="cn">NULL</span>) {</span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>  a0    <span class="ot">&lt;-</span> <span class="dv">100</span></span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>  kappa <span class="ot">&lt;-</span> <span class="cf">if</span> (<span class="fu">is.null</span>(kappa_override)) a0 <span class="sc">*</span> <span class="fu">exp</span>(<span class="sc">-</span><span class="fl">6.9</span> <span class="sc">*</span> (lambda <span class="sc">-</span> <span class="dv">1</span>)) <span class="cf">else</span> kappa_override</span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a>  no_w  <span class="ot">&lt;-</span> <span class="fu">round</span>(<span class="fu">log</span>(<span class="fl">66.5</span> <span class="sc">/</span> <span class="fl">0.0003</span>) <span class="sc">/</span> <span class="fl">0.1</span>)</span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a>  params <span class="ot">&lt;-</span> <span class="fu">newSingleSpeciesParams</span>(</span>
+<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a>    <span class="at">species_name =</span> <span class="st">"Anchovy"</span>,</span>
+<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a>    <span class="at">w_min =</span> <span class="fl">0.0003</span>, <span class="at">w_max =</span> <span class="fl">66.5</span>, <span class="at">w_mat =</span> <span class="dv">10</span>,</span>
+<span id="cb2-14"><a href="#cb2-14" aria-hidden="true" tabindex="-1"></a>    <span class="at">no_w =</span> no_w, <span class="at">lambda =</span> lambda, <span class="at">kappa =</span> kappa,</span>
+<span id="cb2-15"><a href="#cb2-15" aria-hidden="true" tabindex="-1"></a>    <span class="at">alpha =</span> alpha, <span class="at">gamma =</span> gamma, <span class="at">ks =</span> ks</span>
+<span id="cb2-16"><a href="#cb2-16" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb2-17"><a href="#cb2-17" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-18"><a href="#cb2-18" aria-hidden="true" tabindex="-1"></a>  <span class="fu">given_species_params</span>(params)<span class="sc">$</span>D_ext <span class="ot">&lt;-</span> ext_diff</span>
+<span id="cb2-19"><a href="#cb2-19" aria-hidden="true" tabindex="-1"></a>  params <span class="ot">&lt;-</span> <span class="fu">setBevertonHolt</span>(params)</span>
+<span id="cb2-20"><a href="#cb2-20" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-21"><a href="#cb2-21" aria-hidden="true" tabindex="-1"></a>  default_capacity <span class="ot">&lt;-</span> <span class="fu">getResourceCapacity</span>(params)</span>
+<span id="cb2-22"><a href="#cb2-22" aria-hidden="true" tabindex="-1"></a>  r  <span class="ot">&lt;-</span> <span class="fu">getResourceRate</span>(params) <span class="sc">*</span> resource_decrease</span>
+<span id="cb2-23"><a href="#cb2-23" aria-hidden="true" tabindex="-1"></a>  cc <span class="ot">&lt;-</span> default_capacity <span class="sc">*</span> capacity_mult</span>
+<span id="cb2-24"><a href="#cb2-24" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-25"><a href="#cb2-25" aria-hidden="true" tabindex="-1"></a>  params <span class="ot">&lt;-</span> <span class="fu">setResource</span>(params, <span class="at">resource_rate =</span> r, <span class="at">resource_capacity =</span> cc,</span>
+<span id="cb2-26"><a href="#cb2-26" aria-hidden="true" tabindex="-1"></a>                        <span class="at">resource_dynamics =</span> <span class="st">"resource_semichemostat"</span>,</span>
+<span id="cb2-27"><a href="#cb2-27" aria-hidden="true" tabindex="-1"></a>                        <span class="at">balance =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb2-28"><a href="#cb2-28" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-29"><a href="#cb2-29" aria-hidden="true" tabindex="-1"></a>  <span class="cf">if</span> (second_order) {</span>
+<span id="cb2-30"><a href="#cb2-30" aria-hidden="true" tabindex="-1"></a>    <span class="fu">second_order_w</span>(params) <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="at">flux =</span> <span class="st">"centred"</span>, <span class="at">bin_average =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb2-31"><a href="#cb2-31" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb2-32"><a href="#cb2-32" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-33"><a href="#cb2-33" aria-hidden="true" tabindex="-1"></a>  params</span>
+<span id="cb2-34"><a href="#cb2-34" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb2-35"><a href="#cb2-35" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-36"><a href="#cb2-36" aria-hidden="true" tabindex="-1"></a>anchovy_params <span class="ot">&lt;-</span> <span class="fu">make_anchovy_params</span>()</span>
+<span id="cb2-37"><a href="#cb2-37" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-38"><a href="#cb2-38" aria-hidden="true" tabindex="-1"></a>resource_limitation_2d_cod <span class="ot">&lt;-</span> <span class="cf">function</span>(params, resource_decrease, capacity_mult) {</span>
+<span id="cb2-39"><a href="#cb2-39" aria-hidden="true" tabindex="-1"></a>  new_rate     <span class="ot">&lt;-</span> <span class="fu">getResourceRate</span>(params) <span class="sc">*</span> resource_decrease</span>
+<span id="cb2-40"><a href="#cb2-40" aria-hidden="true" tabindex="-1"></a>  new_capacity <span class="ot">&lt;-</span> <span class="fu">getResourceCapacity</span>(params) <span class="sc">*</span> capacity_mult</span>
+<span id="cb2-41"><a href="#cb2-41" aria-hidden="true" tabindex="-1"></a>  <span class="fu">setResource</span>(params, <span class="at">resource_rate =</span> new_rate, <span class="at">resource_capacity =</span> new_capacity, <span class="at">balance =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb2-42"><a href="#cb2-42" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb2-43"><a href="#cb2-43" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-44"><a href="#cb2-44" aria-hidden="true" tabindex="-1"></a>build_cod     <span class="ot">&lt;-</span> <span class="cf">function</span>(resource_decrease, capacity_mult) {</span>
+<span id="cb2-45"><a href="#cb2-45" aria-hidden="true" tabindex="-1"></a>  <span class="fu">resource_limitation_2d_cod</span>(cod_params, resource_decrease, capacity_mult)</span>
+<span id="cb2-46"><a href="#cb2-46" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb2-47"><a href="#cb2-47" aria-hidden="true" tabindex="-1"></a>build_anchovy <span class="ot">&lt;-</span> <span class="cf">function</span>(resource_decrease, capacity_mult) {</span>
+<span id="cb2-48"><a href="#cb2-48" aria-hidden="true" tabindex="-1"></a>  <span class="fu">make_anchovy_params</span>(<span class="at">resource_decrease =</span> resource_decrease, <span class="at">capacity_mult =</span> capacity_mult)</span>
+<span id="cb2-49"><a href="#cb2-49" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+</div>
+<hr>
+</section>
+<section id="fixing-the-competitiveness-metric-a-ratio-not-a-difference" class="level2">
+<h2 class="anchored" data-anchor-id="fixing-the-competitiveness-metric-a-ratio-not-a-difference">Fixing the Competitiveness Metric: A Ratio, Not a Difference</h2>
+<p>Day 28’s juvenile-vs-adult comparison used a <em>difference</em> (<code>mean(juvenile_rate) - mean(adult_rate)</code>), which isn’t scale-free. Its magnitude depends on whatever units each species’ own calibration happens to produce, so a “-14194” for cod and a “-321” for anchovy aren’t actually comparable to each other, and neither has a natural interpretation on its own. de Roos &amp; Persson’s own <code>q</code> parameter is a <em>ratio</em>: <code>q=1</code> means juveniles and adults are equally competitive, values away from 1 in either direction indicate which stage dominates.</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>mean_mass_specific_rate <span class="ot">&lt;-</span> <span class="cf">function</span>(params, <span class="at">idx =</span> <span class="cn">TRUE</span>) {</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>  E <span class="ot">&lt;-</span> <span class="fu">getEncounter</span>(params)</span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>  f <span class="ot">&lt;-</span> <span class="fu">getFeedingLevel</span>(params)</span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>  per_capita_rate    <span class="ot">&lt;-</span> (E <span class="sc">*</span> (<span class="dv">1</span> <span class="sc">-</span> f))[<span class="dv">1</span>, ]</span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>  mass_specific_rate <span class="ot">&lt;-</span> per_capita_rate <span class="sc">/</span> params<span class="sc">@</span>w</span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mean</span>(mass_specific_rate[idx])</span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a>timescale_summary <span class="ot">&lt;-</span> <span class="cf">function</span>(params, label) {</span>
+<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a>  w     <span class="ot">&lt;-</span> params<span class="sc">@</span>w</span>
+<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a>  w_mat <span class="ot">&lt;-</span> params<span class="sc">@</span>species_params<span class="sc">$</span>w_mat[<span class="dv">1</span>]</span>
+<span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-13"><a href="#cb3-13" aria-hidden="true" tabindex="-1"></a>  msr_all <span class="ot">&lt;-</span> <span class="fu">mean_mass_specific_rate</span>(params)</span>
+<span id="cb3-14"><a href="#cb3-14" aria-hidden="true" tabindex="-1"></a>  msr_juv <span class="ot">&lt;-</span> <span class="fu">mean_mass_specific_rate</span>(params, w <span class="sc">&lt;</span> w_mat)</span>
+<span id="cb3-15"><a href="#cb3-15" aria-hidden="true" tabindex="-1"></a>  msr_ad  <span class="ot">&lt;-</span> <span class="fu">mean_mass_specific_rate</span>(params, w <span class="sc">&gt;=</span> w_mat)</span>
+<span id="cb3-16"><a href="#cb3-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-17"><a href="#cb3-17" aria-hidden="true" tabindex="-1"></a>  resource_rate_vec <span class="ot">&lt;-</span> <span class="fu">getResourceRate</span>(params)</span>
+<span id="cb3-18"><a href="#cb3-18" aria-hidden="true" tabindex="-1"></a>  resource_rate      <span class="ot">&lt;-</span> <span class="fu">mean</span>(resource_rate_vec[resource_rate_vec <span class="sc">&gt;</span> <span class="dv">0</span>])</span>
+<span id="cb3-19"><a href="#cb3-19" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-20"><a href="#cb3-20" aria-hidden="true" tabindex="-1"></a>  juvenile_adult_rate_ratio <span class="ot">&lt;-</span> msr_juv <span class="sc">/</span> msr_ad</span>
+<span id="cb3-21"><a href="#cb3-21" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-22"><a href="#cb3-22" aria-hidden="true" tabindex="-1"></a>  <span class="fu">data.frame</span>(</span>
+<span id="cb3-23"><a href="#cb3-23" aria-hidden="true" tabindex="-1"></a>    <span class="at">species                    =</span> label,</span>
+<span id="cb3-24"><a href="#cb3-24" aria-hidden="true" tabindex="-1"></a>    <span class="at">resource_rate               =</span> resource_rate,</span>
+<span id="cb3-25"><a href="#cb3-25" aria-hidden="true" tabindex="-1"></a>    <span class="at">mean_mass_specific_rate     =</span> msr_all,</span>
+<span id="cb3-26"><a href="#cb3-26" aria-hidden="true" tabindex="-1"></a>    <span class="at">juvenile_rate                =</span> msr_juv,</span>
+<span id="cb3-27"><a href="#cb3-27" aria-hidden="true" tabindex="-1"></a>    <span class="at">adult_rate                   =</span> msr_ad,</span>
+<span id="cb3-28"><a href="#cb3-28" aria-hidden="true" tabindex="-1"></a>    <span class="at">juvenile_adult_rate_ratio    =</span> juvenile_adult_rate_ratio,</span>
+<span id="cb3-29"><a href="#cb3-29" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Inverts Soudijn et al.'s own nu_J/nu_A = (2-q)/q relationship, so</span></span>
+<span id="cb3-30"><a href="#cb3-30" aria-hidden="true" tabindex="-1"></a>    <span class="co"># both species land directly on their q=0.5/1/1.5 scale.</span></span>
+<span id="cb3-31"><a href="#cb3-31" aria-hidden="true" tabindex="-1"></a>    <span class="at">q_equivalent                 =</span> <span class="dv">2</span> <span class="sc">/</span> (juvenile_adult_rate_ratio <span class="sc">+</span> <span class="dv">1</span>),</span>
+<span id="cb3-32"><a href="#cb3-32" aria-hidden="true" tabindex="-1"></a>    <span class="at">timescale_ratio              =</span> resource_rate <span class="sc">/</span> msr_all</span>
+<span id="cb3-33"><a href="#cb3-33" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb3-34"><a href="#cb3-34" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb3-35"><a href="#cb3-35" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-36"><a href="#cb3-36" aria-hidden="true" tabindex="-1"></a>timescale_df <span class="ot">&lt;-</span> <span class="fu">bind_rows</span>(</span>
+<span id="cb3-37"><a href="#cb3-37" aria-hidden="true" tabindex="-1"></a>  <span class="fu">timescale_summary</span>(cod_params, <span class="st">"cod"</span>),</span>
+<span id="cb3-38"><a href="#cb3-38" aria-hidden="true" tabindex="-1"></a>  <span class="fu">timescale_summary</span>(anchovy_params, <span class="st">"anchovy"</span>)</span>
+<span id="cb3-39"><a href="#cb3-39" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb3-40"><a href="#cb3-40" aria-hidden="true" tabindex="-1"></a>timescale_df</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+</div>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th></th>
+<th>juvenile_adult_rate_ratio</th>
+<th>q_equivalent</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>cod</td>
+<td>12.87</td>
+<td>0.144</td>
+</tr>
+<tr class="even">
+<td>anchovy</td>
+<td>6.13</td>
+<td>0.280</td>
+</tr>
+</tbody>
+</table>
+<p>Neither species is close to <code>q=1</code>. Both are strongly juvenile-dominated (<code>q_equivalent</code> well below even Soudijn et al.’s most juvenile-skewed test case of <code>q=0.5</code>), and <strong>cod is the more skewed of the two, not less</strong>. Juveniles out-eat adults by ~13x in cod vs.&nbsp;~6x in anchovy on a mass-specific basis. That’s the opposite classification from Day 28’s blog post, which reported both species as adult-driven. Rerunning Day 28’s own snippet verbatim against the current <code>cod_params.rds</code> reproduces <code>+28.76</code> (juveniles dominant), not the <code>-14194.29</code> originally reported. The most likely explanation is that number came from an interactive session where <code>cod_params</code> had already been reassigned earlier in that session, not from the saved script run fresh.</p>
+<p>If raw distance from <code>q=1</code> predicted cycling on its own, cod should be the <em>more</em> cycle-prone species, not the one that stayed flat through Day 28’s whole grid. That mismatch is what the rest of today is chasing.</p>
+<hr>
+</section>
+<section id="a-method-matched-grid-getstability-on-anchovy-too" class="level2">
+<h2 class="anchored" data-anchor-id="a-method-matched-grid-getstability-on-anchovy-too">A Method-Matched Grid: getStability() on Anchovy Too</h2>
+<p>Day 28 only ran the <code>getStability()</code> grid on cod. Running the identical grid on anchovy settles Day 27’s “is the reference point actually oscillating” ambiguity with the same analytic tool, instead of the raw time-series/<code>catchable_fraction</code> proxies Days 22-27 relied on.</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>check_hopf_grid_point_generic <span class="ot">&lt;-</span> <span class="cf">function</span>(build_fn, resource_decrease, capacity_mult, <span class="at">effort =</span> <span class="dv">0</span>) {</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>  result <span class="ot">&lt;-</span> <span class="fu">tryCatch</span>({</span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>    p        <span class="ot">&lt;-</span> <span class="fu">build_fn</span>(resource_decrease, capacity_mult)</span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>    p_steady <span class="ot">&lt;-</span> <span class="fu">steadyNewton</span>(p, <span class="at">effort =</span> effort, <span class="at">stability =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>    stab     <span class="ot">&lt;-</span> <span class="fu">attr</span>(p_steady, <span class="st">"stability"</span>)</span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>    dominant <span class="ot">&lt;-</span> stab<span class="sc">$</span>eigenvalues[<span class="dv">1</span>]</span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>    is_complex <span class="ot">&lt;-</span> <span class="fu">abs</span>(<span class="fu">Im</span>(dominant)) <span class="sc">&gt;</span> <span class="fl">1e-8</span></span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a>    <span class="fu">data.frame</span>(</span>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a>      <span class="at">spectral_radius  =</span> stab<span class="sc">$</span>spectral_radius,</span>
+<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a>      <span class="at">stable           =</span> stab<span class="sc">$</span>stable,</span>
+<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a>      <span class="at">bifurcation_type =</span> <span class="cf">if</span> (stab<span class="sc">$</span>stable) <span class="st">"stable"</span> <span class="cf">else</span> <span class="cf">if</span> (is_complex) <span class="st">"hopf"</span> <span class="cf">else</span> <span class="st">"non-oscillatory"</span>,</span>
+<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a>      <span class="at">error            =</span> <span class="cn">NA_character_</span></span>
+<span id="cb4-14"><a href="#cb4-14" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb4-15"><a href="#cb4-15" aria-hidden="true" tabindex="-1"></a>  }, <span class="at">error =</span> <span class="cf">function</span>(e) {</span>
+<span id="cb4-16"><a href="#cb4-16" aria-hidden="true" tabindex="-1"></a>    <span class="fu">data.frame</span>(<span class="at">spectral_radius =</span> <span class="cn">NA_real_</span>, <span class="at">stable =</span> <span class="cn">NA</span>, <span class="at">bifurcation_type =</span> <span class="cn">NA_character_</span>,</span>
+<span id="cb4-17"><a href="#cb4-17" aria-hidden="true" tabindex="-1"></a>               <span class="at">error =</span> <span class="fu">conditionMessage</span>(e))</span>
+<span id="cb4-18"><a href="#cb4-18" aria-hidden="true" tabindex="-1"></a>  })</span>
+<span id="cb4-19"><a href="#cb4-19" aria-hidden="true" tabindex="-1"></a>  <span class="fu">data.frame</span>(<span class="at">resource_decrease =</span> resource_decrease, <span class="at">capacity_mult =</span> capacity_mult,</span>
+<span id="cb4-20"><a href="#cb4-20" aria-hidden="true" tabindex="-1"></a>             <span class="at">effort =</span> effort, result)</span>
+<span id="cb4-21"><a href="#cb4-21" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb4-22"><a href="#cb4-22" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-23"><a href="#cb4-23" aria-hidden="true" tabindex="-1"></a>resource_decrease_seq <span class="ot">&lt;-</span> <span class="fu">exp</span>(<span class="fu">seq</span>(<span class="fu">log</span>(<span class="fl">0.001</span>), <span class="fu">log</span>(<span class="dv">1</span>), <span class="at">length.out =</span> <span class="dv">12</span>))</span>
+<span id="cb4-24"><a href="#cb4-24" aria-hidden="true" tabindex="-1"></a>capacity_mult_seq     <span class="ot">&lt;-</span> <span class="fu">exp</span>(<span class="fu">seq</span>(<span class="fu">log</span>(<span class="dv">1</span>), <span class="fu">log</span>(<span class="dv">20</span>), <span class="at">length.out =</span> <span class="dv">10</span>))</span>
+<span id="cb4-25"><a href="#cb4-25" aria-hidden="true" tabindex="-1"></a>hopf_grid_params       <span class="ot">&lt;-</span> <span class="fu">expand.grid</span>(<span class="at">resource_decrease =</span> resource_decrease_seq,</span>
+<span id="cb4-26"><a href="#cb4-26" aria-hidden="true" tabindex="-1"></a>                                      <span class="at">capacity_mult =</span> capacity_mult_seq)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+</div>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>hopf_grid_generic <span class="ot">&lt;-</span> <span class="cf">function</span>(build_fn, species_label) {</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>  df <span class="ot">&lt;-</span> <span class="fu">bind_rows</span>(<span class="fu">future_lapply</span>(<span class="fu">seq_len</span>(<span class="fu">nrow</span>(hopf_grid_params)), <span class="cf">function</span>(i) {</span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>    <span class="fu">check_hopf_grid_point_generic</span>(build_fn, hopf_grid_params<span class="sc">$</span>resource_decrease[i],</span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>                                  hopf_grid_params<span class="sc">$</span>capacity_mult[i])</span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>  }, <span class="at">future.seed =</span> <span class="cn">TRUE</span>))</span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>  df<span class="sc">$</span>species <span class="ot">&lt;-</span> species_label</span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>  df</span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a>cod_hopf_grid_29     <span class="ot">&lt;-</span> <span class="fu">hopf_grid_generic</span>(build_cod, <span class="st">"cod"</span>)</span>
+<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a>anchovy_hopf_grid_29 <span class="ot">&lt;-</span> <span class="fu">hopf_grid_generic</span>(build_anchovy, <span class="st">"anchovy"</span>)</span>
+<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a>species_hopf_grid_df <span class="ot">&lt;-</span> <span class="fu">bind_rows</span>(cod_hopf_grid_29, anchovy_hopf_grid_29)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+</div>
+<p><img src="../interesting_plots/day29_species_hopf_grid.png" class="img-fluid"></p>
+<p>Every single point in the 120x2 grid comes back <code>stable</code>. Zero <code>hopf</code> points for cod, zero for anchovy – solid blue in both panels, no red or orange anywhere. This directly resolves the Day 27 ambiguity: anchovy’s reference point isn’t just flat at that one spot, it’s stable across the <em>whole</em> grid, by the same analytic test that already vindicated cod.</p>
+<hr>
+</section>
+<section id="isolating-the-lever-body-size-vs-intake-rate-parameters" class="level2">
+<h2 class="anchored" data-anchor-id="isolating-the-lever-body-size-vs-intake-rate-parameters">Isolating the Lever: Body Size vs Intake-Rate Parameters</h2>
+<p>With both species reading “stable everywhere” by <code>getStability()</code>, the next question was whether a body-size x intake-rate-parameter factorial (built inside the anchovy single-species template, swapping in cod’s own <code>w_max</code>/<code>w_mat</code>/<code>gamma</code>/<code>alpha</code>/<code>ks</code> one axis at a time) could isolate a lever even where the native calibrations don’t show one ,mirroring the “species params crossed with gamma alone” 2x2 design from Day 19/20.</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>cod_sp    <span class="ot">&lt;-</span> cod_params<span class="sc">@</span>species_params</span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>cod_gamma <span class="ot">&lt;-</span> <span class="fu">unname</span>(cod_sp<span class="sc">$</span>gamma[<span class="dv">1</span>])</span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>cod_alpha <span class="ot">&lt;-</span> <span class="fu">unname</span>(cod_sp<span class="sc">$</span>alpha[<span class="dv">1</span>])</span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>cod_ks    <span class="ot">&lt;-</span> <span class="fu">unname</span>(cod_sp<span class="sc">$</span>ks[<span class="dv">1</span>])</span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>cod_w_max <span class="ot">&lt;-</span> <span class="fu">unname</span>(cod_sp<span class="sc">$</span>w_max[<span class="dv">1</span>])</span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a>cod_w_mat <span class="ot">&lt;-</span> <span class="fu">unname</span>(cod_sp<span class="sc">$</span>w_mat[<span class="dv">1</span>])</span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a>anchovy_w_mat <span class="ot">&lt;-</span> <span class="fu">unname</span>(anchovy_params<span class="sc">@</span>species_params<span class="sc">$</span>w_mat[<span class="dv">1</span>])</span>
+<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a>make_hybrid_params <span class="ot">&lt;-</span> <span class="cf">function</span>(<span class="at">body =</span> <span class="fu">c</span>(<span class="st">"anchovy"</span>, <span class="st">"cod"</span>), <span class="at">rates =</span> <span class="fu">c</span>(<span class="st">"anchovy"</span>, <span class="st">"cod"</span>),</span>
+<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a>                               <span class="at">resource_decrease =</span> <span class="fl">0.001</span>, <span class="at">capacity_mult =</span> <span class="dv">10</span>) {</span>
+<span id="cb6-11"><a href="#cb6-11" aria-hidden="true" tabindex="-1"></a>  body  <span class="ot">&lt;-</span> <span class="fu">match.arg</span>(body)</span>
+<span id="cb6-12"><a href="#cb6-12" aria-hidden="true" tabindex="-1"></a>  rates <span class="ot">&lt;-</span> <span class="fu">match.arg</span>(rates)</span>
+<span id="cb6-13"><a href="#cb6-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-14"><a href="#cb6-14" aria-hidden="true" tabindex="-1"></a>  w_max <span class="ot">&lt;-</span> <span class="cf">if</span> (body <span class="sc">==</span> <span class="st">"anchovy"</span>) <span class="fl">66.5</span> <span class="cf">else</span> cod_w_max</span>
+<span id="cb6-15"><a href="#cb6-15" aria-hidden="true" tabindex="-1"></a>  w_mat <span class="ot">&lt;-</span> <span class="cf">if</span> (body <span class="sc">==</span> <span class="st">"anchovy"</span>) <span class="dv">10</span>   <span class="cf">else</span> cod_w_mat</span>
+<span id="cb6-16"><a href="#cb6-16" aria-hidden="true" tabindex="-1"></a>  w_min <span class="ot">&lt;-</span> w_max <span class="sc">*</span> (<span class="fl">0.0003</span> <span class="sc">/</span> <span class="fl">66.5</span>)</span>
+<span id="cb6-17"><a href="#cb6-17" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-18"><a href="#cb6-18" aria-hidden="true" tabindex="-1"></a>  gamma <span class="ot">&lt;-</span> <span class="cf">if</span> (rates <span class="sc">==</span> <span class="st">"anchovy"</span>) <span class="dv">750</span> <span class="cf">else</span> cod_gamma</span>
+<span id="cb6-19"><a href="#cb6-19" aria-hidden="true" tabindex="-1"></a>  alpha <span class="ot">&lt;-</span> <span class="cf">if</span> (rates <span class="sc">==</span> <span class="st">"anchovy"</span>) <span class="fl">0.1</span> <span class="cf">else</span> cod_alpha</span>
+<span id="cb6-20"><a href="#cb6-20" aria-hidden="true" tabindex="-1"></a>  ks    <span class="ot">&lt;-</span> <span class="cf">if</span> (rates <span class="sc">==</span> <span class="st">"anchovy"</span>) <span class="dv">0</span>   <span class="cf">else</span> cod_ks</span>
+<span id="cb6-21"><a href="#cb6-21" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-22"><a href="#cb6-22" aria-hidden="true" tabindex="-1"></a>  lambda <span class="ot">&lt;-</span> <span class="fl">2.05</span></span>
+<span id="cb6-23"><a href="#cb6-23" aria-hidden="true" tabindex="-1"></a>  kappa  <span class="ot">&lt;-</span> <span class="dv">100</span> <span class="sc">*</span> <span class="fu">exp</span>(<span class="sc">-</span><span class="fl">6.9</span> <span class="sc">*</span> (lambda <span class="sc">-</span> <span class="dv">1</span>))</span>
+<span id="cb6-24"><a href="#cb6-24" aria-hidden="true" tabindex="-1"></a>  no_w   <span class="ot">&lt;-</span> <span class="fu">round</span>(<span class="fu">log</span>(w_max <span class="sc">/</span> w_min) <span class="sc">/</span> <span class="fl">0.1</span>)</span>
+<span id="cb6-25"><a href="#cb6-25" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-26"><a href="#cb6-26" aria-hidden="true" tabindex="-1"></a>  params <span class="ot">&lt;-</span> <span class="fu">newSingleSpeciesParams</span>(</span>
+<span id="cb6-27"><a href="#cb6-27" aria-hidden="true" tabindex="-1"></a>    <span class="at">species_name =</span> <span class="fu">sprintf</span>(<span class="st">"body_%s_rates_%s"</span>, body, rates),</span>
+<span id="cb6-28"><a href="#cb6-28" aria-hidden="true" tabindex="-1"></a>    <span class="at">w_min =</span> w_min, <span class="at">w_max =</span> w_max, <span class="at">w_mat =</span> w_mat,</span>
+<span id="cb6-29"><a href="#cb6-29" aria-hidden="true" tabindex="-1"></a>    <span class="at">no_w =</span> no_w, <span class="at">lambda =</span> lambda, <span class="at">kappa =</span> kappa,</span>
+<span id="cb6-30"><a href="#cb6-30" aria-hidden="true" tabindex="-1"></a>    <span class="at">alpha =</span> alpha, <span class="at">gamma =</span> gamma, <span class="at">ks =</span> ks</span>
+<span id="cb6-31"><a href="#cb6-31" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb6-32"><a href="#cb6-32" aria-hidden="true" tabindex="-1"></a>  params <span class="ot">&lt;-</span> <span class="fu">setBevertonHolt</span>(params)</span>
+<span id="cb6-33"><a href="#cb6-33" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-34"><a href="#cb6-34" aria-hidden="true" tabindex="-1"></a>  cc <span class="ot">&lt;-</span> <span class="fu">getResourceCapacity</span>(params) <span class="sc">*</span> capacity_mult</span>
+<span id="cb6-35"><a href="#cb6-35" aria-hidden="true" tabindex="-1"></a>  r  <span class="ot">&lt;-</span> <span class="fu">getResourceRate</span>(params) <span class="sc">*</span> resource_decrease</span>
+<span id="cb6-36"><a href="#cb6-36" aria-hidden="true" tabindex="-1"></a>  params <span class="ot">&lt;-</span> <span class="fu">setResource</span>(params, <span class="at">resource_rate =</span> r, <span class="at">resource_capacity =</span> cc,</span>
+<span id="cb6-37"><a href="#cb6-37" aria-hidden="true" tabindex="-1"></a>                        <span class="at">resource_dynamics =</span> <span class="st">"resource_semichemostat"</span>, <span class="at">balance =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb6-38"><a href="#cb6-38" aria-hidden="true" tabindex="-1"></a>  <span class="fu">second_order_w</span>(params) <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="at">flux =</span> <span class="st">"centred"</span>, <span class="at">bin_average =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb6-39"><a href="#cb6-39" aria-hidden="true" tabindex="-1"></a>  params</span>
+<span id="cb6-40"><a href="#cb6-40" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+</div>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>factorial_resource_decrease_seq <span class="ot">&lt;-</span> <span class="fu">exp</span>(<span class="fu">seq</span>(<span class="fu">log</span>(<span class="fl">0.001</span>), <span class="fu">log</span>(<span class="dv">1</span>), <span class="at">length.out =</span> <span class="dv">5</span>))</span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>factorial_capacity_mult_seq     <span class="ot">&lt;-</span> <span class="fu">exp</span>(<span class="fu">seq</span>(<span class="fu">log</span>(<span class="dv">1</span>), <span class="fu">log</span>(<span class="dv">20</span>), <span class="at">length.out =</span> <span class="dv">4</span>))</span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>factorial_grid_params <span class="ot">&lt;-</span> <span class="fu">expand.grid</span>(</span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">body =</span> <span class="fu">c</span>(<span class="st">"anchovy"</span>, <span class="st">"cod"</span>), <span class="at">rates =</span> <span class="fu">c</span>(<span class="st">"anchovy"</span>, <span class="st">"cod"</span>),</span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">resource_decrease =</span> factorial_resource_decrease_seq,</span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">capacity_mult =</span> factorial_capacity_mult_seq, <span class="at">stringsAsFactors =</span> <span class="cn">FALSE</span></span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a><span class="co"># ... check_hybrid_point() + steadyNewton(stability=TRUE) at each combo,</span></span>
+<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a><span class="co"># same pattern as check_hopf_grid_point_generic() above.</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+</div>
+<p><img src="../interesting_plots/day29_factorial_grid.png" class="img-fluid"></p>
+<p>All four combinations: anchovy body/anchovy rates, cod body/anchovy rates, anchovy body/cod rates, cod body/cod rates, come back <strong>stable at every point tested</strong>. No lever isolated here either: neither body size nor the intake-rate parameters, alone or combined, flip any of these into a Hopf bifurcation.</p>
+<hr>
+</section>
+<section id="three-ideas-for-actually-causing-an-oscillation-all-come-back-null" class="level2">
+<h2 class="anchored" data-anchor-id="three-ideas-for-actually-causing-an-oscillation-all-come-back-null">Three Ideas for Actually Causing an Oscillation – All Come Back Null</h2>
+<section id="idea-1-relax-the-reproduction-cap" class="level3">
+<h3 class="anchored" data-anchor-id="idea-1-relax-the-reproduction-cap">Idea 1: Relax the Reproduction Cap</h3>
+<p>Checking <code>R_max</code> before sweeping anything turned up a dead end for the idea as originally framed: <code>species_params$R_max</code> is already <code>Inf</code> for both cod and the anchovy template. There’s no Beverton-Holt cap currently active to relax - recruitment is already fully density-independent. The only direction actually testable is the opposite one: does <em>imposing</em> compensation (raising <code>reproduction_level</code> toward 1) ever destabilise?</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb8"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>set_reproduction_level <span class="ot">&lt;-</span> <span class="cf">function</span>(params, reproduction_level) {</span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">setBevertonHolt</span>(params, <span class="at">reproduction_level =</span> reproduction_level)</span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>reproduction_level_seq <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="fl">1e-4</span>, <span class="fl">0.001</span>, <span class="fl">0.01</span>, <span class="fl">0.05</span>, <span class="fl">0.1</span>, <span class="fl">0.3</span>, <span class="fl">0.5</span>, <span class="fl">0.7</span>, <span class="fl">0.9</span>, <span class="fl">0.99</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+</div>
+<p><img src="../interesting_plots/day29_repro_level.png" class="img-fluid"></p>
+<p><code>spectral_radius</code> is completely flat across the whole <code>reproduction_level</code> range for both species (cod pinned at 0.7613, anchovy at 0.3482, to four decimal places). Recruitment compensation strength has <em>zero</em> measurable effect on stability here, in either direction. Consistent with Beverton-Holt being a saturating (not overshooting) nonlinearity, but it was worth actually checking rather than assumed.</p>
+</section>
+<section id="idea-2-selectivesize-targeted-fishing" class="level3">
+<h3 class="anchored" data-anchor-id="idea-2-selectivesize-targeted-fishing">Idea 2: Selective/Size-Targeted Fishing</h3>
+<p>Day 28 only tested a flat <code>effort=0.5</code> uniform across all sizes. Andersen &amp; Pedersen (2010) found that fishing <em>narrowly</em> targeting a size range is specifically the most destabilising pattern, more so than raising uniform effort. Tested directly with three selectivity patterns: uniform, knife-edge at <code>w_mat</code>, and a narrow Gaussian dome centred on <code>w_mat</code>, swept across effort:</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb9"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>narrow_dome_weight <span class="ot">&lt;-</span> <span class="cf">function</span>(w, w_center, w_width, ...) {</span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">exp</span>(<span class="sc">-</span>((w <span class="sc">-</span> w_center) <span class="sc">/</span> w_width)<span class="sc">^</span><span class="dv">2</span>)</span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a>set_selectivity <span class="ot">&lt;-</span> <span class="cf">function</span>(params, pattern, w_center) {</span>
+<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a>  species_name <span class="ot">&lt;-</span> params<span class="sc">@</span>species_params<span class="sc">$</span>species[<span class="dv">1</span>]</span>
+<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a>  gear_df <span class="ot">&lt;-</span> <span class="cf">switch</span>(pattern,</span>
+<span id="cb9-8"><a href="#cb9-8" aria-hidden="true" tabindex="-1"></a>    <span class="at">uniform =</span> <span class="fu">data.frame</span>(<span class="at">species =</span> species_name, <span class="at">gear =</span> <span class="st">"uniform_gear"</span>, <span class="at">sel_func =</span> <span class="st">"knife_edge"</span>,</span>
+<span id="cb9-9"><a href="#cb9-9" aria-hidden="true" tabindex="-1"></a>                         <span class="at">knife_edge_size =</span> <span class="fu">min</span>(params<span class="sc">@</span>w), <span class="at">catchability =</span> <span class="dv">1</span>),</span>
+<span id="cb9-10"><a href="#cb9-10" aria-hidden="true" tabindex="-1"></a>    <span class="at">knife_edge_adult =</span> <span class="fu">data.frame</span>(<span class="at">species =</span> species_name, <span class="at">gear =</span> <span class="st">"knife_gear"</span>, <span class="at">sel_func =</span> <span class="st">"knife_edge"</span>,</span>
+<span id="cb9-11"><a href="#cb9-11" aria-hidden="true" tabindex="-1"></a>                                  <span class="at">knife_edge_size =</span> w_center, <span class="at">catchability =</span> <span class="dv">1</span>),</span>
+<span id="cb9-12"><a href="#cb9-12" aria-hidden="true" tabindex="-1"></a>    <span class="at">dome_narrow =</span> <span class="fu">data.frame</span>(<span class="at">species =</span> species_name, <span class="at">gear =</span> <span class="st">"dome_gear"</span>, <span class="at">sel_func =</span> <span class="st">"narrow_dome_weight"</span>,</span>
+<span id="cb9-13"><a href="#cb9-13" aria-hidden="true" tabindex="-1"></a>                             <span class="at">w_center =</span> w_center, <span class="at">w_width =</span> w_center <span class="sc">*</span> <span class="fl">0.1</span>, <span class="at">catchability =</span> <span class="dv">1</span>)</span>
+<span id="cb9-14"><a href="#cb9-14" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb9-15"><a href="#cb9-15" aria-hidden="true" tabindex="-1"></a>  <span class="fu">gear_params</span>(params) <span class="ot">&lt;-</span> gear_df</span>
+<span id="cb9-16"><a href="#cb9-16" aria-hidden="true" tabindex="-1"></a>  params</span>
+<span id="cb9-17"><a href="#cb9-17" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+</div>
+<p><img src="../interesting_plots/day29_fishing_sweep.png" class="img-fluid"></p>
+<p>All three selectivity patterns, at every effort level from 0 to 3, for both species: stable. Narrow-band selective fishing doesn’t destabilise either calibration here, contrary to what Andersen &amp; Pedersen’s finding might have suggested was worth checking first. It is more likely,however,that I set something up wrong - will be checked on a later date</p>
+</section>
+<section id="idea-3-push-capacity_mult-further" class="level3">
+<h3 class="anchored" data-anchor-id="idea-3-push-capacity_mult-further">Idea 3: Push capacity_mult Further</h3>
+<p>Day 28’s grid only went up to <code>capacity_mult=20</code>. Days 22-24’s original (never-confirmed-as-Hopf) anchovy destabilisation was reported somewhere past ~7-10x, so 20x should already have been comfortable headroom - but cheap to push further and rule out “the grid just stopped short” directly.</p>
+<p><img src="../interesting_plots/day29_extended_capacity.png" class="img-fluid"></p>
+<p>Extended to <code>capacity_mult=500</code>, at the reference <code>resource_decrease=0.001</code>: still stable, for both species, at every point.</p>
+<hr>
+</section>
+</section>
+<section id="when-every-idea-comes-back-null-perturbing-the-simulation-instead-of-trusting-the-linearisation" class="level2">
+<h2 class="anchored" data-anchor-id="when-every-idea-comes-back-null-perturbing-the-simulation-instead-of-trusting-the-linearisation">When Every Idea Comes Back Null: Perturbing the Simulation Instead of Trusting the Linearisation</h2>
+<p>Four separate searches, a method-matched grid, a factorial, and three targeted mechanisms, all say “stable everywhere.” At that point the more useful question stops being “what parameter is the lever” and starts being “is the tool actually measuring what it claims to.”</p>
+<p><code>getStability()</code> only proves <strong>local</strong> stability: it linearises at the steady state and checks whether <em>infinitesimal</em> perturbations grow or decay. That can’t rule out a fixed point that’s locally stable but still reachable into a sustained limit cycle by a large-enough kick: a subcritical Hopf, or any other form of bistability. Every “stable” verdict above rests on that linear check alone, never on actually running the dynamics forward from a disturbed state.</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb10"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>make_limit_cycle_sim <span class="ot">&lt;-</span> <span class="cf">function</span>(params, <span class="at">t_total =</span> <span class="dv">600</span>, <span class="at">effort =</span> <span class="dv">0</span>) {</span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>  params<span class="sc">@</span>initial_n_pp[] <span class="ot">&lt;-</span> params<span class="sc">@</span>cc_pp <span class="sc">*</span> <span class="fl">0.1</span></span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a>  sim_init <span class="ot">&lt;-</span> <span class="fu">project</span>(params, <span class="at">t_max =</span> <span class="dv">10</span>, <span class="at">dt =</span> <span class="fl">0.1</span>, <span class="at">t_save =</span> <span class="fl">0.2</span>,</span>
+<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a>                      <span class="at">progress_bar =</span> <span class="cn">FALSE</span>, <span class="at">effort =</span> <span class="dv">0</span>,</span>
+<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a>                      <span class="at">method =</span> <span class="st">"predictor-corrector"</span>)</span>
+<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a>  idx  <span class="ot">&lt;-</span> params<span class="sc">@</span>w <span class="sc">&gt;=</span> <span class="dv">10</span> <span class="sc">&amp;</span> params<span class="sc">@</span>w <span class="sc">&lt;=</span> <span class="dv">100</span></span>
+<span id="cb10-8"><a href="#cb10-8" aria-hidden="true" tabindex="-1"></a>  last <span class="ot">&lt;-</span> <span class="fu">dim</span>(sim_init<span class="sc">@</span>n)[<span class="dv">1</span>]</span>
+<span id="cb10-9"><a href="#cb10-9" aria-hidden="true" tabindex="-1"></a>  sim_init<span class="sc">@</span>n[last, , idx] <span class="ot">&lt;-</span> sim_init<span class="sc">@</span>n[last, , idx] <span class="sc">/</span> <span class="fl">1e3</span></span>
+<span id="cb10-10"><a href="#cb10-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-11"><a href="#cb10-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">project</span>(sim_init, <span class="at">t_max =</span> t_total <span class="sc">-</span> <span class="dv">10</span>, <span class="at">dt =</span> <span class="fl">0.1</span>, <span class="at">t_save =</span> <span class="fl">0.2</span>,</span>
+<span id="cb10-12"><a href="#cb10-12" aria-hidden="true" tabindex="-1"></a>          <span class="at">progress_bar =</span> <span class="cn">FALSE</span>, <span class="at">effort =</span> effort,</span>
+<span id="cb10-13"><a href="#cb10-13" aria-hidden="true" tabindex="-1"></a>          <span class="at">method =</span> <span class="st">"predictor-corrector"</span>)</span>
+<span id="cb10-14"><a href="#cb10-14" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb10-15"><a href="#cb10-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-16"><a href="#cb10-16" aria-hidden="true" tabindex="-1"></a><span class="co"># Day 27's own numbers: ~1e-12 for a settled run, O(0.01)-O(1) for a real</span></span>
+<span id="cb10-17"><a href="#cb10-17" aria-hidden="true" tabindex="-1"></a><span class="co"># oscillation -- a 1e-6 cutoff sits well inside that 12-order-of-magnitude gap.</span></span>
+<span id="cb10-18"><a href="#cb10-18" aria-hidden="true" tabindex="-1"></a>classify_perturbed_run <span class="ot">&lt;-</span> <span class="cf">function</span>(sim, <span class="at">window_frac =</span> <span class="fl">0.4</span>) {</span>
+<span id="cb10-19"><a href="#cb10-19" aria-hidden="true" tabindex="-1"></a>  bm    <span class="ot">&lt;-</span> <span class="fu">rowSums</span>(<span class="fu">getBiomass</span>(sim))</span>
+<span id="cb10-20"><a href="#cb10-20" aria-hidden="true" tabindex="-1"></a>  times <span class="ot">&lt;-</span> <span class="fu">as.numeric</span>(<span class="fu">names</span>(bm))</span>
+<span id="cb10-21"><a href="#cb10-21" aria-hidden="true" tabindex="-1"></a>  late  <span class="ot">&lt;-</span> bm[times <span class="sc">&gt;=</span> <span class="fu">max</span>(times) <span class="sc">*</span> (<span class="dv">1</span> <span class="sc">-</span> window_frac)]</span>
+<span id="cb10-22"><a href="#cb10-22" aria-hidden="true" tabindex="-1"></a>  rel_amplitude <span class="ot">&lt;-</span> (<span class="fu">max</span>(late) <span class="sc">-</span> <span class="fu">min</span>(late)) <span class="sc">/</span> <span class="fu">mean</span>(late)</span>
+<span id="cb10-23"><a href="#cb10-23" aria-hidden="true" tabindex="-1"></a>  <span class="fu">data.frame</span>(<span class="at">rel_amplitude =</span> rel_amplitude,</span>
+<span id="cb10-24"><a href="#cb10-24" aria-hidden="true" tabindex="-1"></a>             <span class="at">perturbed_verdict =</span> <span class="cf">if</span> (rel_amplitude <span class="sc">&gt;</span> <span class="fl">1e-6</span>) <span class="st">"oscillating"</span> <span class="cf">else</span> <span class="st">"settled"</span>)</span>
+<span id="cb10-25"><a href="#cb10-25" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb10-26"><a href="#cb10-26" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-27"><a href="#cb10-27" aria-hidden="true" tabindex="-1"></a>dual_stability_check <span class="ot">&lt;-</span> <span class="cf">function</span>(params, label, <span class="at">effort =</span> <span class="dv">0</span>) {</span>
+<span id="cb10-28"><a href="#cb10-28" aria-hidden="true" tabindex="-1"></a>  p_steady <span class="ot">&lt;-</span> <span class="fu">steadyNewton</span>(params, <span class="at">effort =</span> effort, <span class="at">stability =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb10-29"><a href="#cb10-29" aria-hidden="true" tabindex="-1"></a>  stab     <span class="ot">&lt;-</span> <span class="fu">attr</span>(p_steady, <span class="st">"stability"</span>)</span>
+<span id="cb10-30"><a href="#cb10-30" aria-hidden="true" tabindex="-1"></a>  sim      <span class="ot">&lt;-</span> <span class="fu">make_limit_cycle_sim</span>(params, <span class="at">effort =</span> effort)</span>
+<span id="cb10-31"><a href="#cb10-31" aria-hidden="true" tabindex="-1"></a>  pert     <span class="ot">&lt;-</span> <span class="fu">classify_perturbed_run</span>(sim)</span>
+<span id="cb10-32"><a href="#cb10-32" aria-hidden="true" tabindex="-1"></a>  <span class="fu">data.frame</span>(<span class="at">species =</span> label, <span class="at">linear_verdict =</span> <span class="cf">if</span> (stab<span class="sc">$</span>stable) <span class="st">"stable"</span> <span class="cf">else</span> <span class="st">"unstable"</span>,</span>
+<span id="cb10-33"><a href="#cb10-33" aria-hidden="true" tabindex="-1"></a>             <span class="at">spectral_radius =</span> stab<span class="sc">$</span>spectral_radius, <span class="at">perturbed_verdict =</span> pert<span class="sc">$</span>perturbed_verdict,</span>
+<span id="cb10-34"><a href="#cb10-34" aria-hidden="true" tabindex="-1"></a>             <span class="at">rel_amplitude =</span> pert<span class="sc">$</span>rel_amplitude,</span>
+<span id="cb10-35"><a href="#cb10-35" aria-hidden="true" tabindex="-1"></a>             <span class="at">agree =</span> <span class="fu">identical</span>(stab<span class="sc">$</span>stable, pert<span class="sc">$</span>perturbed_verdict <span class="sc">==</span> <span class="st">"settled"</span>))</span>
+<span id="cb10-36"><a href="#cb10-36" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+</div>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 20%">
+<col style="width: 20%">
+<col style="width: 20%">
+<col style="width: 20%">
+<col style="width: 20%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>species</th>
+<th>linear verdict</th>
+<th>spectral_radius</th>
+<th>perturbed verdict</th>
+<th>rel_amplitude</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>cod (reference)</td>
+<td>stable</td>
+<td>0.761</td>
+<td>settled</td>
+<td>1.4e-9</td>
+</tr>
+<tr class="even">
+<td><strong>anchovy (reference)</strong></td>
+<td><strong>stable</strong></td>
+<td><strong>0.366</strong></td>
+<td><strong>oscillating</strong></td>
+<td><strong>0.81</strong></td>
+</tr>
+<tr class="odd">
+<td>cod (capacity_mult=500x)</td>
+<td>stable</td>
+<td>0.761</td>
+<td>settled</td>
+<td>1.5e-10</td>
+</tr>
+<tr class="even">
+<td><strong>anchovy (capacity_mult=500x)</strong></td>
+<td><strong>stable</strong></td>
+<td><strong>0.356</strong></td>
+<td><strong>oscillating</strong></td>
+<td><strong>1.65</strong></td>
+</tr>
+</tbody>
+</table>
+<p>Cod agrees between both methods everywhere checked. Anchovy doesn’t, at either point tested: <code>getStability()</code> says stable, but a real perturbed run settles onto a large, unmistakable sustained oscillation instead - <code>rel_amplitude</code> of 0.81 and 1.65 aren’t numerical noise, they’re comparable to the biomass itself. Every prior “0 hopf points for anchovy” verdict in today’s grids was reading the wrong thing.</p>
+<hr>
+</section>
+<section id="the-full-picture-a-continuous-amplitude-heatmap" class="level2">
+<h2 class="anchored" data-anchor-id="the-full-picture-a-continuous-amplitude-heatmap">The Full Picture: A Continuous Amplitude Heatmap</h2>
+<p>Rather than collapsing the perturbed check back down to a three-way stable/hopf/non-oscillatory category, the same <code>resource_decrease</code> x <code>capacity_mult</code> grid from earlier is rerun with <code>rel_amplitude</code> itself kept as a continuous, log-scaled fill - Day 27’s own numbers span ~1e-12 (settled) to O(1) (a real limit cycle), 12+ orders of magnitude, so a binary call would hide most of the structure.</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb11"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a>perturbed_stability_point <span class="ot">&lt;-</span> <span class="cf">function</span>(params, <span class="at">t_total =</span> <span class="dv">600</span>, <span class="at">effort =</span> <span class="dv">0</span>) {</span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">tryCatch</span>({</span>
+<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a>    sim <span class="ot">&lt;-</span> <span class="fu">make_limit_cycle_sim</span>(params, <span class="at">t_total =</span> t_total, <span class="at">effort =</span> effort)</span>
+<span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a>    <span class="fu">classify_perturbed_run</span>(sim)</span>
+<span id="cb11-5"><a href="#cb11-5" aria-hidden="true" tabindex="-1"></a>  }, <span class="at">error =</span> <span class="cf">function</span>(e) {</span>
+<span id="cb11-6"><a href="#cb11-6" aria-hidden="true" tabindex="-1"></a>    <span class="fu">data.frame</span>(<span class="at">rel_amplitude =</span> <span class="cn">NA_real_</span>, <span class="at">perturbed_verdict =</span> <span class="cn">NA_character_</span>)</span>
+<span id="cb11-7"><a href="#cb11-7" aria-hidden="true" tabindex="-1"></a>  })</span>
+<span id="cb11-8"><a href="#cb11-8" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+</div>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb12"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a>perturbed_grid_generic <span class="ot">&lt;-</span> <span class="cf">function</span>(build_fn, species_label) {</span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a>  df <span class="ot">&lt;-</span> <span class="fu">bind_rows</span>(<span class="fu">future_lapply</span>(<span class="fu">seq_len</span>(<span class="fu">nrow</span>(hopf_grid_params)), <span class="cf">function</span>(i) {</span>
+<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a>    p <span class="ot">&lt;-</span> <span class="fu">build_fn</span>(hopf_grid_params<span class="sc">$</span>resource_decrease[i], hopf_grid_params<span class="sc">$</span>capacity_mult[i])</span>
+<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a>    <span class="fu">cbind</span>(hopf_grid_params[i, ], <span class="fu">perturbed_stability_point</span>(p))</span>
+<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a>  }, <span class="at">future.seed =</span> <span class="cn">TRUE</span>))</span>
+<span id="cb12-6"><a href="#cb12-6" aria-hidden="true" tabindex="-1"></a>  df<span class="sc">$</span>species <span class="ot">&lt;-</span> species_label</span>
+<span id="cb12-7"><a href="#cb12-7" aria-hidden="true" tabindex="-1"></a>  df</span>
+<span id="cb12-8"><a href="#cb12-8" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb12-9"><a href="#cb12-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-10"><a href="#cb12-10" aria-hidden="true" tabindex="-1"></a>cod_perturbed_grid_df     <span class="ot">&lt;-</span> <span class="fu">perturbed_grid_generic</span>(build_cod, <span class="st">"cod"</span>)</span>
+<span id="cb12-11"><a href="#cb12-11" aria-hidden="true" tabindex="-1"></a>anchovy_perturbed_grid_df <span class="ot">&lt;-</span> <span class="fu">perturbed_grid_generic</span>(build_anchovy, <span class="st">"anchovy"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+</div>
+<p><img src="../interesting_plots/day29_perturbed_amplitude.png" class="img-fluid"></p>
+<p><strong>Cod: settled at all 120/120 points</strong>, <code>rel_amplitude</code> ranging from 2.5e-14 up to 6.3e-7 – comfortably below the oscillating threshold everywhere, though not perfectly flat (more on that in What’s Next).</p>
+<p><strong>Anchovy: oscillating at 80/120 points</strong>, <code>rel_amplitude</code> ranging up to 1.41. Not everywhere ,though, there’s a genuine “island” of settled points roughly in <code>capacity_mult</code> between 1.4x and 3.8x crossed with <code>resource_decrease</code> above ~0.006, sitting inside an otherwise-oscillating region. That’s structurally exactly what de Roos &amp; Persson’s own framework predicts: a stable window between two different cycling regimes, not a single stable/unstable split. <code>getStability()</code> called all 120 of these points stable; the real figure is 80 genuinely oscillating and 40 actually settled.</p>
+<p>That’s the headline of the day: not which parameter causes anchovy to oscillate, but that it already <em>was</em> oscillating across most of the parameter space this whole project has been sweeping since Day 22 - the analytic tool being used to check was answering a narrower question (local stability) than the one actually being asked (does this system show sustained cycling).</p>
+<hr>
+</section>
+<section id="what-this-all-adds-up-to" class="level2">
+<h2 class="anchored" data-anchor-id="what-this-all-adds-up-to">What This All Adds Up To</h2>
+<p>Every targeted mechanism tested today , raw competitive asymmetry (now correctly signed as a ratio), body size, reproduction-cap strength, selective fishing, and resource carrying capacity out to 500x , came back unable to explain a cod/anchovy stability difference, because the premise itself was resting on a tool that was blind to two-thirds of anchovy’s actual dynamics. <code>getStability()</code>’s linear check and a real perturbed simulation agree completely for cod (settled everywhere, both ways) and disagree completely for anchovy at every point checked. The search for “the lever” needs to restart from the perturbed-amplitude heatmap, not from any of today’s four null grids - and needs the perturbed-simulation method as the primary tool going forward, not <code>getStability()</code> alone.</p>
+<hr>
+</section>
+<section id="whats-next" class="level2">
+<h2 class="anchored" data-anchor-id="whats-next">What’s Next</h2>
+<ul>
+<li><strong>Investigate cod’s “bottom left” corner properly.</strong> A small hot spot remains at low <code>resource_decrease</code>/<code>capacity_mult</code> (<code>rel_amplitude</code> up to 6.3e-7); one spot-check shows it decaying with longer <code>t_max</code>, pointing to a transient rather than a genuine cycle, but it’s not confirmed out far enough yet, and anchovy’s settled “island” deserves the same scrutiny.</li>
+<li><strong>Introduce fishing mortality against yield.</strong> Sweep <code>effort</code> and read off <code>getYield()</code> alongside the stability classification, so today’s findings can be judged against the project’s actual goal, sustainable, productive fisheries, rather than stability alone, and to check whether MSY falls inside or outside a cycling region.</li>
+<li><strong>Sweep cod’s <code>lambda</code>.</strong> Every anchovy build in this project fixes <code>lambda=2.05</code> by convention; cod’s own fitted value has never been checked against a swept range to see whether it’s what’s keeping cod flat while anchovy cycles.</li>
+</ul>
+
+
+</section>
+
+</main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp('/' + window.location.host + '/');
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+</div> <!-- /content -->
+
+
+
+
+</body></html>

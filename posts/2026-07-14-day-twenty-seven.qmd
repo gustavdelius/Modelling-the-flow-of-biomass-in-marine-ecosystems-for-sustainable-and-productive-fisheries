@@ -320,7 +320,7 @@ ggplot(pdelay_D_scan_df, aes(x = D)) +
 
 ## Proving It's Structural, Not Just These Numbers
 
-Rescaling by `m` collapses the whole system to one dimensionless ratio, `r = K*a*e/m` (physically, `r > 1` is required for the equilibrium to exist at all, since `N* < K` needs `K*a*e > m`). In these units, the sum-condition cutoff and the point where the discriminant turns non-negative both become functions of `r` alone:
+Rescaling by `m` collapses the whole system to one dimensionless ratio, $r = Kae/m$ (physically, $r > 1$ is required for the equilibrium to exist at all, since `N* < K` needs `K*a*e > m`). In these units, the sum-condition cutoff and the point where the discriminant turns non-negative both become functions of `r` alone:
 
 ```{r structural-check}
 #| message: false

@@ -40,7 +40,7 @@ plan(multisession)
 # Read-only: cod_params.rds is never written back to. Every perturbation
 # below goes through resource_limitation(), which returns a NEW params
 # object -- this binding itself is never reassigned.
-cod_params <- readRDS("cod_params.rds")
+cod_params <- readRDS("../cod_params.rds")
 
 # balance=FALSE is required, not just stylistic: setResource() errors
 # outright if resource_rate is given while balance resolves to TRUE (its

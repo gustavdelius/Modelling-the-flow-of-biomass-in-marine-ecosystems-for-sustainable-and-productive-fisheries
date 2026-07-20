@@ -43,7 +43,7 @@ dir.create("interesting_plots", showWarnings = FALSE)
 #| warning: false
 #| output: false
 #| eval: false
-cod_params <- readRDS("cod_params.rds")
+cod_params <- readRDS("../cod_params.rds")
 
 make_anchovy_params <- function(lambda = 2.05, resource_decrease = 0.01,
                                 capacity_mult = 10, second_order = TRUE,

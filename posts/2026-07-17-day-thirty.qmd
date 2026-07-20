@@ -37,7 +37,7 @@ dir.create("interesting_plots", showWarnings = FALSE)
 #| warning: false
 #| output: false
 #| eval: false
-cod_params <- readRDS("cod_params.rds")
+cod_params <- readRDS("../cod_params.rds")
 
 resource_limitation_2d_cod <- function(params, resource_decrease, capacity_mult) {
   new_rate     <- getResourceRate(params) * resource_decrease
