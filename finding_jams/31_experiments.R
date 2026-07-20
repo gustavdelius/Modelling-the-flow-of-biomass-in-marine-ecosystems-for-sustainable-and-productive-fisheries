@@ -135,6 +135,7 @@ build_cod_q_variant <- function(q, resource_decrease, capacity_mult) {
   resource_limitation_2d_cod(p, resource_decrease, capacity_mult)
 }
 
+
 # Generic forward/backward bifurcation sweep -- direct port of Day 23's
 # run_bifurcation_sweep() (Follow-up 5 there) onto cod's own project()
 # convention (predictor-corrector, dt=0.1, t_save=0.2) in place of the
@@ -147,14 +148,24 @@ build_cod_q_variant <- function(q, resource_decrease, capacity_mult) {
 # requires actually fishing the population -- effort is a parameter here,
 # not hardcoded, so the caller has to make that choice explicitly rather
 # than the sweep silently reusing a setting tuned for a different metric.
+#
+# t_run_first (defaults to t_run, so existing callers are unaffected)
+# lets the very first, genuinely cold-started point run longer than every
+# point after it. Only that first point starts from mizer's own default
+# initial state; every other point -- including backward's own first
+# point, which inherits forward's final state -- starts from a state
+# that's already close to the attractor, one small parameter step away
+# from something converged, so it needs far less time to re-settle than a
+# cold start does.
 run_bifurcation_sweep_cod <- function(param_seq, param_name, fixed_params = list(),
-                                      params_fn = build_cod_q_variant, t_run = 600,
-                                      effort = 0,
+                                      params_fn = build_cod_q_variant, t_run = 750,
+                                      t_run_first = t_run, effort = 0,
                                       metric_fn = function(sim) rowSums(getBiomass(sim))) {
   run_one_direction <- function(seq_vals, init_n = NULL, init_n_pp = NULL) {
     out       <- data.frame(value = seq_vals, max_metric = NA_real_, min_metric = NA_real_)
     state_n   <- init_n
     state_npp <- init_n_pp
+    cold_start <- is.null(init_n)
 
     for (i in seq_along(seq_vals)) {
       args <- fixed_params
@@ -164,11 +175,12 @@ run_bifurcation_sweep_cod <- function(param_seq, param_name, fixed_params = list
         p@initial_n[]    <- state_n
         p@initial_n_pp[] <- state_npp
       }
-      sim <- project(p, t_max = t_run, dt = 0.1, t_save = 0.2,
+      run_t <- if (i == 1 && cold_start) t_run_first else t_run
+      sim <- project(p, t_max = run_t, dt = 0.1, t_save = 0.2,
                      progress_bar = FALSE, effort = effort, method = "predictor-corrector")
       mv   <- metric_fn(sim)
       tv   <- as.numeric(names(mv))
-      late <- mv[tv > t_run * 0.6]
+      late <- mv[tv > run_t * 0.6]
       last <- dim(sim@n)[1]
 
       state_n   <- sim@n[last, , ]
@@ -213,10 +225,17 @@ q_seq_bif <- seq(native_cod_q - 0.3, native_cod_q + 0.3, length.out = 21)
 # there was for biomass; this is also the first cod sweep in this project
 # to actually fish the population, which Day 29's "What's Next" flagged as
 # still outstanding ("introduce fishing mortality against yield").
+#
+# t_run_first=800 only for the sweep's very first point (a genuine cold
+# start, mizer's own default initial state); every later point -- forward
+# or backward -- starts from the previous step's already-converged state,
+# one small q step away, so t_run=400 is enough to re-settle. Cuts total
+# simulated time roughly in half across the 42-point sweep versus running
+# every point at 800.
 bif_q_df <- run_bifurcation_sweep_cod(
   q_seq_bif, "q",
-  fixed_params = list(resource_decrease = 1e-7, capacity_mult = 1000),
-  t_run = 600, effort = 1,
+  fixed_params = list(resource_decrease = 1, capacity_mult = 1),
+  t_run = 400, t_run_first = 800, effort = 1,
   metric_fn = function(sim) rowSums(getYield(sim))
 )
 
@@ -264,6 +283,123 @@ q_verdict <- if (n_oscillating_q == 0) {
   )
 }
 cat(sprintf("\nSection 1 verdict: %s.\n", q_verdict))
+
+################################################################################
+# Section 1b: the same bifurcation-diagram sweep, but varying alpha instead
+# of q
+#
+# alpha is mizer's assimilation efficiency (the fraction of consumed energy
+# that's actually assimilated, before growth/reproduction allocation) --
+# Day 25 found it was the single dominant lever for anchovy's juvenile-
+# pileup metric, a genuine viability threshold spanning 27.5 orders of
+# magnitude in catchable_fraction, with anchovy's own native alpha sitting
+# right at the foot of that climb. That sweep was never carried over to
+# cod, and never asked the oscillation question specifically -- this does
+# both, reusing Section 1's exact bifurcation-diagram machinery
+# (run_bifurcation_sweep_cod()/plot_bifurcation_cod()) with alpha as the
+# swept parameter instead of q.
+#
+# Bracket shape differs from q's deliberately: q's +/- 0.3 is an additive
+# bracket appropriate to q's own O(1) scale, but alpha sits on a much
+# smaller, strictly-positive scale, so an additive +/-0.3 bracket risks
+# pushing alpha negative or barely moving it at all depending on where the
+# native value sits. A proportional, log-spaced bracket around cod's own
+# native alpha (half to 1.5x) is used instead -- still centred on the
+# native value, same "bracket it" logic as every sweep since Day 25, just
+# scaled to alpha's own range rather than copying q's absolute numbers.
+################################################################################
+
+native_cod_alpha <- unname(cod_params@species_params$alpha[1])
+cat(sprintf("cod_params.rds's own native alpha (assimilation efficiency): %.4g\n", native_cod_alpha))
+
+# Same caution as the q propagation check above, adapted to alpha: alpha
+# feeds directly into assimilated energy (and therefore growth) at every
+# timestep, not into a cached construction-time array the way q feeds
+# search_vol -- but this project has been burned before by assuming a
+# given_species_params() write actually took effect, so it's confirmed
+# directly rather than assumed. getEGrowth() is alpha's own natural
+# analogue of getEncounter(): energy available for growth is
+# alpha * encounter, net of metabolic costs, so it has to move if alpha
+# actually propagated.
+alpha_probe_base <- cod_params
+alpha_probe_low  <- cod_params
+given_species_params(alpha_probe_low)$alpha <- native_cod_alpha * 0.5
+
+egrowth_changed <- !isTRUE(all.equal(getEGrowth(alpha_probe_base), getEGrowth(alpha_probe_low)))
+
+cat(sprintf("alpha propagation check: getEGrowth() changed = %s.\n", egrowth_changed))
+if (!egrowth_changed) {
+  stop(paste(
+    "given_species_params(params)$alpha <- value does NOT change",
+    "getEGrowth() -- alpha is being cached or ignored somewhere upstream,",
+    "so the sweep below would silently sweep nothing. Stopping before",
+    "wasting the run."
+  ))
+}
+
+# alpha applied straight to the real cod_params object, same pattern as
+# build_cod_q_variant().
+build_cod_alpha_variant <- function(alpha, resource_decrease, capacity_mult) {
+  p <- cod_params
+  given_species_params(p)$alpha <- alpha
+  resource_limitation_2d_cod(p, resource_decrease, capacity_mult)
+}
+
+# Proportional bracket, log-spaced, half to 1.5x cod's own native alpha --
+# see the header note for why this isn't q's additive +/-0.3.
+alpha_seq_bif <- native_cod_alpha * exp(seq(log(0.5), log(1.5), length.out = 21))
+
+# Same fixed point and fishing intensity as Section 1's q sweep, so the two
+# bifurcation diagrams are directly comparable against each other, not just
+# each internally consistent.
+bif_alpha_df <- run_bifurcation_sweep_cod(
+  alpha_seq_bif, "alpha",
+  fixed_params = list(resource_decrease = 1, capacity_mult = 1),
+  params_fn = build_cod_alpha_variant,
+  t_run = 600, effort = 1,
+  metric_fn = function(sim) rowSums(getYield(sim))
+)
+
+write.csv(bif_alpha_df, file.path("interesting_plots", "day31_cod_alpha_yield_bifurcation.csv"),
+          row.names = FALSE)
+
+bif_alpha_plot <- plot_bifurcation_cod(
+  bif_alpha_df, "alpha (assimilation efficiency)", "Yield",
+  "Cod bifurcation diagram: yield vs. assimilation efficiency alpha, swept forward and backward",
+  sprintf(
+    "resource_decrease=1, capacity_mult=1, effort=1 fixed (same fixed point as the q sweep) -- native alpha=%.3g; branches collapsing onto one curve = fixed point, fanning apart = limit cycle",
+    native_cod_alpha
+  )
+)
+bif_alpha_plot
+
+save_plot(bif_alpha_plot, "day31_cod_alpha_yield_bifurcation.png", width = 9, height = 6)
+
+# Same verdict logic as Section 1's bif_q_check, applied to alpha instead.
+bif_alpha_check <- bif_alpha_df %>%
+  tidyr::pivot_wider(names_from = c(direction, branch), values_from = metric) %>%
+  mutate(
+    rel_amplitude_fwd = (Forward_max - Forward_min) / ((Forward_max + Forward_min) / 2),
+    rel_amplitude_bwd = (Backward_max - Backward_min) / ((Backward_max + Backward_min) / 2),
+    hysteresis_gap    = abs(Forward_max - Backward_max) + abs(Forward_min - Backward_min)
+  )
+print(bif_alpha_check %>% select(value, rel_amplitude_fwd, rel_amplitude_bwd, hysteresis_gap))
+
+n_oscillating_alpha  <- sum(bif_alpha_check$rel_amplitude_fwd > 1e-6 | bif_alpha_check$rel_amplitude_bwd > 1e-6, na.rm = TRUE)
+max_hysteresis_alpha <- bif_alpha_check$value[which.max(bif_alpha_check$hysteresis_gap)]
+
+alpha_verdict <- if (n_oscillating_alpha == 0) {
+  sprintf(
+    "flat -- 0/%d alpha values cross the 1e-6 relative-amplitude threshold at (resource_decrease=1, capacity_mult=1); no forward/backward branch separation either (largest hysteresis gap at alpha=%.4g, still negligible)",
+    nrow(bif_alpha_check), max_hysteresis_alpha
+  )
+} else {
+  sprintf(
+    "%d/%d alpha values cross into oscillation at this fixed point; largest forward/backward gap at alpha=%.4g",
+    n_oscillating_alpha, nrow(bif_alpha_check), max_hysteresis_alpha
+  )
+}
+cat(sprintf("\nSection 1b verdict: %s.\n", alpha_verdict))
 
 ################################################################################
 # Section 2: finish the corrected competitiveness metric
@@ -415,6 +551,10 @@ cat("\n===== Day 31 summary =====\n")
 cat(sprintf(
   "Section 1 (finished cod q sweep, %d-point forward/backward bifurcation diagram): %s\n",
   length(q_seq_bif), q_verdict
+))
+cat(sprintf(
+  "Section 1b (cod alpha sweep, %d-point forward/backward bifurcation diagram): %s\n",
+  length(alpha_seq_bif), alpha_verdict
 ))
 cat(sprintf(
   "Section 2 (finished corrected competitiveness metric): cod %s (ratio %.4g -> %.4g)%s; anchovy %s (ratio %.4g -> %.4g)%s.\n",
