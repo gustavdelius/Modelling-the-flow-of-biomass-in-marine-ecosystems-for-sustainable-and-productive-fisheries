@@ -135,12 +135,57 @@ build_cod_q_variant <- function(q, resource_decrease, capacity_mult) {
   resource_limitation_2d_cod(p, resource_decrease, capacity_mult)
 }
 
+cod_params_low <- build_cod_q_variant(0.5,1,1)
+cod_steady_params_low <- projectToSteady(cod_q_params_low,effort=1,t_max=800)
+params <- cod_steady_params_low
+given_species_params(params)$q <- 0.51
 
+cod_steady_params_olow <- projectToSteady(params,effort=1,t_max=800)
+
+
+cod_steady_params_high <- projectToSteady(cod_q_params_high,effort=1,t_max=800)
+plotSpectra(cod_steady_params_high,log="xy")
+plotSpectra(cod_steady_params_low,log="xy")
+plotHover(getEGrowth(cod_steady_params_low),log="xy")
+plotHover(getEGrowth(cod_steady_params_high),log="xy")
+
+plot2(search_vol(cod_steady_params_high),search_vol(cod_steady_params_low),log="xy")
+
+given_species_params(cod_steady_params_high)$q
+given_species_params(cod_steady_params_low)$q
+getYield(cod_steady_params_high)
+getYield(cod_steady_params_low)
+attr(cod_steady_params_low,"convergence")
 # Generic forward/backward bifurcation sweep -- direct port of Day 23's
-# run_bifurcation_sweep() (Follow-up 5 there) onto cod's own project()
-# convention (predictor-corrector, dt=0.1, t_save=0.2) in place of the
-# anchovy-template tr_bdf2 call that version used; same
-# forward-then-backward, state-carried-between-steps logic either way.
+# run_bifurcation_sweep() (Follow-up 5 there) onto cod's own convention,
+# now built on projectToSteady() rather than project(). Every version of
+# this sweep before today ran project() for a fixed t_max and just hoped
+# that was long enough for the system to settle -- t_run/t_run_first were
+# exactly that guess, made explicit rather than removed. projectToSteady()
+# removes the guess itself: it keeps projecting forward in chunks and
+# checking its own convergence tolerance (consecutive states agreeing to
+# within `tol`, mizer's own distanceSSLogN by default) between them,
+# stopping the moment they do rather than at some fixed clock time picked
+# in advance. t_max below is now just a generous safety ceiling for a run
+# that never converges at all -- which is exactly what a genuine limit
+# cycle looks like, since a truly oscillating point has no fixed point to
+# settle onto -- not a per-point estimate of settling time.
+#
+# If a point simply fails to converge by t_max, projectToSteady() surfaces
+# that as a WARNING, not an error, and still returns whatever trajectory
+# it ran -- which is exactly the case this sweep wants to see, since a
+# non-converged, still-oscillating trajectory is what makes the late-
+# window max/min genuinely split apart below. tryCatch here is for a
+# different, narrower purpose: Day 17's own notes
+# (day_17_experiments.R) flag a real crash in
+# steady()/projectToSteady() under an earlier mizer build (a missing
+# r$rdd entry breaking project_n_no_diffusion), which forced project()
+# to be used directly back then. That was under mizer 3.1.0.9000, before
+# PR #452 (getStability()/steadyNewton(), installed Day 28) updated the
+# package, and hasn't been independently re-confirmed fixed since -- so a
+# crash here is caught and recorded as an NA/error point (the same
+# convention every fallible sweep point in this project has used since
+# Day 25) rather than taking down the whole sweep.
 #
 # metric_fn/effort generalise this beyond biomass: getYield() is
 # identically zero under effort=0 (Day 23's own convention, since those
@@ -148,24 +193,14 @@ build_cod_q_variant <- function(q, resource_decrease, capacity_mult) {
 # requires actually fishing the population -- effort is a parameter here,
 # not hardcoded, so the caller has to make that choice explicitly rather
 # than the sweep silently reusing a setting tuned for a different metric.
-#
-# t_run_first (defaults to t_run, so existing callers are unaffected)
-# lets the very first, genuinely cold-started point run longer than every
-# point after it. Only that first point starts from mizer's own default
-# initial state; every other point -- including backward's own first
-# point, which inherits forward's final state -- starts from a state
-# that's already close to the attractor, one small parameter step away
-# from something converged, so it needs far less time to re-settle than a
-# cold start does.
 run_bifurcation_sweep_cod <- function(param_seq, param_name, fixed_params = list(),
-                                      params_fn = build_cod_q_variant, t_run = 750,
-                                      t_run_first = t_run, effort = 0,
+                                      params_fn = build_cod_q_variant, t_max = 2000,
+                                      effort = 0,
                                       metric_fn = function(sim) rowSums(getBiomass(sim))) {
   run_one_direction <- function(seq_vals, init_n = NULL, init_n_pp = NULL) {
     out       <- data.frame(value = seq_vals, max_metric = NA_real_, min_metric = NA_real_)
     state_n   <- init_n
     state_npp <- init_n_pp
-    cold_start <- is.null(init_n)
 
     for (i in seq_along(seq_vals)) {
       args <- fixed_params
@@ -175,19 +210,49 @@ run_bifurcation_sweep_cod <- function(param_seq, param_name, fixed_params = list
         p@initial_n[]    <- state_n
         p@initial_n_pp[] <- state_npp
       }
-      run_t <- if (i == 1 && cold_start) t_run_first else t_run
-      sim <- project(p, t_max = run_t, dt = 0.1, t_save = 0.2,
-                     progress_bar = FALSE, effort = effort, method = "predictor-corrector")
-      mv   <- metric_fn(sim)
-      tv   <- as.numeric(names(mv))
-      late <- mv[tv > run_t * 0.6]
-      last <- dim(sim@n)[1]
 
-      state_n   <- sim@n[last, , ]
-      state_npp <- sim@n_pp[last, ]
+      result <- tryCatch({
+        # method is explicit and NOT the default: projectToSteady()'s own
+        # default is "euler", the exact integrator Day 6 showed produces
+        # numerical ringing that can masquerade as a real oscillation --
+        # every project() call in this project has used
+        # "predictor-corrector" since that finding, and projectToSteady()
+        # needs the same override (spelled with an underscore here,
+        # unlike project()'s own hyphenated method names) or it would
+        # silently undo that six-day-old lesson. t_per is also explicit
+        # (0.2, not the 1.5-year default): t_per sets both how often
+        # convergence is checked AND the spacing of points in the
+        # returned sim, and this project's own project() calls elsewhere
+        # in this file all save at t_save=0.2 -- leaving t_per at 1.5
+        # would undersample any real oscillation with a period shorter
+        # than that, and make the late-window max/min below unreliable.
+        sim  <- projectToSteady(p, effort = effort, t_max = t_max,
+                                t_per = 0.2, method = "predictor_corrector",
+                                return_sim = TRUE, progress_bar = FALSE)
+        mv   <- metric_fn(sim)
+        tv   <- as.numeric(names(mv))
+        # Late window, not the whole returned trajectory -- guards against
+        # a leading transient in the very first chunk, but no longer a
+        # guess at whether the window is long ENOUGH to have settled:
+        # projectToSteady() has already made that call (via `tol`) before
+        # this window is even taken.
+        late <- mv[tv > max(tv) * 0.6]
+        last <- dim(sim@n)[1]
+        list(max_metric = max(late), min_metric = min(late),
+             n = sim@n[last, , ], npp = sim@n_pp[last, ], error = NA_character_)
+      }, error = function(e) {
+        list(max_metric = NA_real_, min_metric = NA_real_,
+             n = state_n, npp = state_npp, error = conditionMessage(e))
+      })
 
-      out$max_metric[i] <- max(late)
-      out$min_metric[i] <- min(late)
+      if (!is.na(result$error)) {
+        warning(sprintf("%s=%.4g: %s", param_name, seq_vals[i], result$error))
+      }
+
+      state_n   <- result$n
+      state_npp <- result$npp
+      out$max_metric[i] <- result$max_metric
+      out$min_metric[i] <- result$min_metric
     }
     list(df = out, n_final = state_n, npp_final = state_npp)
   }
@@ -213,10 +278,14 @@ plot_bifurcation_cod <- function(df, x_label, y_label, title, subtitle = NULL) {
 }
 
 # Centred on cod's own fitted value, +/- 0.3 -- same "bracket the native
-# value" convention as Day 30's lambda_seq, walked at 21 points so the
-# forward/backward branches actually trace a readable curve rather than
-# the coarse 7-value bracket the old heatmap grid used.
-q_seq_bif <- seq(native_cod_q - 0.3, native_cod_q + 0.3, length.out = 21)
+# value" convention as Day 30's lambda_seq. Stepped by 0.01 (61 points
+# across the bracket) rather than the coarser 21-point/~0.03 step used
+# before projectToSteady() replaced project() above: each point now needs
+# projectToSteady() to converge from the previous point's own steady
+# state, and a small step keeps that starting guess close to the new
+# answer, the same reason numerical continuation methods take small steps
+# in the swept parameter rather than large ones.
+q_seq_bif <- seq(native_cod_q - 0.3, native_cod_q + 0.3, by = 0.01)
 
 # effort=1 -- cod_params' own calibrated fishing gear at its native
 # intensity, not the effort=0 used for every stability-only sweep so far.
@@ -226,16 +295,10 @@ q_seq_bif <- seq(native_cod_q - 0.3, native_cod_q + 0.3, length.out = 21)
 # to actually fish the population, which Day 29's "What's Next" flagged as
 # still outstanding ("introduce fishing mortality against yield").
 #
-# t_run_first=800 only for the sweep's very first point (a genuine cold
-# start, mizer's own default initial state); every later point -- forward
-# or backward -- starts from the previous step's already-converged state,
-# one small q step away, so t_run=400 is enough to re-settle. Cuts total
-# simulated time roughly in half across the 42-point sweep versus running
-# every point at 800.
 bif_q_df <- run_bifurcation_sweep_cod(
   q_seq_bif, "q",
   fixed_params = list(resource_decrease = 1, capacity_mult = 1),
-  t_run = 400, t_run_first = 800, effort = 1,
+  effort = 1,
   metric_fn = function(sim) rowSums(getYield(sim))
 )
 
@@ -356,7 +419,7 @@ bif_alpha_df <- run_bifurcation_sweep_cod(
   alpha_seq_bif, "alpha",
   fixed_params = list(resource_decrease = 1, capacity_mult = 1),
   params_fn = build_cod_alpha_variant,
-  t_run = 600, effort = 1,
+  effort = 1,
   metric_fn = function(sim) rowSums(getYield(sim))
 )
 
