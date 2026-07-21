@@ -9,18 +9,18 @@ format:
     theme: flatly
     code-fold: true
 categories: [research, mizer, hopf-bifurcation, cod, bifurcation-diagram, blog]
-description: "Finishes Day 30's queued q sweep as a proper forward/backward bifurcation diagram plotting yield instead of biomass -- introducing fishing to cod for the first time in this project -- but at the corner actually tested (capacity_mult=1000, deep past where Day 30's own broad scan already found oscillation fading) the result is completely flat, no branch separation anywhere. Swaps project() for projectToSteady() to stop guessing settling time altogether, catching two real bugs against mizer's own documentation along the way. Extends the same machinery to alpha, cod's own untested dominant lever by Day 25's precedent, and a familiar plotSpectra2()-shaped ggplot error resurfaces mid-exploration, unresolved as of writing."
+description: "Finishes Day 30's queued q sweep as a proper forward/backward bifurcation diagram plotting yield instead of biomass, introducing fishing to cod for the first time in this project, but at the corner actually tested (capacity_mult=1000, deep past where Day 30's own broad scan already found oscillation fading) the result is completely flat, no branch separation anywhere. Swaps project() for projectToSteady() to stop guessing settling time altogether, catching two real bugs against mizer's own documentation along the way. Extends the same machinery to alpha, cod's own untested dominant lever by Day 25's precedent, and a familiar plotSpectra2()-shaped ggplot error resurfaces mid-exploration, unresolved as of writing."
 ---
 
 ## Where Day 30 Left Us
 
-Day 30 closed with a short but pointed "What's Next" list: finish the `q` sweep and the corrected competitiveness metric (both left as methodology-only -- written and queued, not run to final numbers); understand the `capacity_mult < 1` collapse boundary; get fishing mortality against yield actually running on cod, a thread carried unfinished since Day 29; and write up a summary document so the last month's results aren't scattered across thirty individual posts. Today closes the first, third, and last of those, opens a new one, and leaves an old, familiar bug sitting unresolved at the end.
+Day 30 closed with a short but pointed "What's Next" list: finish the `q` sweep (left as methodology-only); understand the `capacity_mult < 1` collapse boundary; get fishing mortality against yield actually running on cod, a thread carried unfinished since Day 29; and write up a summary document so the last month's results aren't scattered across thirty individual posts. Today closes the first, third, and last of those, opens a new one, and leaves an old, familiar bug sitting unresolved at the end.
 
 ------------------------------------------------------------------------
 
 ## Finishing the q Sweep: From a Heatmap Grid to a Bifurcation Diagram
 
-Day 30's `q` sweep was left as a grid of binary oscillating/settled verdicts -- the same shape as every perturbed-amplitude heatmap since Day 29 -- and it hadn't even finished running. Rather than just letting that grid finish, today rebuilt it entirely as a classic forward/backward bifurcation diagram, the format every `resource_decrease`/`capacity_mult` sweep in this project has used since Day 18: sweep `q` itself forward then backward, carrying each step's own converged state into the next, and plot max/min per step rather than a single stable/oscillating label per point.
+Day 30's `q` sweep was left as a grid of binary oscillating/settled verdicts ,the same shape as every perturbed-amplitude heatmap since Day 29, and it hadn't even finished running. Rather than just letting that grid finish, today rebuilt it entirely as a classic forward/backward bifurcation diagram, the format every `resource_decrease`/`capacity_mult` sweep in this project has used since Day 18: sweep `q` itself forward then backward, carrying each step's own converged state into the next, and plot max/min per step rather than a single stable/oscillating label per point.
 
 ```{r q-bifurcation-setup}
 #| message: false
@@ -58,15 +58,15 @@ bif_q_df <- run_bifurcation_sweep_cod(
 
 ![](../interesting_plots/day31_cod_q_yield_bifurcation.png)
 
-Forward and Backward sit exactly on top of each other across the whole `q` range, and the max and min branches never separate anywhere either. No oscillation, no hysteresis -- just a smooth, concave curve, yield rising from `q≈0.5`, peaking somewhere around `q≈0.65-0.7`, and falling off more steeply toward `q≈1.1` than it rose on the way up.
+Forward and Backward sit exactly on top of each other across the whole `q` range, and the max and min branches never separate anywhere either. No oscillation, no hysteresis ,just a smooth, concave curve, yield rising from `q≈0.5`, peaking somewhere around `q≈0.65-0.7`, and falling off more steeply toward `q≈1.1` than it rose on the way up.
 
-That's not actually a contradiction of Day 30's own broad scan -- it's consistent with it. That scan found oscillation retreating as `capacity_mult` rose past cod's native baseline: real at `capacity_mult=1` (`rel_amplitude=0.041`), down to `~2e-6` by `capacity_mult=10`, `~2e-5` by `100`. Today's fixed point, `capacity_mult=1000`, pushes an order of magnitude further in exactly the direction that was already killing the effect. This was always the more speculative of two candidate corners for the `q` sweep, not the confirmed-oscillating one -- `capacity_mult=1` is, and that's exactly where this sweep should be re-pointed next (see What's Next).
+That's not actually a contradiction of Day 30's own broad scan - it's consistent with it. That scan found oscillation retreating as `capacity_mult` rose past cod's native baseline: real at `capacity_mult=1` (`rel_amplitude=0.041`), down to `~2e-6` by `capacity_mult=10`, `~2e-5` by `100`. Today's fixed point, `capacity_mult=1000`, pushes an order of magnitude further in exactly the direction that was already killing the effect. This was always the more speculative of two candidate corners for the `q` sweep, not the confirmed-oscillating one - `capacity_mult=1` is, and that's exactly where this sweep should be re-pointed next (see What's Next).
 
 ------------------------------------------------------------------------
 
 ## A New Lever, Same Machinery: Sweeping alpha
 
-Day 25 found that `alpha` (assimilation efficiency) was the single dominant lever for anchovy's juvenile-pileup metric -- a genuine viability threshold spanning 27.5 orders of magnitude in catchable fraction, with anchovy's own native `alpha` sitting right at the foot of that climb. That sweep was never carried over to cod, and never asked the oscillation question at all. Today reuses the exact same bifurcation-diagram machinery from the `q` sweep above -- `run_bifurcation_sweep_cod()`, `plot_bifurcation_cod()` -- with `alpha` as the swept parameter instead.
+Day 25 found that `alpha` (assimilation efficiency) was the single dominant lever for anchovy's juvenile-pileup metric - a viability threshold spanning 27.5 orders of magnitude in catchable fraction, with anchovy's own native `alpha` sitting right at the foot of that climb. That sweep was never carried over to cod, and never asked the oscillation question at all. Today reuses the exact same bifurcation-diagram machinery from the `q` sweep above, `run_bifurcation_sweep_cod()`, `plot_bifurcation_cod()`, with `alpha` as the swept parameter instead.
 
 ```{r alpha-bifurcation-setup}
 #| message: false
@@ -96,26 +96,26 @@ bif_alpha_df <- run_bifurcation_sweep_cod(
 )
 ```
 
-This one is written, self-contained, and ready to run -- same convention as Day 30's own `q` grid at the point it was left unfinished -- but the results aren't in hand yet, so there's no verdict to report here today.
+This one is written, self-contained, and ready to run.It uses the same convention as Day 30's own `q` grid at the point it was left unfinished. However the results aren't in hand yet, so there's no verdict to report here today.
 
 ------------------------------------------------------------------------
 
 ## Retiring t_max Guesswork: project() for projectToSteady()
 
-Every bifurcation sweep in this project, from Day 18 through this morning's first pass at the `q` sweep, has worked the same way: pick a `t_max`, run `project()` for that long, and hope it was enough. When that guess is wrong in one direction, a genuinely settled point gets read as still-transient; wrong in the other, and time is wasted running well past convergence. The fix that started this morning -- carrying state between steps and giving only the first, genuinely cold-started point a longer run (800 years, versus 400 for everything after) -- was still a guess, just a smaller one.
+Every bifurcation sweep in this project, from Day 18 through this morning's first pass at the `q` sweep, has worked the same way: pick a `t_max`, run `project()` for that long, and hope it was enough. When that guess is wrong in one direction, a genuinely settled point gets read as still-transient; wrong in the other, and time is wasted running well past convergence. The fix that started this morning, carrying state between steps and giving only the first, genuinely cold-started point a longer run (800 years, versus 400 for everything after), was still a guess, just a smaller one.
 
-`projectToSteady()` removes the guess itself. Instead of running for a fixed clock time, it projects forward in chunks and checks its own convergence tolerance between them -- consecutive states agreeing to within `tol` -- stopping the moment they do, rather than at a time picked in advance. `t_max` becomes a safety ceiling for a run that never converges at all, not a per-point settling estimate. That non-convergent case matters here specifically: a point that's genuinely oscillating has no fixed point to settle onto, so `projectToSteady()` failing to converge on such a point isn't a bug, it's exactly the signal this whole exercise is looking for -- it surfaces as a warning, not an error, and the trajectory it does return still shows a real, unsettled max/min spread.
+`projectToSteady()` removes the guess itself. Instead of running for a fixed clock time, it projects forward in chunks and checks its own convergence tolerance between them, consecutive states agreeing to within `tol`, stopping the moment they do, rather than at a time picked in advance. `t_max` becomes a safety ceiling for a run that never converges at all, not a per-point settling estimate. That non-convergent case matters here specifically: a point that's genuinely oscillating has no fixed point to settle onto, so `projectToSteady()` failing to converge on such a point isn't a bug, it's exactly the signal this whole exercise is looking for. It surfaces as a warning, not an error, and the trajectory it does return still shows a real, unsettled max/min spread.
 
-The narrower step size in `q_seq_bif` above (`by = 0.01` instead of a coarse handful of points) is the other half of this change: each `projectToSteady()` call starts from the previous step's own converged state, so a small step keeps that starting guess close to the new answer -- the same reason numerical continuation methods take small steps in the parameter being swept rather than large ones.
+The narrower step size in `q_seq_bif` above (`by = 0.01` instead of a coarse handful of points) is the other half of this change: each `projectToSteady()` call starts from the previous step's own converged state, so a small step keeps that starting guess close to the new answer - the same reason numerical continuation methods take small steps in the parameter being swept rather than large ones.
 
 ### Two real bugs, caught against the actual documentation
 
 The first pass at this swap assumed a plausible-sounding API rather than checking it, and [the real mizer documentation](https://sizespectrum.org/mizer/reference/projectToSteady.html) caught two mistakes before they could quietly corrupt the results:
 
-- **`method` defaults to `"euler"`.** Every `project()` call in this project has used `"predictor-corrector"` since Day 6, specifically because Day 6 showed the default (Euler-family) integrator produces numerical ringing that can look exactly like a real oscillation. Leaving `projectToSteady()` at its own default would have silently reintroduced a six-day-old lesson. Fixed by passing `method = "predictor_corrector"` explicitly -- underscored, unlike `project()`'s own hyphenated method names, a small but real gotcha of its own.
+- **`method` defaults to `"euler"`.** Every `project()` call in this project has used `"predictor-corrector"` since Day 6, specifically because Day 6 showed the default (Euler-family) integrator produces numerical ringing that can look exactly like a real oscillation. Leaving `projectToSteady()` at its own default would have silently reintroduced a six-day-old lesson. Fixed by passing `method = "predictor_corrector"` explicitly.
 - **`t_per` defaults to 1.5 years**, controlling both how often convergence is checked and the spacing of points in the returned trajectory. Left at default, any real oscillation with a period under about a year and a half would be badly undersampled, and the late-window max/min this sweep depends on would be unreliable. Set to `0.2`, matching the `t_save` this project's own `project()` calls have used throughout.
 
-Neither of these would have thrown an error. Both would have run to completion and produced a plausible-looking, quietly wrong plot -- exactly the kind of mistake that's cheap to catch against real documentation and expensive to catch any other way.
+Neither of these would have thrown an error. Both would have run to completion and produced a plausible-looking, quietly wrong plot,which is exactly the kind of mistake that's cheap to catch against real documentation and expensive to catch any other way.
 
 ------------------------------------------------------------------------
 
@@ -134,19 +134,17 @@ Caused by error:
 
 This isn't new. Day 19's own script already carries a note that both `plotSpectra()` and `plotSpectra2()` "hit internal errors with this mizer version," worked around at the time by building the spectrum manually from `sim@n[last, 1, ] * sim@params@w` instead of trusting either plotting function. Today's occurrence is the same shape of failure, months later, on different objects (`MizerParams` from `projectToSteady()` rather than a `MizerSim`), which is worth treating as more evidence the bug lives in the plotting function's own internals rather than in whatever happens to be passed to it.
 
-The honest state of this thread: the exact call that produced today's error hasn't been pinned down precisely enough yet to file a solid bug report against it -- the scratch code exploring this interactively has at least one undefined-variable slip in it (`cod_q_params_low`/`cod_q_params_high` referenced but never actually assigned), which needs cleaning up before the reproduction is trustworthy. Parked rather than fixed today.
-
 ------------------------------------------------------------------------
 
 ## The Summary Document
 
-Day 30's last "What's Next" item is done: a [summary post](2026-07-20-summary.qmd) now exists, read back over every day-by-day post from Day One through Day 30 and organised by the arc of the investigation -- five acts, from the original traffic-jam analogy through the hysteresis debugging saga to the real cod model -- rather than by date, plus a section pulling together the methodological lessons that recurred across multiple days under different names.
+Day 30's last "What's Next" item is done: a [summary post](2026-07-20-summary.qmd) now exists, read back over every day-by-day post from Day One through Day 30 and organised by the arc of the investigation, consisting of five acts, from the original traffic-jam analogy through the hysteresis debugging saga to the real cod model, rather than by date, plus a section pulling together the methodological lessons that recurred across multiple days under different names.
 
 ------------------------------------------------------------------------
 
 ## What This All Adds Up To
 
-Today was more about method than result. The `q` sweep is finished in the sense that Day 30 asked for -- a proper bifurcation diagram, plotting yield, with fishing actually switched on -- but the specific corner it was run at came back flat, for reasons that fit the existing picture rather than expanding it. The more durable change is underneath: `projectToSteady()` replaces a settling-time guess with mizer's own convergence check, the same machinery now also drives a brand-new `alpha` sweep, and two real correctness bugs got caught against actual documentation before they could produce a confidently wrong plot. The one open thread from today, rather than from Day 30, is the `plotSpectra2()` error -- familiar, unresolved, and now flagged as connected to a months-old note rather than a fresh mystery.
+Today was more about method than result. The `q` sweep is finished in the sense that Day 30 asked for, a proper bifurcation diagram, plotting yield, with fishing actually switched on, but the specific corner it was run at came back flat, for reasons that fit the existing picture rather than expanding it. The more durable change is underneath: `projectToSteady()` replaces a settling-time guess with mizer's own convergence check, the same machinery now also drives a brand-new `alpha` sweep, and two real correctness bugs got caught against actual documentation before they could produce a confidently wrong plot. The one open thread from today, rather than from Day 30, is the `plotSpectra2()` error - familiar, unresolved, and now flagged as connected to a months-old note rather than a fresh mystery.
 
 ------------------------------------------------------------------------
 

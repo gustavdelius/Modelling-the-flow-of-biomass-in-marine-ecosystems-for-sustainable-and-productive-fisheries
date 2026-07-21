@@ -1,0 +1,756 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.9.38">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="author" content="Samia">
+<meta name="dcterms.date" content="2026-07-20">
+<meta name="description" content="Finishes Day 30’s queued q sweep as a proper forward/backward bifurcation diagram plotting yield instead of biomass, introducing fishing to cod for the first time in this project, but at the corner actually tested (capacity_mult=1000, deep past where Day 30’s own broad scan already found oscillation fading) the result is completely flat, no branch separation anywhere. Swaps project() for projectToSteady() to stop guessing settling time altogether, catching two real bugs against mizer’s own documentation along the way. Extends the same machinery to alpha, cod’s own untested dominant lever by Day 25’s precedent, and a familiar plotSpectra2()-shaped ggplot error resurfaces mid-exploration, unresolved as of writing.">
+
+<title>Day 31: A Cleaner Sweep Method, a Flat q Curve, and an Old Plotting Bug Resurfaces – Modelling-the-flow-of-biomass</title>
+<style>
+/* Default styles provided by pandoc.
+** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+*/
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../">
+<script src="../site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="../site_libs/quarto-html/popper.min.js"></script>
+<script src="../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-15634bcf2e68342d4ad2dfa704d543f6.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../site_libs/bootstrap/bootstrap-9a9447a135e5b1c05e5522b7712596fa.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "navbar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "end",
+  "type": "overlay",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+
+
+<link rel="stylesheet" href="../styles.css">
+</head>
+
+<body class="nav-fixed quarto-light">
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+    <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container mx-auto">
+    <a class="navbar-brand" href="../index.html">
+    <span class="navbar-title">Modelling-the-flow-of-biomass</span>
+    </a>
+  </div>
+            <div id="quarto-search" class="" title="Search"></div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" role="menu" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll me-auto">
+  <li class="nav-item">
+    <a class="nav-link" href="../index.html"> 
+<span class="menu-text">Home</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../about.html"> 
+<span class="menu-text">About</span></a>
+  </li>  
+</ul>
+          </div> <!-- /navcollapse -->
+            <div class="quarto-navbar-tools">
+</div>
+      </div> <!-- /container-fluid -->
+    </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
+<!-- sidebar -->
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">On this page</h2>
+   
+  <ul>
+  <li><a href="#where-day-30-left-us" id="toc-where-day-30-left-us" class="nav-link active" data-scroll-target="#where-day-30-left-us">Where Day 30 Left Us</a></li>
+  <li><a href="#finishing-the-q-sweep-from-a-heatmap-grid-to-a-bifurcation-diagram" id="toc-finishing-the-q-sweep-from-a-heatmap-grid-to-a-bifurcation-diagram" class="nav-link" data-scroll-target="#finishing-the-q-sweep-from-a-heatmap-grid-to-a-bifurcation-diagram">Finishing the q Sweep: From a Heatmap Grid to a Bifurcation Diagram</a>
+  <ul class="collapse">
+  <li><a href="#the-result-completely-flat" id="toc-the-result-completely-flat" class="nav-link" data-scroll-target="#the-result-completely-flat">The result: completely flat</a></li>
+  </ul></li>
+  <li><a href="#a-new-lever-same-machinery-sweeping-alpha" id="toc-a-new-lever-same-machinery-sweeping-alpha" class="nav-link" data-scroll-target="#a-new-lever-same-machinery-sweeping-alpha">A New Lever, Same Machinery: Sweeping alpha</a></li>
+  <li><a href="#retiring-t_max-guesswork-project-for-projecttosteady" id="toc-retiring-t_max-guesswork-project-for-projecttosteady" class="nav-link" data-scroll-target="#retiring-t_max-guesswork-project-for-projecttosteady">Retiring t_max Guesswork: project() for projectToSteady()</a>
+  <ul class="collapse">
+  <li><a href="#two-real-bugs-caught-against-the-actual-documentation" id="toc-two-real-bugs-caught-against-the-actual-documentation" class="nav-link" data-scroll-target="#two-real-bugs-caught-against-the-actual-documentation">Two real bugs, caught against the actual documentation</a></li>
+  </ul></li>
+  <li><a href="#an-old-bug-resurfaces-plotspectra2" id="toc-an-old-bug-resurfaces-plotspectra2" class="nav-link" data-scroll-target="#an-old-bug-resurfaces-plotspectra2">An Old Bug Resurfaces: plotSpectra2()</a></li>
+  <li><a href="#the-summary-document" id="toc-the-summary-document" class="nav-link" data-scroll-target="#the-summary-document">The Summary Document</a></li>
+  <li><a href="#what-this-all-adds-up-to" id="toc-what-this-all-adds-up-to" class="nav-link" data-scroll-target="#what-this-all-adds-up-to">What This All Adds Up To</a></li>
+  <li><a href="#whats-next" id="toc-whats-next" class="nav-link" data-scroll-target="#whats-next">What’s Next</a></li>
+  </ul>
+</nav>
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title">Day 31: A Cleaner Sweep Method, a Flat q Curve, and an Old Plotting Bug Resurfaces</h1>
+  <div class="quarto-categories">
+    <div class="quarto-category">research</div>
+    <div class="quarto-category">mizer</div>
+    <div class="quarto-category">hopf-bifurcation</div>
+    <div class="quarto-category">cod</div>
+    <div class="quarto-category">bifurcation-diagram</div>
+    <div class="quarto-category">blog</div>
+  </div>
+  </div>
+
+<div>
+  <div class="description">
+    Finishes Day 30’s queued q sweep as a proper forward/backward bifurcation diagram plotting yield instead of biomass, introducing fishing to cod for the first time in this project, but at the corner actually tested (capacity_mult=1000, deep past where Day 30’s own broad scan already found oscillation fading) the result is completely flat, no branch separation anywhere. Swaps project() for projectToSteady() to stop guessing settling time altogether, catching two real bugs against mizer’s own documentation along the way. Extends the same machinery to alpha, cod’s own untested dominant lever by Day 25’s precedent, and a familiar plotSpectra2()-shaped ggplot error resurfaces mid-exploration, unresolved as of writing.
+  </div>
+</div>
+
+
+<div class="quarto-title-meta">
+
+    <div>
+    <div class="quarto-title-meta-heading">Author</div>
+    <div class="quarto-title-meta-contents">
+             <p>Samia </p>
+          </div>
+  </div>
+    
+    <div>
+    <div class="quarto-title-meta-heading">Published</div>
+    <div class="quarto-title-meta-contents">
+      <p class="date">July 20, 2026</p>
+    </div>
+  </div>
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<section id="where-day-30-left-us" class="level2">
+<h2 class="anchored" data-anchor-id="where-day-30-left-us">Where Day 30 Left Us</h2>
+<p>Day 30 closed with a short but pointed “What’s Next” list: finish the <code>q</code> sweep (left as methodology-only); understand the <code>capacity_mult &lt; 1</code> collapse boundary; get fishing mortality against yield actually running on cod, a thread carried unfinished since Day 29; and write up a summary document so the last month’s results aren’t scattered across thirty individual posts. Today closes the first, third, and last of those, opens a new one, and leaves an old, familiar bug sitting unresolved at the end.</p>
+<hr>
+</section>
+<section id="finishing-the-q-sweep-from-a-heatmap-grid-to-a-bifurcation-diagram" class="level2">
+<h2 class="anchored" data-anchor-id="finishing-the-q-sweep-from-a-heatmap-grid-to-a-bifurcation-diagram">Finishing the q Sweep: From a Heatmap Grid to a Bifurcation Diagram</h2>
+<p>Day 30’s <code>q</code> sweep was left as a grid of binary oscillating/settled verdicts ,the same shape as every perturbed-amplitude heatmap since Day 29, and it hadn’t even finished running. Rather than just letting that grid finish, today rebuilt it entirely as a classic forward/backward bifurcation diagram, the format every <code>resource_decrease</code>/<code>capacity_mult</code> sweep in this project has used since Day 18: sweep <code>q</code> itself forward then backward, carrying each step’s own converged state into the next, and plot max/min per step rather than a single stable/oscillating label per point.</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>native_cod_q <span class="ot">&lt;-</span> <span class="fu">unname</span>(cod_params<span class="sc">@</span>species_params<span class="sc">$</span>q[<span class="dv">1</span>])</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>build_cod_q_variant <span class="ot">&lt;-</span> <span class="cf">function</span>(q, resource_decrease, capacity_mult) {</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>  p <span class="ot">&lt;-</span> cod_params</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">given_species_params</span>(p)<span class="sc">$</span>q <span class="ot">&lt;-</span> q</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">resource_limitation_2d_cod</span>(p, resource_decrease, capacity_mult)</span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a><span class="co"># Centred on cod's own fitted value, +/- 0.3, stepped by 0.01 rather than</span></span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a><span class="co"># a coarse handful of points -- see the projectToSteady() section below</span></span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a><span class="co"># for why the step size itself changed today.</span></span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a>q_seq_bif <span class="ot">&lt;-</span> <span class="fu">seq</span>(native_cod_q <span class="sc">-</span> <span class="fl">0.3</span>, native_cod_q <span class="sc">+</span> <span class="fl">0.3</span>, <span class="at">by =</span> <span class="fl">0.01</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+</div>
+<p>The other change is what gets plotted. Every bifurcation diagram so far has tracked biomass, but biomass alone can’t say anything about the project’s actual stated goal – sustainable, <em>productive</em> fisheries – so today’s sweep tracks yield instead, via <code>getYield()</code>. Yield is identically zero at <code>effort = 0</code>, so this is also the first sweep in this project to actually fish cod rather than just watch it sit unfished, closing part of the “introduce fishing mortality against yield” thread Day 29 flagged and Day 30 carried forward.</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>bif_q_df <span class="ot">&lt;-</span> <span class="fu">run_bifurcation_sweep_cod</span>(</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>  q_seq_bif, <span class="st">"q"</span>,</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">fixed_params =</span> <span class="fu">list</span>(<span class="at">resource_decrease =</span> <span class="fl">1e-7</span>, <span class="at">capacity_mult =</span> <span class="dv">1000</span>),</span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">effort =</span> <span class="dv">1</span>,</span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">metric_fn =</span> <span class="cf">function</span>(sim) <span class="fu">rowSums</span>(<span class="fu">getYield</span>(sim))</span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+</div>
+<section id="the-result-completely-flat" class="level3">
+<h3 class="anchored" data-anchor-id="the-result-completely-flat">The result: completely flat</h3>
+<p><img src="../interesting_plots/day31_cod_q_yield_bifurcation.png" class="img-fluid"></p>
+<p>Forward and Backward sit exactly on top of each other across the whole <code>q</code> range, and the max and min branches never separate anywhere either. No oscillation, no hysteresis ,just a smooth, concave curve, yield rising from <code>q≈0.5</code>, peaking somewhere around <code>q≈0.65-0.7</code>, and falling off more steeply toward <code>q≈1.1</code> than it rose on the way up.</p>
+<p>That’s not actually a contradiction of Day 30’s own broad scan - it’s consistent with it. That scan found oscillation retreating as <code>capacity_mult</code> rose past cod’s native baseline: real at <code>capacity_mult=1</code> (<code>rel_amplitude=0.041</code>), down to <code>~2e-6</code> by <code>capacity_mult=10</code>, <code>~2e-5</code> by <code>100</code>. Today’s fixed point, <code>capacity_mult=1000</code>, pushes an order of magnitude further in exactly the direction that was already killing the effect. This was always the more speculative of two candidate corners for the <code>q</code> sweep, not the confirmed-oscillating one - <code>capacity_mult=1</code> is, and that’s exactly where this sweep should be re-pointed next (see What’s Next).</p>
+<hr>
+</section>
+</section>
+<section id="a-new-lever-same-machinery-sweeping-alpha" class="level2">
+<h2 class="anchored" data-anchor-id="a-new-lever-same-machinery-sweeping-alpha">A New Lever, Same Machinery: Sweeping alpha</h2>
+<p>Day 25 found that <code>alpha</code> (assimilation efficiency) was the single dominant lever for anchovy’s juvenile-pileup metric - a viability threshold spanning 27.5 orders of magnitude in catchable fraction, with anchovy’s own native <code>alpha</code> sitting right at the foot of that climb. That sweep was never carried over to cod, and never asked the oscillation question at all. Today reuses the exact same bifurcation-diagram machinery from the <code>q</code> sweep above, <code>run_bifurcation_sweep_cod()</code>, <code>plot_bifurcation_cod()</code>, with <code>alpha</code> as the swept parameter instead.</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>native_cod_alpha <span class="ot">&lt;-</span> <span class="fu">unname</span>(cod_params<span class="sc">@</span>species_params<span class="sc">$</span>alpha[<span class="dv">1</span>])</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>build_cod_alpha_variant <span class="ot">&lt;-</span> <span class="cf">function</span>(alpha, resource_decrease, capacity_mult) {</span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>  p <span class="ot">&lt;-</span> cod_params</span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">given_species_params</span>(p)<span class="sc">$</span>alpha <span class="ot">&lt;-</span> alpha</span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">resource_limitation_2d_cod</span>(p, resource_decrease, capacity_mult)</span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a><span class="co"># Proportional, not additive: alpha sits on a much smaller, strictly-</span></span>
+<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a><span class="co"># positive scale than q's own O(1) range, so q's +/- 0.3 bracket doesn't</span></span>
+<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a><span class="co"># translate directly -- half to 1.5x cod's own native value instead,</span></span>
+<span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a><span class="co"># still centred on the native value, same "bracket it" logic as every</span></span>
+<span id="cb3-13"><a href="#cb3-13" aria-hidden="true" tabindex="-1"></a><span class="co"># sweep since Day 25.</span></span>
+<span id="cb3-14"><a href="#cb3-14" aria-hidden="true" tabindex="-1"></a>alpha_seq_bif <span class="ot">&lt;-</span> native_cod_alpha <span class="sc">*</span> <span class="fu">exp</span>(<span class="fu">seq</span>(<span class="fu">log</span>(<span class="fl">0.5</span>), <span class="fu">log</span>(<span class="fl">1.5</span>), <span class="at">length.out =</span> <span class="dv">21</span>))</span>
+<span id="cb3-15"><a href="#cb3-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-16"><a href="#cb3-16" aria-hidden="true" tabindex="-1"></a>bif_alpha_df <span class="ot">&lt;-</span> <span class="fu">run_bifurcation_sweep_cod</span>(</span>
+<span id="cb3-17"><a href="#cb3-17" aria-hidden="true" tabindex="-1"></a>  alpha_seq_bif, <span class="st">"alpha"</span>,</span>
+<span id="cb3-18"><a href="#cb3-18" aria-hidden="true" tabindex="-1"></a>  <span class="at">fixed_params =</span> <span class="fu">list</span>(<span class="at">resource_decrease =</span> <span class="dv">1</span>, <span class="at">capacity_mult =</span> <span class="dv">1</span>),</span>
+<span id="cb3-19"><a href="#cb3-19" aria-hidden="true" tabindex="-1"></a>  <span class="at">params_fn =</span> build_cod_alpha_variant,</span>
+<span id="cb3-20"><a href="#cb3-20" aria-hidden="true" tabindex="-1"></a>  <span class="at">effort =</span> <span class="dv">1</span>,</span>
+<span id="cb3-21"><a href="#cb3-21" aria-hidden="true" tabindex="-1"></a>  <span class="at">metric_fn =</span> <span class="cf">function</span>(sim) <span class="fu">rowSums</span>(<span class="fu">getYield</span>(sim))</span>
+<span id="cb3-22"><a href="#cb3-22" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+</div>
+<p>This one is written, self-contained, and ready to run.It uses the same convention as Day 30’s own <code>q</code> grid at the point it was left unfinished. However the results aren’t in hand yet, so there’s no verdict to report here today.</p>
+<hr>
+</section>
+<section id="retiring-t_max-guesswork-project-for-projecttosteady" class="level2">
+<h2 class="anchored" data-anchor-id="retiring-t_max-guesswork-project-for-projecttosteady">Retiring t_max Guesswork: project() for projectToSteady()</h2>
+<p>Every bifurcation sweep in this project, from Day 18 through this morning’s first pass at the <code>q</code> sweep, has worked the same way: pick a <code>t_max</code>, run <code>project()</code> for that long, and hope it was enough. When that guess is wrong in one direction, a genuinely settled point gets read as still-transient; wrong in the other, and time is wasted running well past convergence. The fix that started this morning, carrying state between steps and giving only the first, genuinely cold-started point a longer run (800 years, versus 400 for everything after), was still a guess, just a smaller one.</p>
+<p><code>projectToSteady()</code> removes the guess itself. Instead of running for a fixed clock time, it projects forward in chunks and checks its own convergence tolerance between them, consecutive states agreeing to within <code>tol</code>, stopping the moment they do, rather than at a time picked in advance. <code>t_max</code> becomes a safety ceiling for a run that never converges at all, not a per-point settling estimate. That non-convergent case matters here specifically: a point that’s genuinely oscillating has no fixed point to settle onto, so <code>projectToSteady()</code> failing to converge on such a point isn’t a bug, it’s exactly the signal this whole exercise is looking for. It surfaces as a warning, not an error, and the trajectory it does return still shows a real, unsettled max/min spread.</p>
+<p>The narrower step size in <code>q_seq_bif</code> above (<code>by = 0.01</code> instead of a coarse handful of points) is the other half of this change: each <code>projectToSteady()</code> call starts from the previous step’s own converged state, so a small step keeps that starting guess close to the new answer - the same reason numerical continuation methods take small steps in the parameter being swept rather than large ones.</p>
+<section id="two-real-bugs-caught-against-the-actual-documentation" class="level3">
+<h3 class="anchored" data-anchor-id="two-real-bugs-caught-against-the-actual-documentation">Two real bugs, caught against the actual documentation</h3>
+<p>The first pass at this swap assumed a plausible-sounding API rather than checking it, and <a href="https://sizespectrum.org/mizer/reference/projectToSteady.html">the real mizer documentation</a> caught two mistakes before they could quietly corrupt the results:</p>
+<ul>
+<li><strong><code>method</code> defaults to <code>"euler"</code>.</strong> Every <code>project()</code> call in this project has used <code>"predictor-corrector"</code> since Day 6, specifically because Day 6 showed the default (Euler-family) integrator produces numerical ringing that can look exactly like a real oscillation. Leaving <code>projectToSteady()</code> at its own default would have silently reintroduced a six-day-old lesson. Fixed by passing <code>method = "predictor_corrector"</code> explicitly.</li>
+<li><strong><code>t_per</code> defaults to 1.5 years</strong>, controlling both how often convergence is checked and the spacing of points in the returned trajectory. Left at default, any real oscillation with a period under about a year and a half would be badly undersampled, and the late-window max/min this sweep depends on would be unreliable. Set to <code>0.2</code>, matching the <code>t_save</code> this project’s own <code>project()</code> calls have used throughout.</li>
+</ul>
+<p>Neither of these would have thrown an error. Both would have run to completion and produced a plausible-looking, quietly wrong plot,which is exactly the kind of mistake that’s cheap to catch against real documentation and expensive to catch any other way.</p>
+<hr>
+</section>
+</section>
+<section id="an-old-bug-resurfaces-plotspectra2" class="level2">
+<h2 class="anchored" data-anchor-id="an-old-bug-resurfaces-plotspectra2">An Old Bug Resurfaces: plotSpectra2()</h2>
+<p>While comparing steady states at different <code>q</code> values interactively, <code>geom_line()</code> errored out with:</p>
+<pre><code>Error in `geom_line()`:
+! Problem while computing aesthetics.
+Caused by error:
+! Aesthetics are not valid data columns.
+✖ The following aesthetics are invalid:
+• `y = value`</code></pre>
+<p>This isn’t new. Day 19’s own script already carries a note that both <code>plotSpectra()</code> and <code>plotSpectra2()</code> “hit internal errors with this mizer version,” worked around at the time by building the spectrum manually from <code>sim@n[last, 1, ] * sim@params@w</code> instead of trusting either plotting function. Today’s occurrence is the same shape of failure, months later, on different objects (<code>MizerParams</code> from <code>projectToSteady()</code> rather than a <code>MizerSim</code>), which is worth treating as more evidence the bug lives in the plotting function’s own internals rather than in whatever happens to be passed to it.</p>
+<hr>
+</section>
+<section id="the-summary-document" class="level2">
+<h2 class="anchored" data-anchor-id="the-summary-document">The Summary Document</h2>
+<p>Day 30’s last “What’s Next” item is done: a <a href="../posts/2026-07-20-summary.html">summary post</a> now exists, read back over every day-by-day post from Day One through Day 30 and organised by the arc of the investigation, consisting of five acts, from the original traffic-jam analogy through the hysteresis debugging saga to the real cod model, rather than by date, plus a section pulling together the methodological lessons that recurred across multiple days under different names.</p>
+<hr>
+</section>
+<section id="what-this-all-adds-up-to" class="level2">
+<h2 class="anchored" data-anchor-id="what-this-all-adds-up-to">What This All Adds Up To</h2>
+<p>Today was more about method than result. The <code>q</code> sweep is finished in the sense that Day 30 asked for, a proper bifurcation diagram, plotting yield, with fishing actually switched on, but the specific corner it was run at came back flat, for reasons that fit the existing picture rather than expanding it. The more durable change is underneath: <code>projectToSteady()</code> replaces a settling-time guess with mizer’s own convergence check, the same machinery now also drives a brand-new <code>alpha</code> sweep, and two real correctness bugs got caught against actual documentation before they could produce a confidently wrong plot. The one open thread from today, rather than from Day 30, is the <code>plotSpectra2()</code> error - familiar, unresolved, and now flagged as connected to a months-old note rather than a fresh mystery.</p>
+<hr>
+</section>
+<section id="whats-next" class="level2">
+<h2 class="anchored" data-anchor-id="whats-next">What’s Next</h2>
+<ul>
+<li><strong>Point the <code>q</code> (and <code>alpha</code>) sweep at the corner that actually oscillates.</strong> <code>capacity_mult=1000</code> was always the speculative choice; <code>resource_decrease≈1e-7, capacity_mult=1</code> is the one point in cod’s parameter space with a confirmed real oscillation (Day 30, <code>rel_amplitude=0.041</code>), and neither sweep has been run there yet.</li>
+<li><strong>Run the <code>alpha</code> sweep to completion</strong> and report an actual verdict, not just the methodology.</li>
+<li><strong>Pin down and file the <code>plotSpectra2()</code> bug properly</strong>, once the exact reproducing call is cleaned up and confirmed.</li>
+<li><strong>Try out balance=TRUE</strong> to see whether varying resource against that causes oscillations</li>
+<li><strong>Install new branch of Mizer.</strong></li>
+</ul>
+
+
+</section>
+
+</main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp('/' + window.location.host + '/');
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+</div> <!-- /content -->
+
+
+
+
+</body></html>
