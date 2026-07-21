@@ -1,5 +1,5 @@
 ---
-title: "Day 32: Testing the Corner That Actually Oscillates -- Still No Limit Cycle, But a Threshold That Breaks"
+title: "Day 32: Testing the Corner That Actually Oscillates - Still No Limit Cycle, But a Threshold That Breaks"
 author: "Samia"
 date: "2026-07-21"
 draft: true

@@ -6,8 +6,7 @@ library(scales)
 
 dir.create("interesting_plots", showWarnings = FALSE)
 
-# Windows MAX_PATH (260 chars) truncation guard -- unchanged since
-# 29_experiments.R.
+# Windows MAX_PATH truncation guard.
 save_plot <- function(plot, filename, width = 8, height = 6, dpi = 150) {
   max_name <- 40
   if (nchar(filename) > max_name) {
@@ -20,49 +19,14 @@ save_plot <- function(plot, filename, width = 8, height = 6, dpi = 150) {
          width = width, height = height, dpi = dpi)
 }
 
-################################################################################
-# Day 32: two fixes to Day 31's q and alpha bifurcation sweeps.
-#
-# 1. Both sweeps went through the generic run_bifurcation_sweep_cod(
-#    param_seq, param_name, params_fn = ...) dispatcher -- one step removed
-#    from how the sweep loop actually reads on the page, since that
-#    dispatcher was generalised FROM a q-specific loop in the first place
-#    (Day 23's Follow-up 5). Both are rewritten here as direct,
-#    un-indirected projectToSteady() loops hardcoded to the parameter being
-#    swept -- no param_name string, no params_fn argument, no fixed_params
-#    list. The projectToSteady() call itself (method, t_per, tryCatch
-#    convention) is unchanged from Day 31, since that part was already
-#    right.
-#
-# 2. Neither sweep had actually been run at the corner Day 30's own broad
-#    scan found genuinely oscillating (resource_decrease~=1e-7,
-#    capacity_mult=1, rel_amplitude=0.041) -- both sat instead at
-#    resource_decrease=1, capacity_mult=1, the corner every sweep so far
-#    has found flat. Both are re-pointed at the oscillating corner here.
-#
-# 3. A third sweep (Section 3) tries a different lever entirely:
-#    resource_rate on its own, with balance=TRUE so resource_capacity is
-#    derived implicitly from it rather than set independently the way
-#    resource_limitation_2d_cod() sets both. Sections 1 and 2 both held
-#    the resource state fixed and varied a species trait instead; this
-#    asks whether letting resource_rate and resource_capacity move
-#    together, rather than independently, is itself what surfaces an
-#    oscillation the other two didn't find.
-#
-# 4. Section 3's own sweep never actually perturbs the system -- it's
-#    either a cold start or a warm start carried from the adjacent point,
-#    and projectToSteady() exits the moment its own convergence tolerance
-#    is satisfied. Section 4 tests whether that tolerance is too generous
-#    -- too quick to call a still-oscillating point "converged" -- by
-#    rerunning the forward sweep two ways, projectToSteady() vs a
-#    no-early-exit project() (t_first=800 cold start, t_rest=100 per
-#    warm-started step), and comparing the full yield time series rather
-#    than each point's collapsed late-window max/min.
-################################################################################
+# Day 32: direct projectToSteady() sweeps for alpha/q (Sections 1-2), a
+# resource_rate sweep with capacity fixed via a one-time balance=TRUE
+# baseline (Section 3), a project()-vs-projectToSteady early-exit check
+# (Section 4), an intensified kick test (Section 5), and an n sweep with
+# a resource-spectrum sanity check (Section 6).
 
 ################################################################################
-# Section 0: rebuild cod + shared helpers (self-contained convention, same
-# as every script since Day 20 -- redefined here rather than sourced).
+# Section 0: rebuild cod + shared helpers (self-contained, not sourced).
 ################################################################################
 
 # Read-only: cod_params.rds is never written back to.
@@ -75,22 +39,13 @@ resource_limitation_2d_cod <- function(params, resource_decrease, capacity_mult)
 }
 
 ################################################################################
-# Section 1: alpha bifurcation, rewritten as a direct projectToSteady() loop
-#
-# alpha is mizer's assimilation efficiency (the fraction of consumed energy
-# that's actually assimilated, before growth/reproduction allocation) --
-# see Day 31 Section 1b for the full background on why alpha specifically.
+# Section 1: alpha bifurcation
 ################################################################################
 
 native_cod_alpha <- unname(cod_params@species_params$alpha[1])
 cat(sprintf("cod_params.rds's own native alpha (assimilation efficiency): %.4g\n", native_cod_alpha))
 
-# Same propagation caution as every given_species_params() write in this
-# project (unresolved silent no-ops before, e.g. D_ext/capacity_mult) --
-# confirmed directly rather than assumed. getEGrowth() is alpha's own
-# natural analogue of getEncounter(): energy available for growth is
-# alpha * encounter, net of metabolic costs, so it has to move if alpha
-# actually propagated.
+# Propagation check before trusting the sweep.
 alpha_probe_base <- cod_params
 alpha_probe_low  <- cod_params
 given_species_params(alpha_probe_low)$alpha <- native_cod_alpha * 0.5
@@ -107,26 +62,15 @@ if (!egrowth_changed) {
   ))
 }
 
-# alpha applied straight to the real cod_params object -- same pattern as
-# Day 31's build_cod_q_variant()/build_cod_alpha_variant().
 build_cod_alpha_variant <- function(alpha, resource_decrease, capacity_mult) {
   p <- cod_params
   given_species_params(p)$alpha <- alpha
   resource_limitation_2d_cod(p, resource_decrease, capacity_mult)
 }
 
-# Direct port of Day 31 Section 1's sweep loop (itself Day 23's Follow-up 5
-# generalised, un-generalised back down) -- hardcoded to alpha instead of
-# routed through run_bifurcation_sweep_cod()'s param_name/params_fn
-# indirection. Every setting below is unchanged from Day 31: method is
-# explicit ("predictor_corrector", not projectToSteady()'s own "euler"
-# default -- Day 6 showed euler produces numerical ringing that can
-# masquerade as a real oscillation), t_per is explicit (0.2, matching this
-# project's t_save elsewhere, not the 1.5-year default that would
-# undersample a real oscillation), and tryCatch records a crash as an
-# NA/error point rather than taking down the whole sweep (Day 17's
-# steady()/projectToSteady() crash under an earlier mizer build, not
-# independently re-confirmed fixed since PR #452).
+# method="predictor_corrector" avoids euler's numerical ringing (Day 6);
+# t_per=0.2 avoids undersampling a real oscillation; tryCatch records a
+# crash as an NA point rather than killing the whole sweep.
 run_bifurcation_sweep_alpha <- function(alpha_seq, resource_decrease, capacity_mult,
                                         t_max = 2000, effort = 1,
                                         metric_fn = function(sim) rowSums(getYield(sim))) {
@@ -148,10 +92,7 @@ run_bifurcation_sweep_alpha <- function(alpha_seq, resource_decrease, capacity_m
                                 return_sim = TRUE, progress_bar = FALSE)
         mv   <- metric_fn(sim)
         tv   <- as.numeric(names(mv))
-        # Late window, not the whole returned trajectory -- guards against
-        # a leading transient in the very first chunk; projectToSteady()
-        # has already made the "has it settled" call itself (via `tol`)
-        # before this window is even taken.
+        # Late window only, guards against the leading transient.
         late <- mv[tv > max(tv) * 0.6]
         last <- dim(sim@n)[1]
         list(max_metric = max(late), min_metric = min(late),
@@ -189,29 +130,16 @@ plot_bifurcation_alpha <- function(df, x_label, y_label, title, subtitle = NULL)
   ggplot(df, aes(x = value, y = metric, color = direction, linetype = branch)) +
     geom_line(linewidth = 1) +
     geom_point(size = 1.2) +
-    scale_x_log10() +
-    scale_y_log10() +
     labs(x = x_label, y = y_label, title = title, subtitle = subtitle) +
     theme_minimal()
 }
 
-# Fixed absolute bracket, log-spaced (0.05 to 0.9) rather than Day 31's
-# proportional 0.5x-1.5x-native bracket -- still log-spaced since alpha is
-# strictly positive (an additive bracket, q's own +/-0.3, risks pushing it
-# negative or barely moving it), but the bounds themselves are now explicit
-# rather than centred on cod's native alpha (0.6), giving a wider low-end
-# range down to near-zero assimilation efficiency.
+# Log-spaced, 0.005 to 1 -- alpha is strictly positive.
 alpha_seq_bif <- exp(seq(log(0.005), log(1), length.out = 84))
-# Re-pointed at the corner that actually oscillates, not the flat one --
-# resource_decrease=1, capacity_mult=1 (used by Day 31's q sweep, and by
-# this file's own first alpha run) was always the boring corner; Day 30's
-# own broad scan found a confirmed real oscillation (rel_amplitude=0.041)
-# at resource_decrease~=1e-7, capacity_mult=1 -- extreme resource
-# starvation at cod's native carrying capacity -- and neither the q nor
-# the alpha sweep had actually been run there until now.
+
 bif_alpha_df <- run_bifurcation_sweep_alpha(
   alpha_seq_bif,
-  resource_decrease = 1e-7, capacity_mult = 1,
+  resource_decrease = 1, capacity_mult = 1,
   effort = 1,
   metric_fn = function(sim) rowSums(getYield(sim))
 )
@@ -223,12 +151,7 @@ bif_alpha_plot <- plot_bifurcation_alpha(
   bif_alpha_df, "alpha (assimilation efficiency)", "Yield",
   "Cod bifurcation diagram: yield vs. assimilation efficiency alpha, swept forward and backward",
   sprintf(
-    # Stated directly, not "same fixed point as Day 31's q sweep" -- it
-    # deliberately isn't anymore. Day 31's q sweep (and this file's own
-    # first run) sat at resource_decrease=1, capacity_mult=1, the corner
-    # every sweep so far has found flat; this run is at Day 30's own
-    # confirmed-oscillating corner instead.
-    "resource_decrease=1e-7, capacity_mult=1, effort=1 fixed (Day 30's confirmed-oscillating corner, rel_amplitude=0.041) -- native alpha=%.3g; both axes log-scaled; branches collapsing onto one curve = fixed point, fanning apart = limit cycle",
+    "resource_decrease=1, capacity_mult=1, effort=1 fixed -- native alpha=%.3g; branches collapsing onto one curve = fixed point, fanning apart = limit cycle",
     native_cod_alpha
   )
 )
@@ -236,11 +159,7 @@ bif_alpha_plot
 
 save_plot(bif_alpha_plot, "day32_cod_alpha_yield_bifurcation.png", width = 9, height = 6)
 
-# Same verdict logic as Day 31's bif_q_check/bif_alpha_check: is the max/min
-# spread big enough to call a limit cycle (1e-6 relative-amplitude
-# threshold, same as every sweep in this project), and do the
-# forward/backward branches disagree (hysteresis) rather than retrace each
-# other.
+# 1e-6 relative-amplitude threshold; hysteresis = forward/backward disagreement.
 bif_alpha_check <- bif_alpha_df %>%
   tidyr::pivot_wider(names_from = c(direction, branch), values_from = metric) %>%
   mutate(
@@ -255,7 +174,7 @@ max_hysteresis_alpha <- bif_alpha_check$value[which.max(bif_alpha_check$hysteres
 
 alpha_verdict <- if (n_oscillating_alpha == 0) {
   sprintf(
-    "flat -- 0/%d alpha values cross the 1e-6 relative-amplitude threshold at (resource_decrease=1e-7, capacity_mult=1, Day 30's confirmed-oscillating corner); no forward/backward branch separation either (largest hysteresis gap at alpha=%.4g, still negligible)",
+    "flat -- 0/%d alpha values cross the 1e-6 relative-amplitude threshold at (resource_decrease=1, capacity_mult=1); no forward/backward branch separation either (largest hysteresis gap at alpha=%.4g, still negligible)",
     nrow(bif_alpha_check), max_hysteresis_alpha
   )
 } else {
@@ -267,27 +186,14 @@ alpha_verdict <- if (n_oscillating_alpha == 0) {
 cat(sprintf("\nSection 1 verdict: %s.\n", alpha_verdict))
 
 ################################################################################
-# Section 2: q bifurcation, same direct-loop rewrite as Section 1's alpha
-# sweep, re-pointed at the same confirmed-oscillating corner
-#
-# Day 31's q sweep never actually tested the corner Day 30's own broad scan
-# found genuinely oscillating -- it ran at resource_decrease=1,
-# capacity_mult=1 (the corner every sweep so far, q and alpha both, has
-# found flat) instead of resource_decrease~=1e-7, capacity_mult=1
-# (rel_amplitude=0.041). This section is q's own half of that fix,
-# written the same direct, un-indirected way Section 1 rewrote alpha's --
-# no run_bifurcation_sweep_cod() dispatcher, no param_name/params_fn
-# indirection, build_cod_q_variant() called explicitly inside the loop.
+# Section 2: q bifurcation, same direct-loop shape as Section 1
 ################################################################################
 
 native_cod_q <- unname(cod_params@species_params$q[1])
 cat(sprintf("cod_params.rds's own native q (search-volume exponent): %.4g\n", native_cod_q))
 
-# Same propagation caution as Section 1's alpha check, adapted to q: q
-# feeds into SearchVolume = gamma * w^q, which mizer may cache at
-# construction time rather than recompute live, so this is confirmed
-# directly (via search_vol/getEncounter()) rather than assumed -- the same
-# check Day 31 ran before trusting its own q sweep.
+# q feeds SearchVolume = gamma * w^q, which mizer may cache -- confirmed
+# directly rather than assumed.
 q_probe_base <- cod_params
 q_probe_low  <- cod_params
 given_species_params(q_probe_low)$q <- native_cod_q - 0.3
@@ -307,16 +213,12 @@ if (!search_vol_changed && !encounter_changed) {
   ))
 }
 
-# q applied straight to the real cod_params object -- same pattern as
-# Section 1's build_cod_alpha_variant().
 build_cod_q_variant <- function(q, resource_decrease, capacity_mult) {
   p <- cod_params
   given_species_params(p)$q <- q
   resource_limitation_2d_cod(p, resource_decrease, capacity_mult)
 }
 
-# Direct port of Section 1's run_bifurcation_sweep_alpha(), hardcoded to q
-# instead -- same method/t_per/tryCatch conventions, unchanged from Day 31.
 run_bifurcation_sweep_q <- function(q_seq, resource_decrease, capacity_mult,
                                     t_max = 2000, effort = 1,
                                     metric_fn = function(sim) rowSums(getYield(sim))) {
@@ -371,10 +273,7 @@ run_bifurcation_sweep_q <- function(q_seq, resource_decrease, capacity_mult,
   )
 }
 
-# Linear axes, not log -- unlike alpha's bracket, q's own +/- 0.3 additive
-# bracket around its native O(1) value never spans more than about a unit,
-# so there's no order-of-magnitude range for a log scale to usefully
-# compress the way there was for alpha's 0.005-1 sweep.
+# Linear axes -- q's +/-0.3 bracket doesn't span orders of magnitude.
 plot_bifurcation_q <- function(df, x_label, y_label, title, subtitle = NULL) {
   ggplot(df, aes(x = value, y = metric, color = direction, linetype = branch)) +
     geom_line(linewidth = 1) +
@@ -383,16 +282,11 @@ plot_bifurcation_q <- function(df, x_label, y_label, title, subtitle = NULL) {
     theme_minimal()
 }
 
-# Same bracket as Day 31: centred on cod's own fitted value, +/- 0.3,
-# stepped by 0.01 -- unchanged here since today's fix is about the fixed
-# point (resource_decrease/capacity_mult), not the swept range itself.
 q_seq_bif <- seq(native_cod_q - 0.3, native_cod_q + 0.3, by = 0.01)
 
-# Re-pointed at the corner that actually oscillates -- see the header note
-# above and Section 1's identical fix for alpha.
 bif_q_df <- run_bifurcation_sweep_q(
   q_seq_bif,
-  resource_decrease = 1e-7, capacity_mult = 1,
+  resource_decrease = 1, capacity_mult = 1,
   effort = 1,
   metric_fn = function(sim) rowSums(getYield(sim))
 )
@@ -404,7 +298,7 @@ bif_q_plot <- plot_bifurcation_q(
   bif_q_df, "q (search-volume exponent)", "Yield",
   "Cod bifurcation diagram: yield vs. search-volume exponent q, swept forward and backward",
   sprintf(
-    "resource_decrease=1e-7, capacity_mult=1, effort=1 fixed (Day 30's confirmed-oscillating corner, rel_amplitude=0.041) -- native q=%.3g; branches collapsing onto one curve = fixed point, fanning apart = limit cycle",
+    "resource_decrease=1, capacity_mult=1, effort=1 fixed -- native q=%.3g; branches collapsing onto one curve = fixed point, fanning apart = limit cycle",
     native_cod_q
   )
 )
@@ -412,7 +306,6 @@ bif_q_plot
 
 save_plot(bif_q_plot, "day32_cod_q_yield_bifurcation.png", width = 9, height = 6)
 
-# Same verdict logic as Section 1's bif_alpha_check, applied to q instead.
 bif_q_check <- bif_q_df %>%
   tidyr::pivot_wider(names_from = c(direction, branch), values_from = metric) %>%
   mutate(
@@ -427,7 +320,7 @@ max_hysteresis_q <- bif_q_check$value[which.max(bif_q_check$hysteresis_gap)]
 
 q_verdict <- if (n_oscillating_q == 0) {
   sprintf(
-    "flat -- 0/%d q values cross the 1e-6 relative-amplitude threshold at (resource_decrease=1e-7, capacity_mult=1, Day 30's confirmed-oscillating corner); no forward/backward branch separation either (largest hysteresis gap at q=%.3g, still negligible)",
+    "flat -- 0/%d q values cross the 1e-6 relative-amplitude threshold at (resource_decrease=1, capacity_mult=1); no forward/backward branch separation either (largest hysteresis gap at q=%.3g, still negligible)",
     nrow(bif_q_check), max_hysteresis_q
   )
 } else {
@@ -439,62 +332,48 @@ q_verdict <- if (n_oscillating_q == 0) {
 cat(sprintf("\nSection 2 verdict: %s.\n", q_verdict))
 
 ################################################################################
-# Section 3: resource_rate bifurcation with balance=TRUE
+# Section 3: resource_rate bifurcation, capacity fixed via a one-time
+# balance=TRUE baseline
 #
-# Sections 1 and 2 both varied a species-level trait (alpha, q) at a fixed
-# resource state, reached by scaling resource_rate and resource_capacity
-# independently with balance=FALSE (resource_limitation_2d_cod() -- the two
-# move separately, capacity_mult never touching rate and vice versa). This
-# section asks a different question: what if resource_capacity is never
-# set directly at all, but left for mizer to derive from resource_rate via
-# setResource(..., balance = TRUE) -- does letting the two move together,
-# rather than independently, surface an oscillation neither Section 1 nor
-# Section 2 (nor Day 31's identically-shaped sweeps) found?
-#
-# Same forward/backward bifurcation-diagram machinery as Sections 1 and 2,
-# same projectToSteady() settings (method, t_per, tryCatch convention) --
-# only the parameter build function changes.
+# Re-deriving balance=TRUE fresh at every sweep point (the first version
+# of this section) self-cancelled: it always balanced against the same
+# fixed native community demand, so capacity grew to compensate as
+# resource_rate_mult shrank, holding cod's food supply ~constant across
+# the whole sweep. Fixed by deriving capacity once, against cod's native
+# rate, then holding it fixed (balance=FALSE) while resource_rate_mult
+# is actually swept.
 ################################################################################
 
-# Only resource_rate is reassigned -- no resource_capacity argument passed
-# to setResource() at all, balance = TRUE is what lets mizer derive it
-# implicitly rather than this function choosing it.
+native_balanced_params   <- setResource(cod_params, resource_rate = getResourceRate(cod_params), balance = TRUE)
+native_balanced_capacity <- getResourceCapacity(native_balanced_params)
+
 resource_limitation_balance_cod <- function(params, resource_rate_mult) {
   new_rate <- getResourceRate(params) * resource_rate_mult
-  setResource(params, resource_rate = new_rate, balance = TRUE)
+  setResource(params, resource_rate = new_rate,
+             resource_capacity = native_balanced_capacity, balance = FALSE)
 }
 
-# Same propagation caution as Sections 1 and 2's checks, adapted here: the
-# entire premise of this section is that resource_capacity moves as a
-# side-effect of resource_rate under balance = TRUE, so both getResourceRate()
-# and getResourceCapacity() have to change, or there's nothing to sweep.
 resource_rate_probe_base <- cod_params
 resource_rate_probe_low  <- resource_limitation_balance_cod(cod_params, 0.5)
 
-resource_rate_changed     <- !isTRUE(all.equal(getResourceRate(resource_rate_probe_base),
-                                               getResourceRate(resource_rate_probe_low)))
-resource_capacity_changed <- !isTRUE(all.equal(getResourceCapacity(resource_rate_probe_base),
-                                               getResourceCapacity(resource_rate_probe_low)))
+resource_rate_changed <- !isTRUE(all.equal(getResourceRate(resource_rate_probe_base),
+                                           getResourceRate(resource_rate_probe_low)))
 
-cat(sprintf("resource_rate (balance=TRUE) propagation check: resource_rate changed = %s, resource_capacity changed = %s.\n",
-           resource_rate_changed, resource_capacity_changed))
-if (!resource_rate_changed || !resource_capacity_changed) {
+cat(sprintf("resource_rate propagation check: resource_rate changed = %s (resource_capacity fixed at %.4g by design).\n",
+           resource_rate_changed, native_balanced_capacity[1]))
+if (!resource_rate_changed) {
   stop(paste(
-    "setResource(params, resource_rate = ..., balance = TRUE) is NOT moving",
-    "both resource_rate and resource_capacity -- either balance = TRUE isn't",
-    "deriving capacity the way this section assumes, or resource_rate itself",
-    "isn't propagating. Stopping before wasting the run."
+    "given/setResource()'s resource_rate <- value does NOT change",
+    "getResourceRate() -- resource_rate is being cached or ignored",
+    "somewhere upstream, so the sweep below would silently sweep nothing.",
+    "Stopping before wasting the run."
   ))
 }
 
-# resource_rate_mult applied straight to the real cod_params object -- same
-# pattern as Sections 1 and 2's build_cod_alpha_variant()/build_cod_q_variant(),
-# just a single argument here since there's no separate capacity_mult to pass.
 build_cod_resource_rate_variant <- function(resource_rate_mult) {
   resource_limitation_balance_cod(cod_params, resource_rate_mult)
 }
 
-# Direct port of Sections 1 and 2's sweep loops, hardcoded to resource_rate_mult.
 run_bifurcation_sweep_resource_rate <- function(resource_rate_seq, t_max = 2000, effort = 1,
                                                 metric_fn = function(sim) rowSums(getYield(sim))) {
   run_one_direction <- function(seq_vals, init_n = NULL, init_n_pp = NULL) {
@@ -548,9 +427,7 @@ run_bifurcation_sweep_resource_rate <- function(resource_rate_seq, t_max = 2000,
   )
 }
 
-# Log-scaled, both axes -- the swept range spans seven orders of magnitude
-# in resource_rate_mult (1e-7 to 1), the same reason Section 1's widened
-# alpha bracket got log axes rather than linear ones.
+# Log-scaled -- range spans seven orders of magnitude.
 plot_bifurcation_resource_rate <- function(df, x_label, y_label, title, subtitle = NULL) {
   ggplot(df, aes(x = value, y = metric, color = direction, linetype = branch)) +
     geom_line(linewidth = 1) +
@@ -560,11 +437,7 @@ plot_bifurcation_resource_rate <- function(df, x_label, y_label, title, subtitle
     labs(x = x_label, y = y_label, title = title, subtitle = subtitle) +
     theme_minimal()
 }
-# 1e-7 to 1, log-spaced, ~100 points -- 1e-7 is the same extreme-starvation
-# multiplier Sections 1 and 2 tested, 1 is cod's own native resource_rate
-# (no change at all), so this brackets the entire range from native down
-# to the most extreme starvation tested so far, rather than bracketing a
-# native value the way alpha/q's own brackets did.
+
 resource_rate_seq_bif <- exp(seq(log(1e-7), log(1), length.out = 100))
 
 bif_resource_rate_df <- run_bifurcation_sweep_resource_rate(
@@ -579,18 +452,12 @@ write.csv(bif_resource_rate_df, file.path("interesting_plots", "day32_cod_resour
 bif_resource_rate_plot <- plot_bifurcation_resource_rate(
   bif_resource_rate_df, "resource_rate multiplier (native = 1)", "Yield",
   "Cod bifurcation diagram: yield vs. resource_rate multiplier, balance=TRUE, swept forward and backward",
-  "effort=1 fixed; resource_capacity derived implicitly from resource_rate via setResource(balance=TRUE), not set independently; both axes log-scaled; branches collapsing onto one curve = fixed point, fanning apart = limit cycle"
+  "effort=1 fixed; resource_capacity fixed at cod's own native balance=TRUE baseline, only resource_rate actually swept; both axes log-scaled; branches collapsing onto one curve = fixed point, fanning apart = limit cycle"
 )
 bif_resource_rate_plot
 
 save_plot(bif_resource_rate_plot, "day32_cod_resource_rate_bif.png", width = 9, height = 6)
 
-# Same verdict logic as Sections 1 and 2's bif_alpha_check/bif_q_check,
-# applied to resource_rate_mult instead. Same caveat those sections' own
-# results surfaced today applies here too: the 1e-6 relative-amplitude
-# threshold is only trustworthy at yield scales comparable to where it was
-# first calibrated -- read the printed verdict alongside the plot itself,
-# not instead of it.
 bif_resource_rate_check <- bif_resource_rate_df %>%
   tidyr::pivot_wider(names_from = c(direction, branch), values_from = metric) %>%
   mutate(
@@ -617,36 +484,14 @@ resource_rate_verdict <- if (n_oscillating_resource_rate == 0) {
 cat(sprintf("\nSection 3 verdict: %s.\n", resource_rate_verdict))
 
 ################################################################################
-# Section 4: does projectToSteady() exit too early? project() vs
-# projectToSteady(), as a continuous time series across the whole sweep
+# Section 4: does projectToSteady() exit too early?
 #
-# Section 3's bifurcation diagram never actually perturbs the system --
-# every point after the first is a warm start carried over from its
-# adjacent neighbour, and projectToSteady() exits the moment ITS OWN
-# convergence tolerance is satisfied. If that tolerance is too generous --
-# declaring "converged" while the population is still slowly oscillating
-# -- every point in Section 3 would read as a fixed point even where a
-# genuine, slower limit cycle exists underneath, regardless of which
-# corner the sweep is re-pointed at.
-#
-# This reruns the forward direction of Section 3's own sweep two ways,
-# tracking the full yield trajectory -- not just each point's late-window
-# max/min -- as one continuous time series across the whole run:
-#
-#   1. projectToSteady() -- exactly as Section 3 uses it (method =
-#      "predictor_corrector", t_per = 0.2, t_max = 2000 as a safety
-#      ceiling) -- exits each point the moment its own convergence check
-#      is satisfied.
-#   2. project() directly, with no early exit at all -- t_first = 800
-#      years for the first, cold-started point (the same long cold-start
-#      budget earlier sweeps in this project gave a fresh start), t_rest
-#      = 100 years for every subsequent, warm-started point.
-#
-# Only the forward direction is run here, not forward+backward -- this is
-# a targeted test of the early-exit hypothesis, not a second full
-# bifurcation diagram, and forward alone already starts at
-# resource_rate_mult=1e-7, the single most extreme, most diagnostic point
-# in Section 3's own range.
+# Reruns Section 3's forward sweep two ways, tracking the full yield
+# trajectory (not just each point's late-window max/min) as one
+# continuous time series: projectToSteady() as Section 3 uses it, vs.
+# project() with no early exit (t_first=800 cold start, t_rest=100 per
+# warm-started point). Forward only, starting at resource_rate_mult=1e-7,
+# the most diagnostic point in Section 3's range.
 ################################################################################
 
 run_timeseries_resource_rate_steady <- function(resource_rate_seq, t_max = 2000, effort = 1,
@@ -742,7 +587,378 @@ cat(sprintf(
 ))
 
 ################################################################################
-# Section 5: summary -- programmatic readout, not asserted conclusions.
+# Section 5: a more extreme kick than Day 30's original
+#
+# Day 30's make_limit_cycle_sim() (rel_amplitude=0.041 at this corner):
+# resource dropped to 10% of capacity, run 10 years, then a slice of the
+# consumer spectrum (w in [10,100]) cut 1000-fold, run forward. Here the
+# slice spans the entire mature range instead, cut 1e7-fold. Run at
+# resource_rate_mult=1e-3, not the 1e-7 extreme Sections 3-4 use -- 1e-7
+# combined with this section's own cut leaves nothing to recover from and
+# just goes extinct. effort=0/biomass (not effort=1/yield), matching Day
+# 30's own convention -- this is a population-dynamics question, not a
+# fished-yield one.
+################################################################################
+
+make_extreme_kick_sim <- function(params, t_total = 2000, effort = 0) {
+  params@initial_n_pp[] <- params@cc_pp * 0.1
+
+  sim_init <- project(params, t_max = 10, dt = 0.1, t_save = 0.2,
+                      progress_bar = FALSE, effort = 0,
+                      method = "predictor_corrector")
+
+  w_mat <- params@species_params$w_mat[1]
+  idx   <- params@w >= w_mat & params@w <= max(params@w)
+  last  <- dim(sim_init@n)[1]
+  sim_init@n[last, , idx] <- sim_init@n[last, , idx] / 1e7
+
+  # projectToSteady() here, not project() -- exits early if it settles,
+  # still runs to t_max as a safety ceiling if it doesn't.
+  params@initial_n[]    <- sim_init@n[last, , ]
+  params@initial_n_pp[] <- sim_init@n_pp[last, ]
+
+  projectToSteady(params, t_max = t_total - 10, t_per = 0.2,
+                  method = "predictor_corrector", effort = effort,
+                  return_sim = TRUE, progress_bar = FALSE)
+}
+
+p_kick_probe <- build_cod_resource_rate_variant(1e-3)
+sim_extreme_kick <- make_extreme_kick_sim(p_kick_probe, t_total = 2000, effort = 0)
+
+biomass_kick <- rowSums(getBiomass(sim_extreme_kick))
+time_kick    <- as.numeric(names(biomass_kick))
+late_kick    <- biomass_kick[time_kick >= max(time_kick) * 0.6]
+rel_amplitude_kick <- (max(late_kick) - min(late_kick)) / mean(late_kick)
+kick_verdict <- if (rel_amplitude_kick > 1e-6) "oscillating" else "settled"
+
+cat(sprintf(
+  "\nSection 5: extreme kick (entire mature range, /1e7) at resource_rate_mult=%.4g -- rel_amplitude=%.4g, verdict=%s (Day 30's original milder kick at a comparable corner found rel_amplitude=0.041).\n",
+  1e-3, rel_amplitude_kick, kick_verdict
+))
+
+extreme_kick_df <- data.frame(time = time_kick, biomass = biomass_kick)
+write.csv(extreme_kick_df, file.path("interesting_plots", "day32_extreme_kick_timeseries.csv"),
+         row.names = FALSE)
+
+extreme_kick_plot <- ggplot(extreme_kick_df, aes(x = time, y = biomass)) +
+  geom_line(linewidth = 0.6) +
+  scale_y_log10() +
+  labs(x = "Time (years)", y = "Biomass (log scale)",
+       title = sprintf("Cod biomass after an extreme kick at resource_rate_mult=%.4g (balance=TRUE)", 1e-3),
+       subtitle = "Entire mature size range cut by 1e7 at t=10, then run forward -- Day 30's own kick cut only a 10-100g slice by 1e3 at this same corner and found rel_amplitude=0.041") +
+  theme_minimal()
+extreme_kick_plot
+
+save_plot(extreme_kick_plot, "day32_extreme_kick_timeseries.png", width = 9, height = 6)
+
+# project()-only twin of make_extreme_kick_sim() -- same kick, no early
+# exit, full t_total-10 years -- checking projectToSteady()'s convergence
+# call against the real trajectory rather than trusting it.
+make_extreme_kick_sim_project <- function(params, t_total = 2000, effort = 0) {
+  params@initial_n_pp[] <- params@cc_pp * 0.1
+
+  sim_init <- project(params, t_max = 10, dt = 0.1, t_save = 0.2,
+                      progress_bar = FALSE, effort = 0,
+                      method = "predictor_corrector")
+
+  w_mat <- params@species_params$w_mat[1]
+  idx   <- params@w >= w_mat & params@w <= max(params@w)
+  last  <- dim(sim_init@n)[1]
+  sim_init@n[last, , idx] <- sim_init@n[last, , idx] / 1e7
+
+  project(sim_init, t_max = t_total - 10, dt = 0.1, t_save = 0.2,
+          progress_bar = FALSE, effort = effort,
+          method = "predictor_corrector")
+}
+
+sim_extreme_kick_project <- make_extreme_kick_sim_project(p_kick_probe, t_total = 2000, effort = 0)
+
+biomass_kick_project <- rowSums(getBiomass(sim_extreme_kick_project))
+time_kick_project    <- as.numeric(names(biomass_kick_project))
+late_kick_project    <- biomass_kick_project[time_kick_project >= max(time_kick_project) * 0.6]
+rel_amplitude_kick_project <- (max(late_kick_project) - min(late_kick_project)) / mean(late_kick_project)
+kick_verdict_project <- if (rel_amplitude_kick_project > 1e-6) "oscillating" else "settled"
+
+cat(sprintf(
+  "\nSection 5 (project() twin): ran the full %d years (vs. projectToSteady()'s %.4g before it exited) -- rel_amplitude=%.4g, verdict=%s.\n",
+  2000 - 10, max(time_kick), rel_amplitude_kick_project, kick_verdict_project
+))
+
+kick_comparison_df <- bind_rows(
+  data.frame(time = time_kick,         biomass = biomass_kick,         method = "projectToSteady()"),
+  data.frame(time = time_kick_project, biomass = biomass_kick_project, method = "project()")
+)
+
+write.csv(kick_comparison_df, file.path("interesting_plots", "day32_extreme_kick_method_comparison.csv"),
+         row.names = FALSE)
+
+kick_comparison_plot <- ggplot(kick_comparison_df, aes(x = time, y = biomass, color = method)) +
+  geom_line(linewidth = 0.6) +
+  scale_y_log10() +
+  labs(x = "Time (years)", y = "Biomass (log scale)",
+       title = sprintf("Cod biomass after an extreme kick at resource_rate_mult=%.4g: projectToSteady() vs. project()", 1e-3),
+       subtitle = "Same kick (entire mature range cut by 1e7 at t=10), same starting point -- projectToSteady() exits at its own convergence check; project() runs the full 1990 years with no early exit") +
+  theme_minimal()
+kick_comparison_plot
+
+save_plot(kick_comparison_plot, "day32_extreme_kick_method_comparison.png", width = 9, height = 6)
+
+################################################################################
+# Section 6: n bifurcation (resource growth exponent)
+#
+# n feeds the resource rate spectrum as resource_rate * w_full^(n-1)
+# (separate from lambda, which shapes capacity). Nothing else touched.
+# Two full sweeps -- projectToSteady() and no-early-exit project() -- as
+# two separate plots.
+################################################################################
+
+native_cod_n <- resource_params(cod_params)[["n"]]
+cat(sprintf("cod_params.rds's own native n (resource growth exponent): %.4g\n", native_cod_n))
+
+# Neither setResource(params, n = ...) nor resource_params(params)$n <-
+# propagate here: both rebuild the rate from a scalar formula
+# (r_pp * w^(n-1)), and both correctly leave a "manually set"/frozen
+# array untouched when the existing rate wasn't derived from that
+# formula in the first place -- which cod's calibrated rate isn't
+# (confirmed: the resource_params() route left the sanity-check curves
+# identical, exactly as its own "frozen arrays untouched" documentation
+# says it should). So instead of asking mizer to rebuild from a scalar,
+# the existing rate curve is rescaled directly, by the ratio between the
+# new and native exponents -- this works on whatever the current array
+# is, frozen or not.
+apply_n <- function(params, n_val) {
+  native_rate <- as.numeric(getResourceRate(params))
+  native_w    <- w_full(params)
+  new_rate    <- native_rate * native_w^(n_val - resource_params(params)[["n"]])
+  setResource(params, resource_rate = new_rate, n = n_val, balance = FALSE)
+}
+
+# Bounds match n_seq_bif's own range below -- no principled reason to
+# bracket n tightly around its native value the way lambda's own
+# theory-grounded sweeps have; n is left wide open instead.
+n_probe_a <- apply_n(cod_params, -1.8)
+n_probe_b <- apply_n(cod_params, 1.8)
+
+# getResourceRate() returns a numeric vector wrapped in a custom S3 class
+# ('ArrayResourceBySize', carrying units/comment/params as attributes) --
+# as.numeric() strips it, since data.frame() would otherwise dispatch to
+# mizer's own as.data.frame method for that class and split it into
+# rate.w/rate.value sub-columns instead of a plain "rate" column.
+rate_a <- as.numeric(getResourceRate(n_probe_a))
+rate_b <- as.numeric(getResourceRate(n_probe_b))
+w_a    <- w_full(n_probe_a)
+w_b    <- w_full(n_probe_b)
+cat(sprintf("n sanity check: length(rate)=%d/%d, length(w_full)=%d/%d (a/b) -- all four should match and be > 0.\n",
+           length(rate_a), length(rate_b), length(w_a), length(w_b)))
+
+resource_sanity_df <- rbind(
+  data.frame(w = w_a, rate = rate_a, variant = "n=-1.8"),
+  data.frame(w = w_b, rate = rate_b, variant = "n=1.8")
+)
+
+resource_sanity_plot <- ggplot(resource_sanity_df, aes(x = w, y = rate, color = variant)) +
+  geom_line(linewidth = 1) +
+  scale_x_log10() +
+  scale_y_log10() +
+  labs(x = "Weight (g, log scale)", y = "Resource rate (log scale)",
+       title = "Sanity check: does varying n actually change the resource rate spectrum?",
+       subtitle = "Two example n values, built and plotted before the real sweep below runs -- if these two lines don't visibly differ in slope, n isn't propagating and the sweep would be wasted") +
+  theme_minimal()
+resource_sanity_plot
+
+save_plot(resource_sanity_plot, "day32_n_resource_sanity_check.png", width = 9, height = 6)
+
+build_cod_n_variant <- function(n_val) {
+  apply_n(cod_params, n_val)
+}
+
+# Wide, not bracketed around the native value -- unlike lambda (theory
+# grounds it near 2) or q (a documented O(1) exponent), n has no
+# principled reason to sit near cod's own calibrated 0.7, so the range
+# itself is arbitrary: -1.8 to 1.8. Negative n is fine here -- apply_n()
+# goes through setResource(), which only asserts is.number(n), not n >= 0
+# (that non-negativity constraint belonged to the resource_params<-
+# route this file no longer uses).
+n_seq_bif <- seq(-1.8, 1.8, by = 0.025)
+
+# effort=1/yield, matching Sections 1-4's convention.
+# tol decreased from projectToSteady()'s own default -- the forward and
+# backward branches were disagreeing (a hysteresis-looking gap) purely
+# because each got called "converged" before it actually settled, not
+# because of genuine bistability. A stricter tolerance forces closer
+# agreement between successive states before exiting, so the reported
+# max/min at each point reflects where the population actually ends up
+# rather than wherever it happened to be when the looser check declared
+# victory.
+run_bifurcation_sweep_n_steady <- function(n_seq, t_max = 2000, effort = 1, tol = 1e-5,
+                                           metric_fn = function(sim) rowSums(getYield(sim))) {
+  run_one_direction <- function(seq_vals, init_n = NULL, init_n_pp = NULL) {
+    out       <- data.frame(value = seq_vals, max_metric = NA_real_, min_metric = NA_real_)
+    state_n   <- init_n
+    state_npp <- init_n_pp
+
+    for (i in seq_along(seq_vals)) {
+      p <- build_cod_n_variant(seq_vals[i])
+      if (!is.null(state_n)) {
+        p@initial_n[]    <- state_n
+        p@initial_n_pp[] <- state_npp
+      }
+
+      result <- tryCatch({
+        sim  <- projectToSteady(p, effort = effort, t_max = t_max, tol = tol,
+                                t_per = 0.2, method = "predictor_corrector",
+                                return_sim = TRUE, progress_bar = FALSE)
+        mv   <- metric_fn(sim)
+        tv   <- as.numeric(names(mv))
+        late <- mv[tv > max(tv) * 0.6]
+        last <- dim(sim@n)[1]
+        list(max_metric = max(late), min_metric = min(late),
+             n = sim@n[last, , ], npp = sim@n_pp[last, ], error = NA_character_)
+      }, error = function(e) {
+        list(max_metric = NA_real_, min_metric = NA_real_,
+             n = state_n, npp = state_npp, error = conditionMessage(e))
+      })
+
+      if (!is.na(result$error)) {
+        warning(sprintf("n=%.4g: %s", seq_vals[i], result$error))
+      }
+
+      state_n   <- result$n
+      state_npp <- result$npp
+      out$max_metric[i] <- result$max_metric
+      out$min_metric[i] <- result$min_metric
+    }
+    list(df = out, n_final = state_n, npp_final = state_npp)
+  }
+
+  fwd    <- run_one_direction(n_seq)
+  bwd    <- run_one_direction(rev(n_seq), init_n = fwd$n_final, init_n_pp = fwd$npp_final)
+  bwd_df <- bwd$df[order(bwd$df$value), ]
+
+  bind_rows(
+    data.frame(value = fwd$df$value, metric = fwd$df$max_metric, direction = "Forward",  branch = "max"),
+    data.frame(value = fwd$df$value, metric = fwd$df$min_metric, direction = "Forward",  branch = "min"),
+    data.frame(value = bwd_df$value, metric = bwd_df$max_metric, direction = "Backward", branch = "max"),
+    data.frame(value = bwd_df$value, metric = bwd_df$min_metric, direction = "Backward", branch = "min")
+  )
+}
+
+run_bifurcation_sweep_n_project <- function(n_seq, t_first = 2050, t_rest = 100, effort = 1,
+                                            metric_fn = function(sim) rowSums(getYield(sim))) {
+  run_one_direction <- function(seq_vals, init_n = NULL, init_n_pp = NULL) {
+    out       <- data.frame(value = seq_vals, max_metric = NA_real_, min_metric = NA_real_)
+    state_n   <- init_n
+    state_npp <- init_n_pp
+
+    for (i in seq_along(seq_vals)) {
+      p          <- build_cod_n_variant(seq_vals[i])
+      cold_start <- is.null(state_n)
+      if (!cold_start) {
+        p@initial_n[]    <- state_n
+        p@initial_n_pp[] <- state_npp
+      }
+
+      t_max_i <- if (cold_start) t_first else t_rest
+      result <- tryCatch({
+        sim  <- project(p, effort = effort, t_max = t_max_i, dt = 0.1, t_save = 0.2,
+                        progress_bar = FALSE, method = "predictor_corrector")
+        mv   <- metric_fn(sim)
+        tv   <- as.numeric(names(mv))
+        late <- mv[tv > max(tv) * 0.6]
+        last <- dim(sim@n)[1]
+        list(max_metric = max(late), min_metric = min(late),
+             n = sim@n[last, , ], npp = sim@n_pp[last, ], error = NA_character_)
+      }, error = function(e) {
+        list(max_metric = NA_real_, min_metric = NA_real_,
+             n = state_n, npp = state_npp, error = conditionMessage(e))
+      })
+
+      if (!is.na(result$error)) {
+        warning(sprintf("n=%.4g: %s", seq_vals[i], result$error))
+      }
+
+      state_n   <- result$n
+      state_npp <- result$npp
+      out$max_metric[i] <- result$max_metric
+      out$min_metric[i] <- result$min_metric
+    }
+    list(df = out, n_final = state_n, npp_final = state_npp)
+  }
+
+  fwd    <- run_one_direction(n_seq)
+  bwd    <- run_one_direction(rev(n_seq), init_n = fwd$n_final, init_n_pp = fwd$npp_final)
+  bwd_df <- bwd$df[order(bwd$df$value), ]
+
+  bind_rows(
+    data.frame(value = fwd$df$value, metric = fwd$df$max_metric, direction = "Forward",  branch = "max"),
+    data.frame(value = fwd$df$value, metric = fwd$df$min_metric, direction = "Forward",  branch = "min"),
+    data.frame(value = bwd_df$value, metric = bwd_df$max_metric, direction = "Backward", branch = "max"),
+    data.frame(value = bwd_df$value, metric = bwd_df$min_metric, direction = "Backward", branch = "min")
+  )
+}
+
+plot_bifurcation_n <- function(df, title, subtitle = NULL) {
+  ggplot(df, aes(x = value, y = metric, color = direction, linetype = branch)) +
+    geom_line(linewidth = 1) +
+    geom_point(size = 1.2) +
+    labs(x = "n (resource growth exponent)", y = "Yield", title = title, subtitle = subtitle) +
+    theme_minimal()
+}
+
+bif_n_steady_df <- run_bifurcation_sweep_n_steady(
+  n_seq_bif, effort = 1, tol = 1e-5,
+  metric_fn = function(sim) rowSums(getYield(sim))
+)
+write.csv(bif_n_steady_df, file.path("interesting_plots", "day32_cod_n_yield_bifurcation_steady.csv"),
+         row.names = FALSE)
+
+bif_n_steady_plot <- plot_bifurcation_n(
+  bif_n_steady_df,
+  "Cod bifurcation diagram: yield vs. resource growth exponent n (projectToSteady)",
+  sprintf("effort=1 fixed, tol=1e-5 (tightened from default), all else at cod's native values -- native n=%.3g; branches collapsing onto one curve = fixed point, fanning apart = limit cycle", native_cod_n)
+)
+bif_n_steady_plot
+save_plot(bif_n_steady_plot, "day32_cod_n_bif_steady.png", width = 9, height = 6)
+
+bif_n_project_df <- run_bifurcation_sweep_n_project(
+  n_seq_bif, t_first = 2050, t_rest = 100, effort = 1,
+  metric_fn = function(sim) rowSums(getYield(sim))
+)
+write.csv(bif_n_project_df, file.path("interesting_plots", "day32_cod_n_yield_bifurcation_project.csv"),
+         row.names = FALSE)
+
+bif_n_project_plot <- plot_bifurcation_n(
+  bif_n_project_df,
+  "Cod bifurcation diagram: yield vs. resource growth exponent n (project(), no early exit)",
+  sprintf("effort=1 fixed, t_first=2050/t_rest=100, all else at cod's native values -- native n=%.3g; branches collapsing onto one curve = fixed point, fanning apart = limit cycle", native_cod_n)
+)
+bif_n_project_plot
+save_plot(bif_n_project_plot, "day32_cod_n_bif_project.png", width = 9, height = 6)
+
+check_bifurcation <- function(df) {
+  wide <- df %>%
+    tidyr::pivot_wider(names_from = c(direction, branch), values_from = metric) %>%
+    mutate(
+      rel_amplitude_fwd = (Forward_max - Forward_min) / ((Forward_max + Forward_min) / 2),
+      rel_amplitude_bwd = (Backward_max - Backward_min) / ((Backward_max + Backward_min) / 2),
+      hysteresis_gap    = abs(Forward_max - Backward_max) + abs(Forward_min - Backward_min)
+    )
+  n_osc     <- sum(wide$rel_amplitude_fwd > 1e-6 | wide$rel_amplitude_bwd > 1e-6, na.rm = TRUE)
+  max_gap_v <- wide$value[which.max(wide$hysteresis_gap)]
+  list(check = wide, n_oscillating = n_osc, max_hysteresis_value = max_gap_v)
+}
+
+n_steady_result  <- check_bifurcation(bif_n_steady_df)
+n_project_result <- check_bifurcation(bif_n_project_df)
+
+cat(sprintf(
+  "\nSection 6 (n bifurcation): projectToSteady() %d/%d points cross the 1e-6 threshold (largest hysteresis gap at n=%.4g); project() %d/%d points cross it (largest hysteresis gap at n=%.4g).\n",
+  n_steady_result$n_oscillating, nrow(n_steady_result$check), n_steady_result$max_hysteresis_value,
+  n_project_result$n_oscillating, nrow(n_project_result$check), n_project_result$max_hysteresis_value
+))
+
+################################################################################
+# Section 7: summary
 ################################################################################
 
 cat("\n===== Day 32 summary =====\n")
@@ -755,9 +971,18 @@ cat(sprintf(
   length(q_seq_bif), q_verdict
 ))
 cat(sprintf(
-  "Section 3 (resource_rate bifurcation, balance=TRUE deriving capacity implicitly, %d-point forward/backward bifurcation diagram): %s\n",
+  "Section 3 (resource_rate bifurcation, capacity fixed at cod's own native balance=TRUE baseline, %d-point forward/backward bifurcation diagram): %s\n",
   length(resource_rate_seq_bif), resource_rate_verdict
 ))
 cat(
   "Section 4 (project() vs projectToSteady() time-series comparison across the forward resource_rate sweep): see day32_resource_rate_timeseries.png -- read visually, no automated verdict.\n"
 )
+cat(sprintf(
+  "Section 5 (extreme kick, entire mature range cut by 1e7, at resource_rate_mult=%.4g): rel_amplitude=%.4g, verdict=%s.\n",
+  1e-3, rel_amplitude_kick, kick_verdict
+))
+cat(sprintf(
+  "Section 6 (n bifurcation, %d-point forward/backward, projectToSteady() vs project()): projectToSteady() %d/%d oscillating, project() %d/%d oscillating -- see day32_cod_n_bif_steady.png / day32_cod_n_bif_project.png.\n",
+  length(n_seq_bif), n_steady_result$n_oscillating, nrow(n_steady_result$check),
+  n_project_result$n_oscillating, nrow(n_project_result$check)
+))
