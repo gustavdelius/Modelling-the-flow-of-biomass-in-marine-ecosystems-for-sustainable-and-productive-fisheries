@@ -78,6 +78,7 @@ Under suppressed resource replenishment, this calibration settles into a limit c
 ```{r}
 #| message: false
 #| warning: false
+#| fig-cap: "Anchovy Size Spectra Plot when oscillating"
 anchovy_osc <- make_params(resource_decrease = 0.005)
 anchovy_osc@initial_n[]    <- 0.001 * anchovy_osc@w^(-1.8)
 anchovy_osc@initial_n_pp[] <- anchovy_osc@cc_pp
@@ -86,6 +87,7 @@ sim     <- project(anchovy_osc, t_max = 300, dt = 0.1, t_save = 0.2,
                    effort = 0, progress_bar = FALSE, method = "predictor-corrector")
 sim_600 <- project(sim, t_max = 300, dt = 0.1, t_save = 0.2,
                    effort = 0, progress_bar = FALSE, method = "predictor-corrector")
+plotSpectra(sim_600,background = FALSE)
 ```
 
 ```{r}
