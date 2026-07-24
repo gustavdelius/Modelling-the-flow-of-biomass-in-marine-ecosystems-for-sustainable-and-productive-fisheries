@@ -29,6 +29,23 @@ The background resource follows semichemostat dynamics, $\partial_t R = r_R(w)[K
 
 Because $g$ sits inside the derivative, the equation's characteristics are the growth trajectories $dw/dt=g(w,t)$. When $g$ depends only on $w$, age-at-size is $\tau(w)=\int_{w_{\min}}^w \frac{dw'}{g(w')}$ , the quantity behind both cohort-tracking and the phase-lag calculations ($d\phi/dw = \frac{k}{g(w)}$, Day 11). This only works as a *phase-velocity* argument when $g$ is fixed; once the resource itself oscillates, $g(w,t)$ genuinely varies, and phase- and group-velocity (a tracked cohort's real trajectory, Day 12) don't have to agree.
 
+Every anchovy parameterisation in the project is one instance of the above equations, built the same way:
+
+```{r}
+#| eval: false
+make_params <- function(lambda = 2.05, resource_decrease = 0.001, capacity_mult = 1) {
+  kappa  <- 100 * exp(-6.9 * (lambda - 1))
+  params <- newSingleSpeciesParams(w_min = 0.0003, w_max = 66.5, w_mat = 10,
+                                   lambda = lambda, kappa = kappa, alpha = 0.1, gamma = 750)
+  r  <- getResourceRate(params)     * resource_decrease
+  cc <- getResourceCapacity(params) * capacity_mult
+  setResource(params, resource_rate = r, resource_capacity = cc,
+              resource_dynamics = "resource_semichemostat", balance = FALSE)
+}
+```
+
+Reading this against the resource equation: `kappa` *is* the constant in $K_R(w)\sim\kappa w^{-\lambda}$ (via an empirical fit to $\lambda$, not mizer's own classical scaling identity. The gap between the two is exactly what made the Day 30 `lambda` sweep an unreliable stand-in for a direct $q$ sweep); `resource_decrease` and `capacity_mult` are literally the multipliers on $r_R$ and $K_R$; and `balance = FALSE` is the switch that keeps those two constants independent rather than letting mizer silently re-derive one from the other.
+
 ------------------------------------------------------------------------
 
 ## 2. The Core Anchovy Oscillation
@@ -40,6 +57,18 @@ Under suppressed resource replenishment, the single-species anchovy calibration 
 $$\text{Period} \sim w_{\mathrm{mat}}^{0.2} \quad (R^2=0.9974),$$
 
 matching juvenile growth $g(w)\sim w^{0.8}$ via $\tau(w_{\mathrm{mat}})\sim w_{\mathrm{mat}}^{1-0.8}$. Naive steady-state generation time gives $\approx2.4$ cycles/period; tracking real cohorts through the time-varying $g(w,t)$ pulls this to $\approx3.3$ (Days 11-12),which is closer to the original "three generations" guess.
+
+The naive version is §1's $\tau(w)$ integral, done numerically by the trapezoid rule:
+
+```{r}
+#| eval: false
+g   <- getEGrowth(params)["Anchovy", ]     # g(w) at steady state
+integrand <- 1 / g
+age <- c(0, cumsum((integrand[-1] + integrand[-length(integrand)]) / 2 * dw[-length(dw)]))
+age_at_mat <- approx(x = w, y = age, xout = params@species_params$w_mat)$y
+```
+
+`integrand` is $1/g(w')$ at each grid point; the `cumsum` of trapezoid areas is a running numerical estimate of $\int_{w_{\min}}^{w} dw'/g(w')$, and reading it off at $w=w_{\mathrm{mat}}$ gives generation time directly. This is exactly where the $2.4$ came from and exactly why it was too low: $g(w)$ here is the *steady-state* growth rate, a single snapshot, whereas real cohorts grow through a food supply that is itself oscillating. Rerunning the same integral cohort-by-cohort against the model's actual time-varying $g(w,t)$, rather than one frozen snapshot of it, is what pulled the number up to $\approx3.3$.
 
 **Unstable fixed point** (`steadyNewton()`, Day 16): the cycle's time-average biomass exceeds the unstable fixed point it orbits by 13-28% depending on $\lambda$ (vanishing at the Hopf point, $\lambda\approx2.08$), from the relaxation-oscillator's asymmetric shape (slow climb, sharp crash) rather than a uniform rescaling. The juveniles are net-depleted on average, large adults net-elevated( $\approx$ 1.5-1.6x).
 
@@ -54,6 +83,25 @@ matching juvenile growth $g(w)\sim w^{0.8}$ via $\tau(w_{\mathrm{mat}})\sim w_{\
 **Why a bare predator-prey ODE gets the threshold but not the hysteresis** (Day 24): $\dot N=D(K-N)-aNP,\ \dot P=eaNP-mP$ gives a transcritical collapse threshold $K_{\text{crit}}=N^*=\frac{m}{ea}$ matching mizer's exactly, but *no* hysteresis, ever as chemostat-style prey growth keeps the Jacobian trace ($-D-aP^*$) negative regardless of the predation term's shape (Rosenzweig's paradox-of-enrichment argument). So the collapse threshold doesn't need size structure; the hysteresis around it apparently does.
 
 **Juvenile biomass pileup** (Days 19, 24-26): anchovy's extreme skew (only 0.003-0.03% of biomass ever catchable) is calibration-specific, not general. Mizer's default species shows a much milder $\sim$ 7% catchable. A real $\alpha/\gamma/\kappa$ sweep found $\alpha$ (assimilation efficiency) dominant by far (27.5 orders of magnitude in catchable fraction vs. 2.6 for $\kappa$, 1.3 for $\gamma$), which is a viability threshold at $\alpha\in(0.105,0.178)$. The anchovy's own $\alpha=0.1$ sits right at its foot.
+
+Every bifurcation/hysteresis claim above (and in §5-6) comes from the same numerical-continuation shape, run forward then backward over a parameter sequence:
+
+```{r}
+#| eval: false
+run_one_direction <- function(param_seq, state = NULL) {
+  for (i in seq_along(param_seq)) {
+    p <- build_params(param_seq[i])
+    if (!is.null(state)) p@initial_n[] <- state$n     # seed from the PREVIOUS point, not from scratch
+    sim <- project(p, t_max = t_run, effort = 0)
+    max_bm[i] <- max(late_window); min_bm[i] <- min(late_window)
+    state <- list(n = sim@n[last, , ])
+  }
+}
+fwd <- run_one_direction(param_seq)
+bwd <- run_one_direction(rev(param_seq), state = fwd$final_state)
+```
+
+Seeding each point from the *previous* point's own settled state (rather than a fresh initial condition every time) is what turns a batch of independent simulations into a genuine continuation path. `max_bm`/`min_bm` per point is a numerical bifurcation diagram: at a fixed point the two coincide; on a limit cycle they don't. Running the same `param_seq` forward and then backward and comparing the two curves is the operational test for hysteresis used everywhere in §3, §5 and §6: if `fwd` and `bwd` agree at every point, there is one attractor per parameter value; where they disagree, the state depends on which direction the sweep arrived from.
 
 ------------------------------------------------------------------------
 
@@ -70,6 +118,21 @@ Testing whether a lag (rather than size structure) could produce mizer's hystere
 
 A clean 2-impossible/2-always-possible split. Both feasible cases were confirmed by simulation, but both also blow up unphysically (negative biomass / erratic blowup) well past onset, since the toy model has no saturating functional response, the bifurcations are real, but the model isn't trustworthy far past them. Neither has yet been mapped onto anything checkable in the actual size-spectrum model.
 
+The always-possible $N(t-\tau)$-only placement is the cleanest to see in code, since `deSolve::dede()` makes the delay explicit rather than hiding it in a closure:
+
+```{r}
+#| eval: false
+predator_prey_rhs <- function(t, state, parms) {
+  N <- state[1]; P <- state[2]
+  lag_N <- if (t <= parms$tau) parms$N0 else lagvalue(t - parms$tau, 1)   # N(t - tau)
+  dN <- parms$D * (parms$K - N) - parms$a * N * P
+  dP <- parms$e * parms$a * lag_N * P - parms$m * P
+  list(c(dN, dP))
+}
+```
+
+`lagvalue(t - tau, 1)` is the solver looking back into its own history to fetch $N(t-\tau)$ . It's a direct, numerical stand-in for the delayed term in $\dot P = ea\,N(t-\tau)P(t) - mP(t)$. Everything else in the function (`dN`, and the instantaneous part of `dP`) is unchanged from the non-delayed model in §3; only the one substitution, $N(t)\to N(t-\tau)$ inside the intake term, distinguishes it. That single substitution is also why the algebra came out so clean: at equilibrium the instantaneous growth and death terms in $\dot P$ cancel exactly (since $eaN^*=m$), leaving nothing for $\tau$ to act against except the delayed term itself, which is what forces a Hopf crossing to exist for *any* $\delta,\kappa>0$.
+
 ------------------------------------------------------------------------
 
 ## 5. The Calibrated Cod Model, and Why We Went Back to Anchovy
@@ -77,6 +140,20 @@ A clean 2-impossible/2-always-possible split. Both feasible cases were confirmed
 The point of testing cod directly was to see whether everything found on the anchovy calibration also shows up in the real, fitted model, or was specific to anchovy. Days 28-32 threw essentially every lever this project had built at cod, looking for a genuine limit cycle: resource rate and capacity (out to 500x native capacity), a body-size/intake-rate factorial against anchovy's own template, relaxing the reproduction cap, three selective-fishing patterns, and full bifurcation sweeps of $q$, $\alpha$, and resource rate under `balance=TRUE`. None of it produced a real, sustained cycle within a realistic range.
 
 Two things kept this from being a clean "cod is just stable" verdict, though, and both are why the search kept going rather than stopping early. First, `getStability()` (Days 28-29) only linearises at the steady state and checks the spectral radius, which proves *local* stability, not the absence of a reachable limit cycle - and directly perturbing the simulation on the same grid showed the tool had a real blind spot: cod stayed settled everywhere either way, but **anchovy** turned out to be genuinely oscillating at 80/120 points `getStability()` had itself called stable. Second, a much wider, coarser reconnaissance scan (Day 30) did eventually turn up a real, if small, cod oscillation at native capacity and extreme resource starvation ($\text{resource_decrease}=10^{-7}$, $\text{rel. amplitude = 0.041}$ ) - a ripple against cod's standing biomass, not a boom-bust cycle - with capacity shrunk *below* native baseline collapsing the population outright instead of oscillating. Chasing that one corner with a proper forward/backward continuation sweep (Days 31-32) came back flat, most likely because it was a damped transient decaying back to a resource-starved fixed point rather than a sustained cycle.
+
+The two verdicts, side by side, are what exposed the blind spot:
+
+```{r}
+#| eval: false
+p_steady <- steadyNewton(params, stability = TRUE)
+spectral_radius <- attr(p_steady, "stability")$spectral_radius   # < 1 => locally stable
+
+sim  <- make_limit_cycle_sim(params)          # perturb: crash the resource, knock down mature stock
+bm   <- rowSums(getBiomass(sim))[times > 0.6 * max(times)]
+rel_amplitude <- (max(bm) - min(bm)) / mean(bm)                  # >> 0 => genuinely oscillating
+```
+
+`spectral_radius` is $\rho(J)$ from §5's linearisation, which is a statement about what happens to an *infinitesimal* perturbation at the fixed point. `rel_amplitude` asks a completely different question: what happens after a *large*, finite kick, actually integrated forward. For cod the two agree everywhere. For anchovy, `spectral_radius < 1` at a point where `rel_amplitude` was still $1.41$ shows a fixed point that is locally attracting but sits inside the basin of a much larger limit cycle. It's exactly the case the spectral radius alone cannot see.
 
 Between the effort that went into cod and how little of it gave us anything to build on, the call at the end of that stretch (Day 32/33) was to stop trying to coax a cycle out of cod's own calibration and go back to the anchovy parameterisation that was already known to oscillate for real - both as a sanity check that the sweep machinery itself still worked correctly (it does: pointed back at anchovy, it immediately finds the same genuine bifurcation it always has, Day 34), and as the actual system to ask the fishing-timing question against, since cod never gave us a real cycle to ask it of in the first place.
 
@@ -87,6 +164,21 @@ One methodological by-product from this stretch is worth keeping regardless of t
 ## 6. Fishing as an Intervention
 
 The founding "traffic jam" question was whether fishing timed to biomass peaks could relieve congestion at the juvenile bottleneck. The first attempt did the opposite: it made juvenile congestion worse. The cause turned out to be **frequency, not selectivity** (Days 9-10) - restricting the catch to sub-adults only didn't fix it, but widening the fishing window around each peak did. A narrow window concentrates the same total removal into short, damaging bursts; spreading it out over more of the cycle removes the same fish more gently.
+
+Every peaks/troughs/constant comparison from Day 9 through Day 34 builds its effort schedule the same way: detect local extrema in the unfished trajectory, then switch effort on only near them:
+
+```{r}
+#| eval: false
+is_peak <- bm[2:(n-1)] > bm[1:(n-2)] & bm[2:(n-1)] > bm[3:n]     # local maxima of biomass
+peak_times <- t[is_peak]
+
+effort_t <- rep(0, length(t))
+for (pt in peak_times) effort_t[t >= pt - window/2 & t <= pt + window/2] <- fish_level
+
+mean_effort <- mean(effort_t)   # the single number yield turns out to care about
+```
+
+`effort_t` is a step function of time: `fish_level` inside a $\pm\text{window}/2$ band around each detected peak, zero elsewhere, which is literally the "narrow burst vs. spread out" choice being tested. `mean_effort`, its time-average, is what the Day 34 diagnostic plots yield and amplitude against directly: yield collapses onto one curve in `mean_effort` regardless of how `window` and `fish_level` were chosen to produce it, while amplitude does not, which is the mathematical content of "timing doesn't matter for yield, but does for easing the oscillation."
 
 **Day 34** recreated the oscillation properly and tested timing directly. Against an unfished baseline (rel. amplitude 0.779, at $\text{resource_decrease}=0.005$): Constant fishing eases it ($0.714$, $-8.3\%$), Troughs-only eases it slightly ($0.749$), Peaks-only *worsens* it ($0.831$, $+6.7\%$, a genuine resonance hot spot at moderate window/high effort). A window$\times$effort grid confirms constant fishing dominates outright on both amplitude and yield. A careful-methodology recheck reversed two of the coarse scan's own amplitude "wins", which is a repeat of the general lesson that a coarse scan can name the *wrong* winning strategy, not just misjudge the margin.
 
