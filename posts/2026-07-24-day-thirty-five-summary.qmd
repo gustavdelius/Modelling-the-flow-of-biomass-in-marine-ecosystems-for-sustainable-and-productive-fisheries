@@ -78,7 +78,7 @@ age_at_mat <- approx(x = w, y = age, xout = params@species_params$w_mat)$y
 
 ## 3. Bifurcation Structure and Hysteresis
 
-**The `capacity_mult` paradox of enrichment** (Days 22-24, after several days chasing a Beverton-Holt bug and a `resource_level` parameterisation that wasn't actually independent of rate): a genuine bistable window at $\text{capacity_mult}\in(1.30,1.41)$ ($\approx$ 8% wide, at $\texttt{resource_decrease}=0.001$).This shows how *raising* capacity past a threshold destabilises rather than helps. The window narrows and shifts left as resource rate rises, and reproduces (at $\approx$ 12% width) with mizer's own default species, so it's a feature of the model class, not a generalisable feature.
+**The `capacity_mult` paradox of enrichment** (Days 22-24, after several days chasing a Beverton-Holt bug and a `resource_level` parameterisation that wasn't actually independent of rate): a genuine bistable window at `capacity_mult` $\in(1.30,1.41)$ ($\approx$ 8% wide, at `resource_decrease = 0.001`). This shows how *raising* capacity past a threshold destabilises rather than helps. The window narrows and shifts left as resource rate rises, and reproduces (at $\approx$ 12% width) with mizer's own default species, so it's a feature of the model class, not a generalisable feature.
 
 **Why a bare predator-prey ODE gets the threshold but not the hysteresis** (Day 24): $\dot N=D(K-N)-aNP,\ \dot P=eaNP-mP$ gives a transcritical collapse threshold $K_{\text{crit}}=N^*=\frac{m}{ea}$ matching mizer's exactly, but *no* hysteresis, ever as chemostat-style prey growth keeps the Jacobian trace ($-D-aP^*$) negative regardless of the predation term's shape (Rosenzweig's paradox-of-enrichment argument). So the collapse threshold doesn't need size structure; the hysteresis around it apparently does.
 
@@ -110,7 +110,7 @@ Seeding each point from the *previous* point's own settled state (rather than a 
 Testing whether a lag (rather than size structure) could produce mizer's hysteresis, all four ways a single delay $\tau$ can sit inside the toy predator-prey model's intake term were checked (Days 25-27, reference params $D=1,a=1,e=0.5,m=0.3,K=1$):
 
 | Delay placement | Hopf possible? | Onset |
-|------------------------|------------------------|------------------------|
+|----|----|----|
 | Both $N,P$ delayed in predator's conversion term | Never (any params) | — |
 | $N(t-\tau)$ in prey's self-limitation term | Yes, iff $aP^*<D$ (holds here) | $\tau\approx2.4$ |
 | $P(t-\tau)$ only, in predator's intake term | Never - corrected from Day 26's wrong "conditional" verdict (checked only the root-sum condition, not the discriminant) | — |
@@ -139,7 +139,7 @@ predator_prey_rhs <- function(t, state, parms) {
 
 The point of testing cod directly was to see whether everything found on the anchovy calibration also shows up in the real, fitted model, or was specific to anchovy. Days 28-32 threw essentially every lever this project had built at cod, looking for a genuine limit cycle: resource rate and capacity (out to 500x native capacity), a body-size/intake-rate factorial against anchovy's own template, relaxing the reproduction cap, three selective-fishing patterns, and full bifurcation sweeps of $q$, $\alpha$, and resource rate under `balance=TRUE`. None of it produced a real, sustained cycle within a realistic range.
 
-Two things kept this from being a clean "cod is just stable" verdict, though, and both are why the search kept going rather than stopping early. First, `getStability()` (Days 28-29) only linearises at the steady state and checks the spectral radius, which proves *local* stability, not the absence of a reachable limit cycle - and directly perturbing the simulation on the same grid showed the tool had a real blind spot: cod stayed settled everywhere either way, but **anchovy** turned out to be genuinely oscillating at 80/120 points `getStability()` had itself called stable. Second, a much wider, coarser reconnaissance scan (Day 30) did eventually turn up a real, if small, cod oscillation at native capacity and extreme resource starvation ($\text{resource_decrease}=10^{-7}$, $\text{rel. amplitude = 0.041}$ ) - a ripple against cod's standing biomass, not a boom-bust cycle - with capacity shrunk *below* native baseline collapsing the population outright instead of oscillating. Chasing that one corner with a proper forward/backward continuation sweep (Days 31-32) came back flat, most likely because it was a damped transient decaying back to a resource-starved fixed point rather than a sustained cycle.
+Two things kept this from being a clean "cod is just stable" verdict, though, and both are why the search kept going rather than stopping early. First, `getStability()` (Days 28-29) only linearises at the steady state and checks the spectral radius, which proves *local* stability, not the absence of a reachable limit cycle - and directly perturbing the simulation on the same grid showed the tool had a real blind spot: cod stayed settled everywhere either way, but **anchovy** turned out to be genuinely oscillating at 80/120 points `getStability()` had itself called stable. Second, a much wider, coarser reconnaissance scan (Day 30) did eventually turn up a real, if small, cod oscillation at native capacity and extreme resource starvation (`resource_decrease` $=10^{-7}$, rel. amplitude $=0.041$) - a ripple against cod's standing biomass, not a boom-bust cycle - with capacity shrunk *below* native baseline collapsing the population outright instead of oscillating. Chasing that one corner with a proper forward/backward continuation sweep (Days 31-32) came back flat, most likely because it was a damped transient decaying back to a resource-starved fixed point rather than a sustained cycle.
 
 The two verdicts, side by side, are what exposed the blind spot:
 
@@ -180,7 +180,7 @@ mean_effort <- mean(effort_t)   # the single number yield turns out to care abou
 
 `effort_t` is a step function of time: `fish_level` inside a $\pm\text{window}/2$ band around each detected peak, zero elsewhere, which is literally the "narrow burst vs. spread out" choice being tested. `mean_effort`, its time-average, is what the Day 34 diagnostic plots yield and amplitude against directly: yield collapses onto one curve in `mean_effort` regardless of how `window` and `fish_level` were chosen to produce it, while amplitude does not, which is the mathematical content of "timing doesn't matter for yield, but does for easing the oscillation."
 
-**Day 34** recreated the oscillation properly and tested timing directly. Against an unfished baseline (rel. amplitude 0.779, at $\text{resource_decrease}=0.005$): Constant fishing eases it ($0.714$, $-8.3\%$), Troughs-only eases it slightly ($0.749$), Peaks-only *worsens* it ($0.831$, $+6.7\%$, a genuine resonance hot spot at moderate window/high effort). A window$\times$effort grid confirms constant fishing dominates outright on both amplitude and yield. A careful-methodology recheck reversed two of the coarse scan's own amplitude "wins", which is a repeat of the general lesson that a coarse scan can name the *wrong* winning strategy, not just misjudge the margin.
+**Day 34** recreated the oscillation properly and tested timing directly. Against an unfished baseline (rel. amplitude 0.779, at `resource_decrease = 0.005`): Constant fishing eases it ($0.714$, $-8.3\%$), Troughs-only eases it slightly ($0.749$), Peaks-only *worsens* it ($0.831$, $+6.7\%$, a genuine resonance hot spot at moderate window/high effort). A window$\times$effort grid confirms constant fishing dominates outright on both amplitude and yield. A careful-methodology recheck reversed two of the coarse scan's own amplitude "wins", which is a repeat of the general lesson that a coarse scan can name the *wrong* winning strategy, not just misjudge the margin.
 
 The puzzle in the amplitude-vs-yield scatter resolved via `mean_effort`: **yield collapses onto one curve regardless of schedule** (only *how much* fishing matters, not *when*); **amplitude does not** (timing matters, increasingly so near the bifurcation boundary). One sentence: yield is timing-indifferent, easing the oscillation is not.
 
@@ -206,7 +206,7 @@ Separately, Day 33 tested whether narrow-selectivity fishing (at maturity, or at
 
 ## 8. Open Threads
 
-1.  Recheck the one yield "win" for an event-triggered schedule (Day 34, $\texttt{resource_decrease}=0.0005$) under the careful methodology.
+1.  Recheck the one yield "win" for an event-triggered schedule (Day 34, `resource_decrease` $=0.0005$) under the careful methodology.
 2.  Recalibrate the oscillation threshold so it isn't yield-scale-dependent.
 3.  Write the mizer background section for the final report.
 
@@ -215,6 +215,6 @@ Separately, Day 33 tested whether narrow-selectivity fishing (at maturity, or at
 ## 9. Timetable for the Next Two Weeks
 
 | Dates | Focus |
-|------------------------------------|------------------------------------|
+|----|----|
 | 10/08 - 16/08 | Work on Item 1 and explore other methods to dampen the oscillations by reading other academic papers and begin work on first draft of the final report for project |
 | 17/08 - 23/08 | Write up final report of the project |
