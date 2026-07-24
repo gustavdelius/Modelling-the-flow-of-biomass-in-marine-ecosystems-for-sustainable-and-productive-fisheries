@@ -1,0 +1,396 @@
+---
+title: "Day 33: Neither Resource Slope Nor Fishing Causes Oscillations By Itself"
+author: "Samia"
+date: "2026-07-22"
+draft: true
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    theme: flatly
+    code-fold: true
+categories: [research, mizer, cod, bifurcation-diagram, blog]
+description: "Sweeping the resource slope and, separately, fishing narrowly at maturity size and at the largest sizes, both come back flat as neither destabilises cod on its own. The paper never actually claimed fishing alone could cause oscillations, only that selective fishing makes existing ones bigger; the likely culprit is the cod parameterisation itself, which may not have any oscillatory tendency to amplify in the first place."
+---
+
+## Setup
+
+Rebuilt fresh, same self-contained convention as Day 32 -s not sourced from any other day's script.
+
+```{r setup}
+#| message: false
+#| warning: false
+library(mizer)
+library(dplyr)
+library(ggplot2)
+library(scales)
+library(mizerExperimental)
+
+p <- readParams("../cod_params.rds")
+
+# Gustav's fix: snapshotting given_species_params like this tells mizer
+# which species_params values were actually chosen by hand, so that later
+# recalculation of derived parameters doesn't silently overwrite cod's own
+# calibrated values with freshly-recomputed defaults.
+p@given_species_params <- p@species_params
+
+# Set power-law resource rate while keeping steady state
+rp <- resource_params(p)
+rr <- rp$r_pp * w_full(p) ^ rp$n
+p  <- setResource(p, resource_rate = rr, balance = TRUE)
+# balance = TRUE keeps the model at steady state, at the cost that the
+# carrying capacity is no longer a perfect power law any more
+
+sim <- project(p, t_max = 300)
+p   <- finalParams(sim)
+
+plotSpectra(p, power = 2, log = "", size_axis = "l")
+```
+
+------------------------------------------------------------------------
+
+## Where Day 32 Left Us
+
+Day 32 tested three different resource-side levers, `alpha`, `q`, and `resource_rate` under `balance = TRUE`, against the one corner Day 30's broad scan had confirmed genuinely oscillating, and all three came back flat: no real limit cycle, just convergence-residual noise that a naively-applied 1e-6 amplitude threshold misread as "oscillating." Today moves away from the resource side entirely and tests a fishing-side lever instead, following up on one of Day 32's own closing to-dos: whether concentrating fishing effort narrowly on a specific size class (rather than varying a species trait or the resource) is what actually destabilises this model.
+
+------------------------------------------------------------------------
+
+## Revisiting the Single-Point Resource Rate Check
+
+Before moving to fishing, one more resource-side check first: setting `resource_rate` to a power law with an arbitrary exponent (0.5, rather than the model's own native exponent) and projecting to steady state.
+
+```{r resource-rate-single-check}
+#| message: false
+#| warning: false
+rr  <- rp$r_pp * w_full(p) ^ 0.5
+pp  <- setResource(p, resource_rate = rr, balance = FALSE)
+pps <- projectToSteady(pp)
+attr(pps, "convergence")$type
+```
+
+A single exponent doesn't trigger anything.This is the same "flat" result Day 32 kept finding on the resource side.
+
+------------------------------------------------------------------------
+
+## Sweeping n Instead of Testing One Value
+
+Rather than trust one arbitrary exponent, the natural next step is to sweep it, widened well past the model's own native range, from -5 to 5, and warm-started the same way Day 32's own `n` bifurcation sweep was (`run_bifurcation_sweep_n_project()`): only the first point is cold-started from `p`'s own steady state, every point after starts from the previous point's final state.
+
+```{r n-sweep}
+#| message: false
+#| warning: false
+n_seq   <- seq(-5, 5, by = 0.1)
+n_sweep <- data.frame(n = n_seq, convergence_type = NA_character_,
+                      error = NA_character_)
+
+state_n   <- NULL
+state_npp <- NULL
+
+for (i in seq_along(n_seq)) {
+  # tryCatch so one exponent erroring out (e.g. extinction) doesn't kill the
+  # whole sweep -- recorded as an NA/error point instead, same convention
+  # used throughout this project's other sweeps
+  result <- tryCatch({
+    rr <- rp$r_pp * w_full(p) ^ n_seq[i]
+    pp <- setResource(p, resource_rate = rr, balance = FALSE)
+    if (!is.null(state_n)) {
+      pp@initial_n[]    <- state_n
+      pp@initial_n_pp[] <- state_npp
+    }
+    pps  <- projectToSteady(pp)
+    conv <- attr(pps, "convergence")
+    # conv$type has been seen to come back NULL for some exponents even on
+    # a successful return, so guard against that rather than let a length-0
+    # RHS crash the assignment below
+    list(type = if (is.null(conv$type)) NA_character_ else conv$type,
+        error = NA_character_,
+        n = pps@initial_n, npp = pps@initial_n_pp)
+  }, error = function(e) {
+    list(type = NA_character_, error = conditionMessage(e),
+        n = state_n, npp = state_npp)
+  })
+  n_sweep$convergence_type[i] <- result$type
+  n_sweep$error[i]            <- result$error
+  state_n   <- result$n
+  state_npp <- result$npp
+}
+
+table(n_sweep$convergence_type, useNA = "ifany")
+```
+
+The `is.null(conv$type)` guard above is load-bearing, not defensive boilerplate: the very first version of this sweep crashed with `replacement has length zero`, because `attr(pps, "convergence")$type` came back `NULL` for at least one exponent even on an outright successful run. That turned out to be the first sighting of a bug that came back much larger later in the day - see below.
+
+Once that crash was fixed and the corrected sweep actually ran end to end, the verdict was flat: every exponent from -5 to 5 settled to a steady state, none of them a genuine oscillation. Changing the resource slope alone, the `n` exponent that controls how steeply the resource spectrum's power law falls off with size, does not destabilise this model.
+
+------------------------------------------------------------------------
+
+## A Third Lever: Fishing Concentrated at Maturity Size
+
+Every sweep so far, Day 32's `alpha`/`q`/`resource_rate`, today's `n`, has varied either a species trait or the resource state, with fishing selectivity left at cod's default. A paper predicts a different lever entirely: fishing selectivity concentrated narrowly around `w_mat` (rather than mizer's `knife_edge` default, which selects everything above a size with no upper cutoff at all) can destabilise a size-structured population into a real limit cycle, by removing exactly the size class that would otherwise regulate recruitment and decoupling juveniles from adults. *(This framing turns out to be a misreading of the paper - see "Rereading the Paper" below.)*
+
+`knife_edge` can't produce that shape. It selects everything from its threshold upward, forever, so anchoring it at `w_mat` would just fish the entire adult population, not a narrow band around maturity. mizer's `double_sigmoid_length()` gives a genuine dome instead: a rising sigmoid multiplied by a falling sigmoid, centred tightly on `l_mat`.
+
+```{r maturity-window-setup}
+#| message: false
+#| warning: false
+sp_cod    <- p@species_params
+w_mat_cod <- sp_cod$w_mat[sp_cod$species == "Cod"]
+a_cod     <- sp_cod$a[sp_cod$species == "Cod"]
+b_cod     <- sp_cod$b[sp_cod$species == "Cod"]
+l_mat_cod <- (w_mat_cod / a_cod) ^ (1 / b_cod)
+cat(sprintf("cod's native w_mat = %.4g g -> l_mat = %.4g cm (via a=%.4g, b=%.4g).\n",
+           w_mat_cod, l_mat_cod, a_cod, b_cod))
+
+# Narrow dome: rising sigmoid ramps from 15% below l_mat to 5% below it;
+# falling sigmoid ramps from 5% above l_mat back down to 15% above it --
+# a tight window centred on maturity length, not knife_edge's "everything
+# above a size" cutoff.
+gp <- gear_params(p)
+gear_name_cod <- gp$gear[gp$species == "Cod"][1]
+gp$sel_func[gp$species == "Cod"] <- "double_sigmoid_length"
+for (col in c("l25", "l50", "l50_right", "l25_right")) {
+  if (!col %in% names(gp)) gp[[col]] <- NA_real_
+}
+gp$l25[gp$species == "Cod"]       <- l_mat_cod * 0.85
+gp$l50[gp$species == "Cod"]       <- l_mat_cod * 0.95
+gp$l50_right[gp$species == "Cod"] <- l_mat_cod * 1.05
+gp$l25_right[gp$species == "Cod"] <- l_mat_cod * 1.15
+
+p_mat_window <- p
+gear_params(p_mat_window) <- gp
+
+# Sanity check: does the new gear actually only select around maturity,
+# rather than mizer's default knife_edge (everything above a size)?
+sel_at_w <- getSelectivity(p_mat_window)[gear_name_cod, "Cod", ]
+cat(sprintf(
+  "Selectivity peaks at w=%.4g g (native w_mat=%.4g g); selectivity at the largest size in the model = %.4g (should be ~0, unlike knife_edge's 1).\n",
+  p_mat_window@w[which.max(sel_at_w)], w_mat_cod, tail(sel_at_w, 1)
+))
+```
+
+------------------------------------------------------------------------
+
+## The First Pass: Critical Slowing Down, Then Extinction
+
+The first version of the effort sweep against this dome selectivity was a single forward pass, warm-started the same way the `n` sweep above is, `t_max = 2000`, `projectToSteady()`'s own default tolerance. Effort ran from 0 up to 30, far beyond the `effort = 1` baseline every sweep since Day 30 has used.
+
+The years-to-converge climbed steeply and consistently as effort rose:
+
+| effort  | years to converge                               |
+|---------|-------------------------------------------------|
+| 0 - 5   | 1.4 - 1.8 (flat, fast)                          |
+| 6       | 3.6                                             |
+| 8       | 7                                               |
+| 10      | 8.6                                             |
+| 12      | 12.4                                            |
+| 14      | 26                                              |
+| 16      | 280                                             |
+| 18 - 30 | doesn't converge as Cod goes extinct every time |
+
+That climb from \~1.8 years to 280 years between effort 5 and 16 is **critical slowing down** - the textbook signature of approaching a bifurcation. But rather than settling into a sustained limit cycle past that point, the population just collapses to extinction at effort ≥18. Consistent with, but not a clean confirmation of, the paper's prediction: something is clearly changing character as effort approaches 16, but on that coarse a grid (step of 2 between 16 and 18) it's not possible to tell whether a genuine surviving oscillation exists in the gap or the population goes straight from "slow but stable" to "dead."
+
+------------------------------------------------------------------------
+
+## Changing the Output Method to Match Day 32's Bifurcation Diagrams
+
+Rather than collapsing each point to a single `rel_amplitude` number and thresholding it (the same kind of threshold Day 32 already found unreliable at small yields), the sweep now records max and min separately in a late window, the same shape as `run_bifurcation_sweep_alpha()`/`run_bifurcation_sweep_q()`, and both a forward and a backward pass, so the plot itself, not a printed verdict, is the primary output: max and min collapsing onto one curve reads as a fixed point, the two branches visibly splitting apart reads as a real oscillation or hysteresis.
+
+```{r bifurcation-plot-function}
+#| message: false
+#| warning: false
+plot_bifurcation_maturity_fishing <- function(df, title, subtitle = NULL) {
+  ggplot(df, aes(x = value, y = metric, color = direction, linetype = branch)) +
+    geom_line(linewidth = 1) +
+    geom_point(size = 1.2) +
+    labs(x = "Fishing effort", y = "Yield", title = title, subtitle = subtitle) +
+    theme_minimal()
+}
+
+# p_variant is passed in explicitly (rather than closed over) so this same
+# loop can be reused against any narrow-window selectivity variant --
+# maturity size here, largest sizes further down -- without duplicating it.
+#
+# tol tightened from projectToSteady()'s own default (0.1*t_per = 0.02) to
+# 1e-5 -- same fix Day 32 applied to the n bifurcation sweep, since a loose
+# tolerance can call a point "converged" before it's actually settled,
+# which shows up as spurious forward/backward disagreement rather than
+# real hysteresis.
+run_maturity_fishing_sweep <- function(effort_seq, p_variant, t_max = 8000, tol = 1e-5) {
+  run_one_direction <- function(seq_vals, init_n = NULL, init_n_pp = NULL) {
+    out       <- data.frame(value = seq_vals, max_metric = NA_real_, min_metric = NA_real_)
+    state_n   <- init_n
+    state_npp <- init_n_pp
+
+    for (i in seq_along(seq_vals)) {
+      result <- tryCatch({
+        pm <- p_variant
+        if (!is.null(state_n)) {
+          pm@initial_n[]    <- state_n
+          pm@initial_n_pp[] <- state_npp
+        }
+        sim  <- mizer::projectToSteady(pm, effort = seq_vals[i], t_max = t_max,
+                                       t_per = 0.2, tol = tol, method = "predictor_corrector",
+                                       return_sim = TRUE, progress_bar = FALSE)
+        mv   <- rowSums(getYield(sim))
+        tv   <- as.numeric(names(mv))
+        late <- mv[tv > max(tv) * 0.6]
+        last <- dim(sim@n)[1]
+        list(max_metric = max(late), min_metric = min(late), error = NA_character_,
+            n = sim@n[last, , ], npp = sim@n_pp[last, ])
+      }, error = function(e) {
+        list(max_metric = NA_real_, min_metric = NA_real_, error = conditionMessage(e),
+            n = state_n, npp = state_npp)
+      })
+
+      if (!is.na(result$error)) {
+        warning(sprintf("effort=%.4g: %s", seq_vals[i], result$error))
+      }
+
+      state_n   <- result$n
+      state_npp <- result$npp
+      out$max_metric[i] <- result$max_metric
+      out$min_metric[i] <- result$min_metric
+    }
+    list(df = out, n_final = state_n, npp_final = state_npp)
+  }
+
+  fwd    <- run_one_direction(effort_seq)
+  bwd    <- run_one_direction(rev(effort_seq), init_n = fwd$n_final, init_n_pp = fwd$npp_final)
+  bwd_df <- bwd$df[order(bwd$df$value), ]
+
+  bind_rows(
+    data.frame(value = fwd$df$value, metric = fwd$df$max_metric, direction = "Forward",  branch = "max"),
+    data.frame(value = fwd$df$value, metric = fwd$df$min_metric, direction = "Forward",  branch = "min"),
+    data.frame(value = bwd_df$value, metric = bwd_df$max_metric, direction = "Backward", branch = "max"),
+    data.frame(value = bwd_df$value, metric = bwd_df$min_metric, direction = "Backward", branch = "min")
+  )
+}
+```
+
+### Capping at 14, not 30
+
+The first pass showed effort=16 already deep in critical slowing down (280 years to converge) and effort≥18 outright extinct. Rather than let the collapse dominate the plot, the range is now capped at 14 (inside the region where the population reliably survives) and a genuine backward branch is added, so hysteresis (not just a one-directional read) can actually be checked for.
+
+```{r maturity-sweep-run}
+#| message: false
+#| warning: false
+effort_seq <- c(seq(0, 5, by = 0.5), seq(6, 14, by = 2))
+maturity_fishing_df <- run_maturity_fishing_sweep(effort_seq, p_mat_window)
+
+maturity_fishing_plot <- plot_bifurcation_maturity_fishing(
+  maturity_fishing_df,
+  "Cod bifurcation diagram: yield vs. fishing effort, dome selectivity centred on maturity size",
+  "Narrow double_sigmoid_length window on l_mat (not knife_edge), swept forward and backward -- max/min collapsing onto one curve = fixed point, branches splitting apart = a real oscillation/hysteresis"
+)
+maturity_fishing_plot
+```
+
+```{r maturity-high-effort-biomass}
+#| message: false
+#| warning: false
+#| fig-width: 8
+#| fig-height: 5
+# Biomass trajectories at a handful of the higher-effort points, cold-
+# started fresh each time (not warm-started off each other) so each plot
+# shows what that specific effort level actually does on its own, rather
+# than inheriting a head start from a neighbouring point. project() with
+# t_max=600 here, not projectToSteady() -- these are diagnostic reads of
+# the trajectory shape, not a convergence check.
+maturity_high_effort <- c(8, 10, 12, 14)
+for (e in maturity_high_effort) {
+  sim_e <- mizer::project(p_mat_window, effort = e, t_max = 600,
+                          method = "predictor_corrector", progress_bar = FALSE)
+  print(plotBiomass(sim_e, tlim = c(550, 600)) +
+         labs(subtitle = sprintf("Maturity-window selectivity, effort=%.4g", e)))
+}
+```
+
+------------------------------------------------------------------------
+
+## A Second Variant: Fishing the Largest Sizes
+
+Rochet & Benoît (2012, *Proc. R. Soc. B* 279:284--292) found that oscillations in a size-spectrum community model appear at lower fishing intensity and with larger amplitude specifically when fishing is **both** selective (a narrow size range) **and** targets large fish, rather than either alone. That's a different, and more specific, prediction than "fishing at maturity size".
+
+The natural anchor for "the largest sizes" is `w_inf`, cod's asymptotic weight. The first version of this used the same `double_sigmoid_length` dome as the maturity case, just re-centred on `l_inf`. But that choice doesn't hold up under scrutiny: at `w_mat` a dome is necessary because there's a large population still ahead of it that a knife-edge would indiscriminately sweep up; at `w_inf`, growth is asymptotic, so density beyond it is already thin -- there's essentially nothing left above it to inadvertently include. A `knife_edge(w_inf)` isolates the largest sizes at least as surgically as a dome would, and arguably more so, since it doesn't ramp up starting at 85% of `l_inf` the way the dome's own `l25` did. It's also simpler: `knife_edge` is weight-based directly, so no length-weight (`a`, `b`) conversion is needed at all.
+
+```{r large-size-setup}
+#| message: false
+#| warning: false
+w_inf_cod <- sp_cod$w_inf[sp_cod$species == "Cod"]
+cat(sprintf("cod's native w_inf = %.4g g.\n", w_inf_cod))
+
+gp_large <- gear_params(p)
+gp_large$sel_func[gp_large$species == "Cod"] <- "knife_edge"
+if (!"knife_edge_size" %in% names(gp_large)) gp_large$knife_edge_size <- NA_real_
+gp_large$knife_edge_size[gp_large$species == "Cod"] <- w_inf_cod
+
+p_large_window <- p
+gear_params(p_large_window) <- gp_large
+
+# Sanity check: selectivity should be a hard 0/1 step at w_inf now, not a
+# dome -- 0 everywhere below it, 1 everywhere at or above it (including
+# at the largest size in the model, unlike the dome's ~0 there).
+sel_at_w_large   <- getSelectivity(p_large_window)[gear_name_cod, "Cod", ]
+w_just_below_inf <- which.min(abs(p_large_window@w - 0.9 * w_inf_cod))
+cat(sprintf(
+  "Selectivity at 90%% of w_inf (w=%.4g g) = %.4g (should be 0); selectivity at the largest size in the model = %.4g (should be 1).\n",
+  p_large_window@w[w_just_below_inf], sel_at_w_large[w_just_below_inf],
+  tail(sel_at_w_large, 1)
+))
+```
+
+Large fish are a much smaller share of the spectrum's abundance than fish at maturity size, so the same effort level should bite less hard here ,worth checking the fuller 0 - 30 range rather than assuming it collapses at the same point the maturity window did, so this sweep isn't capped at 14 the way the maturity one is.
+
+```{r large-size-sweep-run}
+#| message: false
+#| warning: false
+effort_seq_large <- c(seq(0, 5, by = 0.5), seq(6, 30, by = 2))
+large_fishing_df <- run_maturity_fishing_sweep(effort_seq_large, p_large_window)
+
+large_fishing_plot <- plot_bifurcation_maturity_fishing(
+  large_fishing_df,
+  "Cod bifurcation diagram: yield vs. fishing effort, knife_edge selectivity at w_inf",
+  "knife_edge(w_inf) -- fully selects the largest sizes only, unlike w_mat where a knife-edge would sweep up the whole adult population -- swept forward and backward -- max/min collapsing onto one curve = fixed point, branches splitting apart = a real oscillation/hysteresis"
+)
+large_fishing_plot
+```
+
+```{r large-high-effort-biomass}
+#| message: false
+#| warning: false
+#| fig-width: 8
+#| fig-height: 5
+# Same handful-of-high-effort biomass trajectories as the maturity-window
+# case, cold-started fresh each time, spread across the wider 0-30 range.
+large_high_effort <- c(14, 20, 25, 30)
+for (e in large_high_effort) {
+  sim_e <- mizer::project(p_large_window, effort = e, t_max = 600,
+                          method = "predictor_corrector", progress_bar = FALSE)
+  print(plotBiomass(sim_e, tlim = c(500, 600)) +
+         labs(subtitle = sprintf("knife_edge(w_inf) selectivity, effort=%.4g", e)))
+}
+```
+
+------------------------------------------------------------------------
+
+## Rereading the Paper
+
+Once both bugs above were fixed and the corrected, forward/backward, bug-free sweeps were actually run to completion, for the maturity-window dome and, separately, for `knife_edge(w_inf)`, the verdict for both was the same as the resource-slope sweep's: flat. Neither destabilises cod on its own. Fishing does not, by itself, cause oscillations here.
+
+That result sent this post back to Rochet & Benoît with a more careful read, and the framing at the top of this post turns out to have been a genuine misreading. The paper never claims that selective or large-fish-targeted fishing is *sufficient* to conjure a limit cycle out of a population that has no oscillatory tendency to begin with. What it actually studied was a size-spectrum community model that already had oscillatory dynamics in it, and found that selective fishing - narrow size range, targeting large fish - made those existing oscillations *bigger*, and made them appear at *lower* fishing intensity, compared to broad or balanced fishing. That's a statement about amplifying an existing tendency, not about creating one from nothing. "Fishing can destabilise a limit cycle into existing" and "selective fishing makes an already-oscillatory system oscillate more" are different claims, and today's design tested the first one when the paper only supports the second.
+
+That reframes today's flat results as expected rather than a failure of the fishing-selectivity idea itself. If cod's own calibration sits in a region of parameter space with no oscillatory capacity at all, which the flat `n` sweep, `alpha`/`q`/`resource_rate` sweeps from Day 32, and now both fishing-selectivity sweeps are all consistent with, then no amount of narrowing or intensifying the fishing window would produce a cycle, because there's nothing there for selective fishing to amplify. The problem was probably never the lever being pulled; it was likely the parameters.
+
+------------------------------------------------------------------------
+
+## What This All Adds Up To
+
+Four different levers were tried against cod's parameterisation across today and Day 32, `alpha`, `q`, `resource_rate` under `balance = TRUE`, the resource slope `n`, fishing concentrated at maturity size, and fishing concentrated at the largest sizes, and all six sweeps came back flat. The two bugs found along the way (the masked `projectToSteady()` losing its convergence attribute, and the `NA == "cycle"` false positive) were real and worth fixing, but fixing them didn't change the outcome, it just made the "no oscillation" verdict trustworthy instead of an artifact. The likely explanation isn't that this project has been pulling the wrong lever six times in a row. It seems that cod's own parameterisation may simply not sit anywhere near an oscillatory regime, so there's nothing for any of these levers, selective fishing included, to amplify into a visible cycle.
+
+------------------------------------------------------------------------
+
+## What's Next
+
+- **Go back to the anchovy parameters.** Earlier in this project, the anchovy parameterisation actually did produce genuine oscillations, unlike cod, which six different levers have now failed to destabilise.
+- **Recreate the oscillations in those anchovy parameters** as a sanity check that the sweep machinery built up over the last several days (forward/backward bifurcation diagrams, the late-window max/min convention, `mizer::` explicit namespacing) correctly detects a real cycle when one actually exists, rather than concluding "cod doesn't oscillate" from a methodology that might not be able to detect one anywhere.
+- **Write up a background of mizer** for the internship's final report.

@@ -1,0 +1,5 @@
+"schedule","mean_yield","regime","n_peaks","n_troughs"
+"Constant",1.59197122861708e-05,"Oscillating (resource_decrease=0.005)",102,102
+"Peaks only",1.16501887560377e-05,"Oscillating (resource_decrease=0.005)",102,102
+"Troughs only",1.49152430846955e-05,"Oscillating (resource_decrease=0.005)",102,102
+"Constant",1.21211175108256e-05,"Non-oscillating (resource_decrease=0.1)",0,0

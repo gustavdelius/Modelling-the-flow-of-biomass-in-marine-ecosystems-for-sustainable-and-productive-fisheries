@@ -491,6 +491,6 @@ The corner that mattered finally got tested, for both parameters, and the headli
 
 ## What's Next
 
-- **Test out whether extreme fishing** can cause the oscillations to reappear
-- **Reduce tolerance for the alpha sweep** to see whether or not they will lie above each other
-- **Read over other academic papers** to see whether or not there are some ideas I can use
+- **Test out whether extreme fishing** can cause the oscillations to reappear.
+- **Reduce tolerance for the alpha sweep** to see whether or not they will lie above each other.
+- **Read over other academic papers** to see whether or not there are some ideas I can use.

@@ -1,0 +1,1356 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.9.38">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="author" content="Samia">
+<meta name="dcterms.date" content="2026-07-23">
+<meta name="description" content="Recreates a genuine anchovy limit cycle, then asks whether fishing eases it. Constant effort turns out to dominate everything tested (including a second, effort-side bifurcation that collapses the oscillation outright) but a mean-effort diagnostic built to explain an odd arc in the results reveals why: yield only cares how much you fish, amplitude cares when.">
+
+<title>Day 34: Recreating the Anchovy Oscillation, and Does Fishing Actually Ease It? – Modelling-the-flow-of-biomass</title>
+<style>
+/* Default styles provided by pandoc.
+** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+*/
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../">
+<script src="../site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="../site_libs/quarto-html/popper.min.js"></script>
+<script src="../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-15634bcf2e68342d4ad2dfa704d543f6.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../site_libs/bootstrap/bootstrap-9a9447a135e5b1c05e5522b7712596fa.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "navbar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "end",
+  "type": "overlay",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+
+
+<link rel="stylesheet" href="../styles.css">
+</head>
+
+<body class="nav-fixed quarto-light">
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+    <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container mx-auto">
+    <a class="navbar-brand" href="../index.html">
+    <span class="navbar-title">Modelling-the-flow-of-biomass</span>
+    </a>
+  </div>
+            <div id="quarto-search" class="" title="Search"></div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" role="menu" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll me-auto">
+  <li class="nav-item">
+    <a class="nav-link" href="../index.html"> 
+<span class="menu-text">Home</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../about.html"> 
+<span class="menu-text">About</span></a>
+  </li>  
+</ul>
+          </div> <!-- /navcollapse -->
+            <div class="quarto-navbar-tools">
+</div>
+      </div> <!-- /container-fluid -->
+    </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
+<!-- sidebar -->
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">On this page</h2>
+   
+  <ul>
+  <li><a href="#where-day-33-left-us" id="toc-where-day-33-left-us" class="nav-link active" data-scroll-target="#where-day-33-left-us">Where Day 33 Left Us</a></li>
+  <li><a href="#recreating-the-oscillation" id="toc-recreating-the-oscillation" class="nav-link" data-scroll-target="#recreating-the-oscillation">Recreating the Oscillation</a></li>
+  <li><a href="#fishing-only-at-peaks-vs.-only-at-troughs" id="toc-fishing-only-at-peaks-vs.-only-at-troughs" class="nav-link" data-scroll-target="#fishing-only-at-peaks-vs.-only-at-troughs">Fishing Only at Peaks vs.&nbsp;Only at Troughs</a></li>
+  <li><a href="#pushing-constant-effort-further" id="toc-pushing-constant-effort-further" class="nav-link" data-scroll-target="#pushing-constant-effort-further">Pushing Constant Effort Further</a></li>
+  <li><a href="#does-the-pattern-hold-across-resource_decrease-and-a-correction" id="toc-does-the-pattern-hold-across-resource_decrease-and-a-correction" class="nav-link" data-scroll-target="#does-the-pattern-hold-across-resource_decrease-and-a-correction">Does the Pattern Hold Across resource_decrease? (And a Correction)</a></li>
+  <li><a href="#the-circle-in-the-trade-off-plot" id="toc-the-circle-in-the-trade-off-plot" class="nav-link" data-scroll-target="#the-circle-in-the-trade-off-plot">The Circle in the Trade-off Plot</a></li>
+  <li><a href="#whats-next" id="toc-whats-next" class="nav-link" data-scroll-target="#whats-next">What’s Next</a></li>
+  </ul>
+</nav>
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title">Day 34: Recreating the Anchovy Oscillation, and Does Fishing Actually Ease It?</h1>
+  <div class="quarto-categories">
+    <div class="quarto-category">research</div>
+    <div class="quarto-category">mizer</div>
+    <div class="quarto-category">anchovy</div>
+    <div class="quarto-category">bifurcation-diagram</div>
+    <div class="quarto-category">fishing-schedule</div>
+    <div class="quarto-category">blog</div>
+  </div>
+  </div>
+
+<div>
+  <div class="description">
+    Recreates a genuine anchovy limit cycle, then asks whether fishing eases it. Constant effort turns out to dominate everything tested (including a second, effort-side bifurcation that collapses the oscillation outright) but a mean-effort diagnostic built to explain an odd arc in the results reveals why: yield only cares how much you fish, amplitude cares when.
+  </div>
+</div>
+
+
+<div class="quarto-title-meta">
+
+    <div>
+    <div class="quarto-title-meta-heading">Author</div>
+    <div class="quarto-title-meta-contents">
+             <p>Samia </p>
+          </div>
+  </div>
+    
+    <div>
+    <div class="quarto-title-meta-heading">Published</div>
+    <div class="quarto-title-meta-contents">
+      <p class="date">July 23, 2026</p>
+    </div>
+  </div>
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<section id="where-day-33-left-us" class="level2">
+<h2 class="anchored" data-anchor-id="where-day-33-left-us">Where Day 33 Left Us</h2>
+<p>Six levers thrown at cod’s calibration all came back flat. There was no genuine limit cycle anywhere, most likely because cod’s own parameterisation doesn’t sit near an oscillatory regime at all. Day 33 queued up going back to the anchovy parameterisation that <em>did</em> oscillate earlier in this project, as a sanity check on the sweep machinery itself. It grew into a bigger question: given a real oscillation, does fishing actually ease it, or just move it around?</p>
+<hr>
+</section>
+<section id="recreating-the-oscillation" class="level2">
+<h2 class="anchored" data-anchor-id="recreating-the-oscillation">Recreating the Oscillation</h2>
+<p>Reusing Day 18/20’s own anchovy setup below, then sweeping <code>resource_decrease</code> directly with the same forward/backward, max/min bifurcation convention every cod sweep since Day 30 has used (40 points, log-spaced 0.0001-0.5, <code>tr_bdf2</code>, warm-started):</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(mizer); <span class="fu">library</span>(dplyr); <span class="fu">library</span>(tidyverse); <span class="fu">library</span>(ggplot2)</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>make_params <span class="ot">&lt;-</span> <span class="cf">function</span>(<span class="at">lambda =</span> <span class="fl">2.05</span>, <span class="at">resource_decrease =</span> <span class="fl">0.001</span>, <span class="at">balance =</span> <span class="cn">TRUE</span>) {</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>  a0 <span class="ot">&lt;-</span> <span class="dv">100</span>; kappa <span class="ot">&lt;-</span> a0 <span class="sc">*</span> <span class="fu">exp</span>(<span class="sc">-</span><span class="fl">6.9</span> <span class="sc">*</span> (lambda <span class="sc">-</span> <span class="dv">1</span>))</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>  params <span class="ot">&lt;-</span> <span class="fu">newSingleSpeciesParams</span>(</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>    <span class="at">species_name =</span> <span class="st">"Anchovy"</span>, <span class="at">w_min =</span> <span class="fl">0.0003</span>, <span class="at">w_max =</span> <span class="fl">66.5</span>, <span class="at">w_mat =</span> <span class="dv">10</span>,</span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>    <span class="at">no_w =</span> <span class="fu">round</span>(<span class="fu">log</span>(<span class="fl">66.5</span> <span class="sc">/</span> <span class="fl">0.0003</span>) <span class="sc">/</span> <span class="fl">0.1</span>), <span class="at">lambda =</span> lambda, <span class="at">kappa =</span> kappa,</span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>    <span class="at">alpha =</span> <span class="fl">0.1</span>, <span class="at">gamma =</span> <span class="dv">750</span>, <span class="at">ks =</span> <span class="dv">0</span></span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a>  r <span class="ot">&lt;-</span> <span class="fu">getResourceRate</span>(params) <span class="sc">*</span> resource_decrease</span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">setResource</span>(params, <span class="at">resource_rate =</span> r, <span class="at">resource_dynamics =</span> <span class="st">"resource_semichemostat"</span>, <span class="at">balance =</span> balance)</span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a>make_fishing_params <span class="ot">&lt;-</span> <span class="cf">function</span>(<span class="at">resource_decrease =</span> <span class="fl">0.001</span>) {</span>
+<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a>  p  <span class="ot">&lt;-</span> <span class="fu">make_params</span>(<span class="at">resource_decrease =</span> resource_decrease)</span>
+<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a>  gp <span class="ot">&lt;-</span> p<span class="sc">@</span>gear_params</span>
+<span id="cb1-17"><a href="#cb1-17" aria-hidden="true" tabindex="-1"></a>  gp<span class="sc">$</span>sel_func <span class="ot">&lt;-</span> <span class="st">"knife_edge"</span>; gp<span class="sc">$</span>knife_edge_size <span class="ot">&lt;-</span> p<span class="sc">@</span>species_params<span class="sc">$</span>w_mat; gp<span class="sc">$</span>catchability <span class="ot">&lt;-</span> <span class="dv">1</span></span>
+<span id="cb1-18"><a href="#cb1-18" aria-hidden="true" tabindex="-1"></a>  <span class="fu">gear_params</span>(p) <span class="ot">&lt;-</span> gp</span>
+<span id="cb1-19"><a href="#cb1-19" aria-hidden="true" tabindex="-1"></a>  p</span>
+<span id="cb1-20"><a href="#cb1-20" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+</div>
+<p>The actual sweep: forward and backward passes across <code>resource_decrease</code>, warm-started (every point after the first inherits the previous point’s own final <code>(n, n_pp)</code> state), recording max and min biomass separately in a late window rather than collapsing straight to a single amplitude number. Branches that fan apart mean a real limit cycle, branches that collapse onto one curve mean a fixed point.</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>run_bifurcation_sweep_rd <span class="ot">&lt;-</span> <span class="cf">function</span>(rd_seq, params_fn, effort, metric_fn,</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>                                     <span class="at">t_run =</span> <span class="dv">300</span>, <span class="at">lambda =</span> <span class="fl">2.05</span>) {</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>  run_one_direction <span class="ot">&lt;-</span> <span class="cf">function</span>(seq_vals, <span class="at">init_n =</span> <span class="cn">NULL</span>, <span class="at">init_n_pp =</span> <span class="cn">NULL</span>) {</span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>    out       <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(<span class="at">value =</span> seq_vals, <span class="at">max_metric =</span> <span class="cn">NA_real_</span>, <span class="at">min_metric =</span> <span class="cn">NA_real_</span>)</span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>    state_n   <span class="ot">&lt;-</span> init_n</span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>    state_npp <span class="ot">&lt;-</span> init_n_pp</span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> (i <span class="cf">in</span> <span class="fu">seq_along</span>(seq_vals)) {</span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a>      p <span class="ot">&lt;-</span> <span class="fu">params_fn</span>(<span class="at">lambda =</span> lambda, <span class="at">resource_decrease =</span> seq_vals[i])</span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a>      <span class="cf">if</span> (<span class="sc">!</span><span class="fu">is.null</span>(state_n)) {</span>
+<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a>        p<span class="sc">@</span>initial_n[]    <span class="ot">&lt;-</span> state_n</span>
+<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a>        p<span class="sc">@</span>initial_n_pp[] <span class="ot">&lt;-</span> state_npp</span>
+<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a>      }</span>
+<span id="cb2-14"><a href="#cb2-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-15"><a href="#cb2-15" aria-hidden="true" tabindex="-1"></a>      result <span class="ot">&lt;-</span> <span class="fu">tryCatch</span>({</span>
+<span id="cb2-16"><a href="#cb2-16" aria-hidden="true" tabindex="-1"></a>        sim  <span class="ot">&lt;-</span> <span class="fu">project</span>(p, <span class="at">t_max =</span> t_run, <span class="at">dt =</span> <span class="fl">0.1</span>, <span class="at">t_save =</span> <span class="fl">0.5</span>,</span>
+<span id="cb2-17"><a href="#cb2-17" aria-hidden="true" tabindex="-1"></a>                        <span class="at">progress_bar =</span> <span class="cn">FALSE</span>, <span class="at">effort =</span> effort, <span class="at">method =</span> <span class="st">"tr_bdf2"</span>)</span>
+<span id="cb2-18"><a href="#cb2-18" aria-hidden="true" tabindex="-1"></a>        mv   <span class="ot">&lt;-</span> <span class="fu">metric_fn</span>(sim)</span>
+<span id="cb2-19"><a href="#cb2-19" aria-hidden="true" tabindex="-1"></a>        tv   <span class="ot">&lt;-</span> <span class="fu">as.numeric</span>(<span class="fu">names</span>(mv))</span>
+<span id="cb2-20"><a href="#cb2-20" aria-hidden="true" tabindex="-1"></a>        late <span class="ot">&lt;-</span> mv[tv <span class="sc">&gt;</span> t_run <span class="sc">*</span> <span class="fl">0.6</span>]</span>
+<span id="cb2-21"><a href="#cb2-21" aria-hidden="true" tabindex="-1"></a>        last <span class="ot">&lt;-</span> <span class="fu">dim</span>(sim<span class="sc">@</span>n)[<span class="dv">1</span>]</span>
+<span id="cb2-22"><a href="#cb2-22" aria-hidden="true" tabindex="-1"></a>        <span class="fu">list</span>(<span class="at">max_metric =</span> <span class="fu">max</span>(late), <span class="at">min_metric =</span> <span class="fu">min</span>(late), <span class="at">error =</span> <span class="cn">NA_character_</span>,</span>
+<span id="cb2-23"><a href="#cb2-23" aria-hidden="true" tabindex="-1"></a>            <span class="at">n =</span> sim<span class="sc">@</span>n[last, , ], <span class="at">npp =</span> sim<span class="sc">@</span>n_pp[last, ])</span>
+<span id="cb2-24"><a href="#cb2-24" aria-hidden="true" tabindex="-1"></a>      }, <span class="at">error =</span> <span class="cf">function</span>(e) {</span>
+<span id="cb2-25"><a href="#cb2-25" aria-hidden="true" tabindex="-1"></a>        <span class="fu">list</span>(<span class="at">max_metric =</span> <span class="cn">NA_real_</span>, <span class="at">min_metric =</span> <span class="cn">NA_real_</span>, <span class="at">error =</span> <span class="fu">conditionMessage</span>(e),</span>
+<span id="cb2-26"><a href="#cb2-26" aria-hidden="true" tabindex="-1"></a>            <span class="at">n =</span> state_n, <span class="at">npp =</span> state_npp)</span>
+<span id="cb2-27"><a href="#cb2-27" aria-hidden="true" tabindex="-1"></a>      })</span>
+<span id="cb2-28"><a href="#cb2-28" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-29"><a href="#cb2-29" aria-hidden="true" tabindex="-1"></a>      <span class="cf">if</span> (<span class="sc">!</span><span class="fu">is.na</span>(result<span class="sc">$</span>error)) {</span>
+<span id="cb2-30"><a href="#cb2-30" aria-hidden="true" tabindex="-1"></a>        <span class="fu">warning</span>(<span class="fu">sprintf</span>(<span class="st">"resource_decrease=%.5g: %s"</span>, seq_vals[i], result<span class="sc">$</span>error))</span>
+<span id="cb2-31"><a href="#cb2-31" aria-hidden="true" tabindex="-1"></a>      }</span>
+<span id="cb2-32"><a href="#cb2-32" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-33"><a href="#cb2-33" aria-hidden="true" tabindex="-1"></a>      state_n   <span class="ot">&lt;-</span> result<span class="sc">$</span>n</span>
+<span id="cb2-34"><a href="#cb2-34" aria-hidden="true" tabindex="-1"></a>      state_npp <span class="ot">&lt;-</span> result<span class="sc">$</span>npp</span>
+<span id="cb2-35"><a href="#cb2-35" aria-hidden="true" tabindex="-1"></a>      out<span class="sc">$</span>max_metric[i] <span class="ot">&lt;-</span> result<span class="sc">$</span>max_metric</span>
+<span id="cb2-36"><a href="#cb2-36" aria-hidden="true" tabindex="-1"></a>      out<span class="sc">$</span>min_metric[i] <span class="ot">&lt;-</span> result<span class="sc">$</span>min_metric</span>
+<span id="cb2-37"><a href="#cb2-37" aria-hidden="true" tabindex="-1"></a>    }</span>
+<span id="cb2-38"><a href="#cb2-38" aria-hidden="true" tabindex="-1"></a>    <span class="fu">list</span>(<span class="at">df =</span> out, <span class="at">n_final =</span> state_n, <span class="at">npp_final =</span> state_npp)</span>
+<span id="cb2-39"><a href="#cb2-39" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb2-40"><a href="#cb2-40" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-41"><a href="#cb2-41" aria-hidden="true" tabindex="-1"></a>  fwd    <span class="ot">&lt;-</span> <span class="fu">run_one_direction</span>(rd_seq)</span>
+<span id="cb2-42"><a href="#cb2-42" aria-hidden="true" tabindex="-1"></a>  bwd    <span class="ot">&lt;-</span> <span class="fu">run_one_direction</span>(<span class="fu">rev</span>(rd_seq), <span class="at">init_n =</span> fwd<span class="sc">$</span>n_final, <span class="at">init_n_pp =</span> fwd<span class="sc">$</span>npp_final)</span>
+<span id="cb2-43"><a href="#cb2-43" aria-hidden="true" tabindex="-1"></a>  bwd_df <span class="ot">&lt;-</span> bwd<span class="sc">$</span>df[<span class="fu">order</span>(bwd<span class="sc">$</span>df<span class="sc">$</span>value), ]</span>
+<span id="cb2-44"><a href="#cb2-44" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-45"><a href="#cb2-45" aria-hidden="true" tabindex="-1"></a>  <span class="fu">bind_rows</span>(</span>
+<span id="cb2-46"><a href="#cb2-46" aria-hidden="true" tabindex="-1"></a>    <span class="fu">data.frame</span>(<span class="at">value =</span> fwd<span class="sc">$</span>df<span class="sc">$</span>value, <span class="at">metric =</span> fwd<span class="sc">$</span>df<span class="sc">$</span>max_metric, <span class="at">direction =</span> <span class="st">"Forward"</span>,  <span class="at">branch =</span> <span class="st">"max"</span>),</span>
+<span id="cb2-47"><a href="#cb2-47" aria-hidden="true" tabindex="-1"></a>    <span class="fu">data.frame</span>(<span class="at">value =</span> fwd<span class="sc">$</span>df<span class="sc">$</span>value, <span class="at">metric =</span> fwd<span class="sc">$</span>df<span class="sc">$</span>min_metric, <span class="at">direction =</span> <span class="st">"Forward"</span>,  <span class="at">branch =</span> <span class="st">"min"</span>),</span>
+<span id="cb2-48"><a href="#cb2-48" aria-hidden="true" tabindex="-1"></a>    <span class="fu">data.frame</span>(<span class="at">value =</span> bwd_df<span class="sc">$</span>value, <span class="at">metric =</span> bwd_df<span class="sc">$</span>max_metric, <span class="at">direction =</span> <span class="st">"Backward"</span>, <span class="at">branch =</span> <span class="st">"max"</span>),</span>
+<span id="cb2-49"><a href="#cb2-49" aria-hidden="true" tabindex="-1"></a>    <span class="fu">data.frame</span>(<span class="at">value =</span> bwd_df<span class="sc">$</span>value, <span class="at">metric =</span> bwd_df<span class="sc">$</span>min_metric, <span class="at">direction =</span> <span class="st">"Backward"</span>, <span class="at">branch =</span> <span class="st">"min"</span>)</span>
+<span id="cb2-50"><a href="#cb2-50" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb2-51"><a href="#cb2-51" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb2-52"><a href="#cb2-52" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-53"><a href="#cb2-53" aria-hidden="true" tabindex="-1"></a>plot_bifurcation_rd <span class="ot">&lt;-</span> <span class="cf">function</span>(df, y_label, title, <span class="at">subtitle =</span> <span class="cn">NULL</span>) {</span>
+<span id="cb2-54"><a href="#cb2-54" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ggplot</span>(df, <span class="fu">aes</span>(<span class="at">x =</span> value, <span class="at">y =</span> metric, <span class="at">color =</span> direction, <span class="at">linetype =</span> branch)) <span class="sc">+</span></span>
+<span id="cb2-55"><a href="#cb2-55" aria-hidden="true" tabindex="-1"></a>    <span class="fu">geom_line</span>(<span class="at">linewidth =</span> <span class="dv">1</span>) <span class="sc">+</span></span>
+<span id="cb2-56"><a href="#cb2-56" aria-hidden="true" tabindex="-1"></a>    <span class="fu">geom_point</span>(<span class="at">size =</span> <span class="fl">1.2</span>) <span class="sc">+</span></span>
+<span id="cb2-57"><a href="#cb2-57" aria-hidden="true" tabindex="-1"></a>    <span class="fu">scale_x_log10</span>() <span class="sc">+</span></span>
+<span id="cb2-58"><a href="#cb2-58" aria-hidden="true" tabindex="-1"></a>    <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"resource_decrease"</span>, <span class="at">y =</span> y_label, <span class="at">title =</span> title, <span class="at">subtitle =</span> subtitle) <span class="sc">+</span></span>
+<span id="cb2-59"><a href="#cb2-59" aria-hidden="true" tabindex="-1"></a>    <span class="fu">theme_minimal</span>()</span>
+<span id="cb2-60"><a href="#cb2-60" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb2-61"><a href="#cb2-61" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-62"><a href="#cb2-62" aria-hidden="true" tabindex="-1"></a><span class="co"># Log-spaced, 0.0001 to 0.5 -- same range Day 20 used</span></span>
+<span id="cb2-63"><a href="#cb2-63" aria-hidden="true" tabindex="-1"></a>rd_seq_bif <span class="ot">&lt;-</span> <span class="fu">exp</span>(<span class="fu">seq</span>(<span class="fu">log</span>(<span class="fl">0.0001</span>), <span class="fu">log</span>(<span class="fl">0.5</span>), <span class="at">length.out =</span> <span class="dv">40</span>))</span>
+<span id="cb2-64"><a href="#cb2-64" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-65"><a href="#cb2-65" aria-hidden="true" tabindex="-1"></a>bif_biomass_df <span class="ot">&lt;-</span> <span class="fu">run_bifurcation_sweep_rd</span>(</span>
+<span id="cb2-66"><a href="#cb2-66" aria-hidden="true" tabindex="-1"></a>  rd_seq_bif, <span class="at">params_fn =</span> make_params, <span class="at">effort =</span> <span class="dv">0</span>, <span class="at">t_run =</span> <span class="dv">300</span>,</span>
+<span id="cb2-67"><a href="#cb2-67" aria-hidden="true" tabindex="-1"></a>  <span class="at">metric_fn =</span> <span class="cf">function</span>(sim) <span class="fu">getBiomass</span>(sim)[, <span class="st">"Anchovy"</span>]</span>
+<span id="cb2-68"><a href="#cb2-68" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb2-69"><a href="#cb2-69" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-70"><a href="#cb2-70" aria-hidden="true" tabindex="-1"></a>bif_biomass_plot <span class="ot">&lt;-</span> <span class="fu">plot_bifurcation_rd</span>(</span>
+<span id="cb2-71"><a href="#cb2-71" aria-hidden="true" tabindex="-1"></a>  bif_biomass_df, <span class="st">"Biomass"</span>,</span>
+<span id="cb2-72"><a href="#cb2-72" aria-hidden="true" tabindex="-1"></a>  <span class="st">"Anchovy bifurcation diagram: biomass vs. resource_decrease"</span>,</span>
+<span id="cb2-73"><a href="#cb2-73" aria-hidden="true" tabindex="-1"></a>  <span class="st">"effort=0 (unfished), swept forward and backward, log-spaced 0.0001-0.5 -- branches collapsing onto one curve = fixed point, fanning apart = limit cycle"</span></span>
+<span id="cb2-74"><a href="#cb2-74" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb2-75"><a href="#cb2-75" aria-hidden="true" tabindex="-1"></a>bif_biomass_plot</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="2026-07-23-day-thirty-four_files/figure-html/bifurcation-sweep-function-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Note</span>What the sweep found
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<ul>
+<li><strong>A real, sharp bifurcation around <code>resource_decrease</code> ≈ 0.012-0.015:</strong> Below it, forward/backward branches fan apart into genuine oscillation (<code>rel_amplitude</code> up to ~1.7); above it, <code>rel_amplitude</code> collapses to numerical noise and stays there to 0.5. Confirms the sweep machinery that read flat six times against cod actually detects a real cycle when one exists.</li>
+<li><strong>Biomass is pinned at exactly 0.0869 across the entire non-oscillating half of the range:</strong> <code>resource_decrease</code> only scales the resource’s replenishment <em>rate</em>, not its <em>capacity</em>, so past some rate the resource just sits at capacity regardless.</li>
+</ul>
+</div>
+</div>
+<hr>
+</section>
+<section id="fishing-only-at-peaks-vs.-only-at-troughs" class="level2">
+<h2 class="anchored" data-anchor-id="fishing-only-at-peaks-vs.-only-at-troughs">Fishing Only at Peaks vs.&nbsp;Only at Troughs</h2>
+<p>The project’s central question, applied to a genuine limit cycle for the first time: does fishing relieve the “jam,” or worsen it, depending on <em>when</em> in the cycle it happens?</p>
+<p>One real bug caught along the way: the first version forked into peaks-only/troughs-only/constant branches at <code>t = 300</code>, but the oscillation doesn’t actually settle into a regular cycle until roughly <code>t = 400,</code> so that both the detected events and the state every branch continued from were contaminated by a still-settling transient. Fixed by pushing the fork out to <code>t = 500</code>.</p>
+<p>Settle-and-kick recipe reused unchanged from Day 18/20 (10yr unfished settle, then a 1000x knock-down of the mature <code>w</code> range at <code>t = 10</code>, then run forward), then a fork at <code>t = t_fork</code> that peaks/troughs are detected off of, followed by peaks-only/troughs-only/constant branches all sharing that same pre-fork state:</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>make_limit_cycle_sim <span class="ot">&lt;-</span> <span class="cf">function</span>(params, <span class="at">t_total =</span> <span class="dv">600</span>, <span class="at">effort =</span> <span class="dv">0</span>, <span class="at">perturbation =</span> <span class="fl">1e3</span>) {</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>  params<span class="sc">@</span>initial_n_pp[] <span class="ot">&lt;-</span> params<span class="sc">@</span>cc_pp <span class="sc">*</span> <span class="fl">0.1</span></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>  sim_init <span class="ot">&lt;-</span> <span class="fu">project</span>(params, <span class="at">t_max =</span> <span class="dv">10</span>, <span class="at">dt =</span> <span class="fl">0.1</span>, <span class="at">t_save =</span> <span class="fl">0.2</span>,</span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>                      <span class="at">progress_bar =</span> <span class="cn">FALSE</span>, <span class="at">effort =</span> <span class="dv">0</span>,</span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>                      <span class="at">method =</span> <span class="st">"tr_bdf2"</span>)</span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>  idx  <span class="ot">&lt;-</span> params<span class="sc">@</span>w <span class="sc">&gt;=</span> <span class="dv">10</span> <span class="sc">&amp;</span> params<span class="sc">@</span>w <span class="sc">&lt;=</span> <span class="dv">100</span></span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a>  last <span class="ot">&lt;-</span> <span class="fu">dim</span>(sim_init<span class="sc">@</span>n)[<span class="dv">1</span>]</span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a>  sim_init<span class="sc">@</span>n[last, , idx] <span class="ot">&lt;-</span> sim_init<span class="sc">@</span>n[last, , idx] <span class="sc">/</span> perturbation</span>
+<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">project</span>(sim_init, <span class="at">t_max =</span> t_total <span class="sc">-</span> <span class="dv">10</span>, <span class="at">dt =</span> <span class="fl">0.1</span>, <span class="at">t_save =</span> <span class="fl">0.2</span>,</span>
+<span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a>          <span class="at">progress_bar =</span> <span class="cn">FALSE</span>, <span class="at">effort =</span> effort,</span>
+<span id="cb3-13"><a href="#cb3-13" aria-hidden="true" tabindex="-1"></a>          <span class="at">method =</span> <span class="st">"tr_bdf2"</span>)</span>
+<span id="cb3-14"><a href="#cb3-14" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb3-15"><a href="#cb3-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-16"><a href="#cb3-16" aria-hidden="true" tabindex="-1"></a>run_focus_yield_comparison <span class="ot">&lt;-</span> <span class="cf">function</span>(resource_decrease, window, fish_level, regime_label,</span>
+<span id="cb3-17"><a href="#cb3-17" aria-hidden="true" tabindex="-1"></a>                                       t_fork, post_fork_years, summary_window,</span>
+<span id="cb3-18"><a href="#cb3-18" aria-hidden="true" tabindex="-1"></a>                                       <span class="at">schedules =</span> <span class="fu">c</span>(<span class="st">"Peaks only"</span>, <span class="st">"Troughs only"</span>, <span class="st">"Constant"</span>)) {</span>
+<span id="cb3-19"><a href="#cb3-19" aria-hidden="true" tabindex="-1"></a>  p_focus   <span class="ot">&lt;-</span> <span class="fu">make_fishing_params</span>(<span class="at">resource_decrease =</span> resource_decrease)</span>
+<span id="cb3-20"><a href="#cb3-20" aria-hidden="true" tabindex="-1"></a>  gp_focus  <span class="ot">&lt;-</span> <span class="fu">gear_params</span>(p_focus)</span>
+<span id="cb3-21"><a href="#cb3-21" aria-hidden="true" tabindex="-1"></a>  gear_name <span class="ot">&lt;-</span> gp_focus<span class="sc">$</span>gear[gp_focus<span class="sc">$</span>species <span class="sc">==</span> <span class="st">"Anchovy"</span>][<span class="dv">1</span>]</span>
+<span id="cb3-22"><a href="#cb3-22" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-23"><a href="#cb3-23" aria-hidden="true" tabindex="-1"></a>  sim_fork <span class="ot">&lt;-</span> <span class="fu">make_limit_cycle_sim</span>(p_focus, <span class="at">t_total =</span> t_fork, <span class="at">effort =</span> <span class="dv">0</span>)</span>
+<span id="cb3-24"><a href="#cb3-24" aria-hidden="true" tabindex="-1"></a>  sim_ref  <span class="ot">&lt;-</span> <span class="fu">project</span>(sim_fork, <span class="at">t_max =</span> post_fork_years, <span class="at">dt =</span> <span class="fl">0.1</span>, <span class="at">t_save =</span> <span class="fl">0.2</span>,</span>
+<span id="cb3-25"><a href="#cb3-25" aria-hidden="true" tabindex="-1"></a>                      <span class="at">progress_bar =</span> <span class="cn">FALSE</span>, <span class="at">effort =</span> <span class="dv">0</span>, <span class="at">method =</span> <span class="st">"tr_bdf2"</span>)</span>
+<span id="cb3-26"><a href="#cb3-26" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-27"><a href="#cb3-27" aria-hidden="true" tabindex="-1"></a>  all_times <span class="ot">&lt;-</span> <span class="fu">as.numeric</span>(<span class="fu">dimnames</span>(sim_ref<span class="sc">@</span>n)[[<span class="dv">1</span>]])</span>
+<span id="cb3-28"><a href="#cb3-28" aria-hidden="true" tabindex="-1"></a>  keep      <span class="ot">&lt;-</span> all_times <span class="sc">&gt;=</span> t_fork</span>
+<span id="cb3-29"><a href="#cb3-29" aria-hidden="true" tabindex="-1"></a>  t_p       <span class="ot">&lt;-</span> all_times[keep]</span>
+<span id="cb3-30"><a href="#cb3-30" aria-hidden="true" tabindex="-1"></a>  time_lbls <span class="ot">&lt;-</span> <span class="fu">dimnames</span>(sim_ref<span class="sc">@</span>n)[[<span class="dv">1</span>]][keep]</span>
+<span id="cb3-31"><a href="#cb3-31" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-32"><a href="#cb3-32" aria-hidden="true" tabindex="-1"></a>  needs_events <span class="ot">&lt;-</span> <span class="fu">any</span>(<span class="fu">c</span>(<span class="st">"Peaks only"</span>, <span class="st">"Troughs only"</span>) <span class="sc">%in%</span> schedules)</span>
+<span id="cb3-33"><a href="#cb3-33" aria-hidden="true" tabindex="-1"></a>  peak_times   <span class="ot">&lt;-</span> <span class="fu">numeric</span>(<span class="dv">0</span>)</span>
+<span id="cb3-34"><a href="#cb3-34" aria-hidden="true" tabindex="-1"></a>  trough_times <span class="ot">&lt;-</span> <span class="fu">numeric</span>(<span class="dv">0</span>)</span>
+<span id="cb3-35"><a href="#cb3-35" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-36"><a href="#cb3-36" aria-hidden="true" tabindex="-1"></a>  <span class="cf">if</span> (needs_events) {</span>
+<span id="cb3-37"><a href="#cb3-37" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Local maxima/minima of the regular (t &gt;= t_fork) unfished biomass trajectory.</span></span>
+<span id="cb3-38"><a href="#cb3-38" aria-hidden="true" tabindex="-1"></a>    bm <span class="ot">&lt;-</span> <span class="fu">getBiomass</span>(sim_ref)[, <span class="st">"Anchovy"</span>][time_lbls]</span>
+<span id="cb3-39"><a href="#cb3-39" aria-hidden="true" tabindex="-1"></a>    n  <span class="ot">&lt;-</span> <span class="fu">length</span>(bm)</span>
+<span id="cb3-40"><a href="#cb3-40" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-41"><a href="#cb3-41" aria-hidden="true" tabindex="-1"></a>    is_peak   <span class="ot">&lt;-</span> <span class="fu">logical</span>(n)</span>
+<span id="cb3-42"><a href="#cb3-42" aria-hidden="true" tabindex="-1"></a>    is_trough <span class="ot">&lt;-</span> <span class="fu">logical</span>(n)</span>
+<span id="cb3-43"><a href="#cb3-43" aria-hidden="true" tabindex="-1"></a>    is_peak[<span class="dv">2</span><span class="sc">:</span>(n <span class="sc">-</span> <span class="dv">1</span>)]   <span class="ot">&lt;-</span> bm[<span class="dv">2</span><span class="sc">:</span>(n <span class="sc">-</span> <span class="dv">1</span>)] <span class="sc">&gt;</span> bm[<span class="dv">1</span><span class="sc">:</span>(n <span class="sc">-</span> <span class="dv">2</span>)] <span class="sc">&amp;</span> bm[<span class="dv">2</span><span class="sc">:</span>(n <span class="sc">-</span> <span class="dv">1</span>)] <span class="sc">&gt;</span> bm[<span class="dv">3</span><span class="sc">:</span>n]</span>
+<span id="cb3-44"><a href="#cb3-44" aria-hidden="true" tabindex="-1"></a>    is_trough[<span class="dv">2</span><span class="sc">:</span>(n <span class="sc">-</span> <span class="dv">1</span>)] <span class="ot">&lt;-</span> bm[<span class="dv">2</span><span class="sc">:</span>(n <span class="sc">-</span> <span class="dv">1</span>)] <span class="sc">&lt;</span> bm[<span class="dv">1</span><span class="sc">:</span>(n <span class="sc">-</span> <span class="dv">2</span>)] <span class="sc">&amp;</span> bm[<span class="dv">2</span><span class="sc">:</span>(n <span class="sc">-</span> <span class="dv">1</span>)] <span class="sc">&lt;</span> bm[<span class="dv">3</span><span class="sc">:</span>n]</span>
+<span id="cb3-45"><a href="#cb3-45" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-46"><a href="#cb3-46" aria-hidden="true" tabindex="-1"></a>    peak_times   <span class="ot">&lt;-</span> t_p[is_peak]</span>
+<span id="cb3-47"><a href="#cb3-47" aria-hidden="true" tabindex="-1"></a>    trough_times <span class="ot">&lt;-</span> t_p[is_trough]</span>
+<span id="cb3-48"><a href="#cb3-48" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb3-49"><a href="#cb3-49" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-50"><a href="#cb3-50" aria-hidden="true" tabindex="-1"></a>  build_schedule <span class="ot">&lt;-</span> <span class="cf">function</span>(event_times) {</span>
+<span id="cb3-51"><a href="#cb3-51" aria-hidden="true" tabindex="-1"></a>    ev <span class="ot">&lt;-</span> <span class="fu">rep</span>(<span class="dv">0</span>, <span class="fu">length</span>(t_p))</span>
+<span id="cb3-52"><a href="#cb3-52" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> (et <span class="cf">in</span> event_times) {</span>
+<span id="cb3-53"><a href="#cb3-53" aria-hidden="true" tabindex="-1"></a>      ev[t_p <span class="sc">&gt;=</span> et <span class="sc">-</span> window <span class="sc">/</span> <span class="dv">2</span> <span class="sc">&amp;</span> t_p <span class="sc">&lt;=</span> et <span class="sc">+</span> window <span class="sc">/</span> <span class="dv">2</span>] <span class="ot">&lt;-</span> fish_level</span>
+<span id="cb3-54"><a href="#cb3-54" aria-hidden="true" tabindex="-1"></a>    }</span>
+<span id="cb3-55"><a href="#cb3-55" aria-hidden="true" tabindex="-1"></a>    <span class="fu">matrix</span>(ev, <span class="at">ncol =</span> <span class="dv">1</span>, <span class="at">dimnames =</span> <span class="fu">list</span>(time_lbls, gear_name))</span>
+<span id="cb3-56"><a href="#cb3-56" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb3-57"><a href="#cb3-57" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-58"><a href="#cb3-58" aria-hidden="true" tabindex="-1"></a>  sims <span class="ot">&lt;-</span> <span class="fu">list</span>()</span>
+<span id="cb3-59"><a href="#cb3-59" aria-hidden="true" tabindex="-1"></a>  <span class="cf">if</span> (<span class="st">"Peaks only"</span> <span class="sc">%in%</span> schedules) {</span>
+<span id="cb3-60"><a href="#cb3-60" aria-hidden="true" tabindex="-1"></a>    sims[[<span class="st">"Peaks only"</span>]] <span class="ot">&lt;-</span> <span class="fu">project</span>(sim_fork, <span class="at">t_max =</span> post_fork_years, <span class="at">dt =</span> <span class="fl">0.1</span>, <span class="at">t_save =</span> <span class="fl">0.2</span>,</span>
+<span id="cb3-61"><a href="#cb3-61" aria-hidden="true" tabindex="-1"></a>                                    <span class="at">progress_bar =</span> <span class="cn">FALSE</span>, <span class="at">effort =</span> <span class="fu">build_schedule</span>(peak_times),</span>
+<span id="cb3-62"><a href="#cb3-62" aria-hidden="true" tabindex="-1"></a>                                    <span class="at">method =</span> <span class="st">"tr_bdf2"</span>)</span>
+<span id="cb3-63"><a href="#cb3-63" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb3-64"><a href="#cb3-64" aria-hidden="true" tabindex="-1"></a>  <span class="cf">if</span> (<span class="st">"Troughs only"</span> <span class="sc">%in%</span> schedules) {</span>
+<span id="cb3-65"><a href="#cb3-65" aria-hidden="true" tabindex="-1"></a>    sims[[<span class="st">"Troughs only"</span>]] <span class="ot">&lt;-</span> <span class="fu">project</span>(sim_fork, <span class="at">t_max =</span> post_fork_years, <span class="at">dt =</span> <span class="fl">0.1</span>, <span class="at">t_save =</span> <span class="fl">0.2</span>,</span>
+<span id="cb3-66"><a href="#cb3-66" aria-hidden="true" tabindex="-1"></a>                                      <span class="at">progress_bar =</span> <span class="cn">FALSE</span>, <span class="at">effort =</span> <span class="fu">build_schedule</span>(trough_times),</span>
+<span id="cb3-67"><a href="#cb3-67" aria-hidden="true" tabindex="-1"></a>                                      <span class="at">method =</span> <span class="st">"tr_bdf2"</span>)</span>
+<span id="cb3-68"><a href="#cb3-68" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb3-69"><a href="#cb3-69" aria-hidden="true" tabindex="-1"></a>  <span class="cf">if</span> (<span class="st">"Constant"</span> <span class="sc">%in%</span> schedules) {</span>
+<span id="cb3-70"><a href="#cb3-70" aria-hidden="true" tabindex="-1"></a>    sims[[<span class="st">"Constant"</span>]] <span class="ot">&lt;-</span> <span class="fu">project</span>(sim_fork, <span class="at">t_max =</span> post_fork_years, <span class="at">dt =</span> <span class="fl">0.1</span>, <span class="at">t_save =</span> <span class="fl">0.2</span>,</span>
+<span id="cb3-71"><a href="#cb3-71" aria-hidden="true" tabindex="-1"></a>                                  <span class="at">progress_bar =</span> <span class="cn">FALSE</span>, <span class="at">effort =</span> fish_level, <span class="at">method =</span> <span class="st">"tr_bdf2"</span>)</span>
+<span id="cb3-72"><a href="#cb3-72" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb3-73"><a href="#cb3-73" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-74"><a href="#cb3-74" aria-hidden="true" tabindex="-1"></a>  sim_to_df <span class="ot">&lt;-</span> <span class="cf">function</span>(metric_fn, value_name) {</span>
+<span id="cb3-75"><a href="#cb3-75" aria-hidden="true" tabindex="-1"></a>    <span class="fu">bind_rows</span>(<span class="fu">lapply</span>(<span class="fu">names</span>(sims), <span class="cf">function</span>(nm) {</span>
+<span id="cb3-76"><a href="#cb3-76" aria-hidden="true" tabindex="-1"></a>      v <span class="ot">&lt;-</span> <span class="fu">metric_fn</span>(sims[[nm]])</span>
+<span id="cb3-77"><a href="#cb3-77" aria-hidden="true" tabindex="-1"></a>      <span class="fu">setNames</span>(<span class="fu">data.frame</span>(<span class="fu">as.numeric</span>(<span class="fu">dimnames</span>(sims[[nm]]<span class="sc">@</span>n)[[<span class="dv">1</span>]]), v, nm),</span>
+<span id="cb3-78"><a href="#cb3-78" aria-hidden="true" tabindex="-1"></a>              <span class="fu">c</span>(<span class="st">"time"</span>, value_name, <span class="st">"schedule"</span>))</span>
+<span id="cb3-79"><a href="#cb3-79" aria-hidden="true" tabindex="-1"></a>    }))</span>
+<span id="cb3-80"><a href="#cb3-80" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb3-81"><a href="#cb3-81" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-82"><a href="#cb3-82" aria-hidden="true" tabindex="-1"></a>  biomass_df <span class="ot">&lt;-</span> <span class="fu">bind_rows</span>(</span>
+<span id="cb3-83"><a href="#cb3-83" aria-hidden="true" tabindex="-1"></a>    <span class="fu">data.frame</span>(<span class="at">time =</span> <span class="fu">as.numeric</span>(<span class="fu">dimnames</span>(sim_ref<span class="sc">@</span>n)[[<span class="dv">1</span>]]),</span>
+<span id="cb3-84"><a href="#cb3-84" aria-hidden="true" tabindex="-1"></a>              <span class="at">biomass =</span> <span class="fu">getBiomass</span>(sim_ref)[, <span class="st">"Anchovy"</span>], <span class="at">schedule =</span> <span class="st">"Unfished reference"</span>),</span>
+<span id="cb3-85"><a href="#cb3-85" aria-hidden="true" tabindex="-1"></a>    <span class="fu">sim_to_df</span>(<span class="cf">function</span>(s) <span class="fu">getBiomass</span>(s)[, <span class="st">"Anchovy"</span>], <span class="st">"biomass"</span>)</span>
+<span id="cb3-86"><a href="#cb3-86" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">%&gt;%</span> <span class="fu">filter</span>(time <span class="sc">&gt;=</span> t_fork) <span class="sc">%&gt;%</span> <span class="fu">mutate</span>(<span class="at">regime =</span> regime_label)</span>
+<span id="cb3-87"><a href="#cb3-87" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-88"><a href="#cb3-88" aria-hidden="true" tabindex="-1"></a>  yield_df <span class="ot">&lt;-</span> <span class="fu">sim_to_df</span>(<span class="cf">function</span>(s) <span class="fu">getYield</span>(s)[, <span class="st">"Anchovy"</span>], <span class="st">"yield"</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb3-89"><a href="#cb3-89" aria-hidden="true" tabindex="-1"></a>    <span class="fu">filter</span>(time <span class="sc">&gt;=</span> t_fork) <span class="sc">%&gt;%</span> <span class="fu">mutate</span>(<span class="at">regime =</span> regime_label)</span>
+<span id="cb3-90"><a href="#cb3-90" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-91"><a href="#cb3-91" aria-hidden="true" tabindex="-1"></a>  summary_t_cut <span class="ot">&lt;-</span> t_fork <span class="sc">+</span> post_fork_years <span class="sc">-</span> summary_window</span>
+<span id="cb3-92"><a href="#cb3-92" aria-hidden="true" tabindex="-1"></a>  summary_df <span class="ot">&lt;-</span> yield_df <span class="sc">%&gt;%</span></span>
+<span id="cb3-93"><a href="#cb3-93" aria-hidden="true" tabindex="-1"></a>    <span class="fu">filter</span>(time <span class="sc">&gt;</span> summary_t_cut) <span class="sc">%&gt;%</span></span>
+<span id="cb3-94"><a href="#cb3-94" aria-hidden="true" tabindex="-1"></a>    <span class="fu">group_by</span>(schedule) <span class="sc">%&gt;%</span></span>
+<span id="cb3-95"><a href="#cb3-95" aria-hidden="true" tabindex="-1"></a>    <span class="fu">summarise</span>(<span class="at">mean_yield =</span> <span class="fu">mean</span>(yield), <span class="at">.groups =</span> <span class="st">"drop"</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb3-96"><a href="#cb3-96" aria-hidden="true" tabindex="-1"></a>    <span class="fu">mutate</span>(<span class="at">regime =</span> regime_label, <span class="at">n_peaks =</span> <span class="fu">length</span>(peak_times), <span class="at">n_troughs =</span> <span class="fu">length</span>(trough_times))</span>
+<span id="cb3-97"><a href="#cb3-97" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-98"><a href="#cb3-98" aria-hidden="true" tabindex="-1"></a>  <span class="fu">list</span>(<span class="at">biomass_df =</span> biomass_df, <span class="at">yield_df =</span> yield_df, <span class="at">summary_df =</span> summary_df,</span>
+<span id="cb3-99"><a href="#cb3-99" aria-hidden="true" tabindex="-1"></a>      <span class="at">peak_times =</span> peak_times, <span class="at">trough_times =</span> trough_times)</span>
+<span id="cb3-100"><a href="#cb3-100" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+</div>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>window          <span class="ot">&lt;-</span> <span class="dv">3</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>fish_level      <span class="ot">&lt;-</span> <span class="fl">0.5</span></span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>t_fork          <span class="ot">&lt;-</span> <span class="dv">500</span></span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>post_fork_years <span class="ot">&lt;-</span> <span class="dv">300</span></span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>summary_window  <span class="ot">&lt;-</span> <span class="dv">50</span></span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>rd_focus        <span class="ot">&lt;-</span> <span class="fl">0.005</span></span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>comparison_oscillating <span class="ot">&lt;-</span> <span class="fu">run_focus_yield_comparison</span>(</span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a>  rd_focus, window, fish_level, <span class="at">regime_label =</span> <span class="st">"Oscillating (resource_decrease=0.005)"</span>,</span>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a>  <span class="at">t_fork =</span> t_fork, <span class="at">post_fork_years =</span> post_fork_years, <span class="at">summary_window =</span> summary_window</span>
+<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a>summary_t_cut <span class="ot">&lt;-</span> t_fork <span class="sc">+</span> post_fork_years <span class="sc">-</span> summary_window</span>
+<span id="cb4-14"><a href="#cb4-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-15"><a href="#cb4-15" aria-hidden="true" tabindex="-1"></a><span class="co"># rel_amplitude of biomass itself, per schedule, over the settled t&gt;summary_t_cut window</span></span>
+<span id="cb4-16"><a href="#cb4-16" aria-hidden="true" tabindex="-1"></a>osc_amplitude_df <span class="ot">&lt;-</span> comparison_oscillating<span class="sc">$</span>biomass_df <span class="sc">%&gt;%</span></span>
+<span id="cb4-17"><a href="#cb4-17" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(schedule <span class="sc">%in%</span> <span class="fu">c</span>(<span class="st">"Unfished reference"</span>, <span class="st">"Constant"</span>, <span class="st">"Peaks only"</span>, <span class="st">"Troughs only"</span>),</span>
+<span id="cb4-18"><a href="#cb4-18" aria-hidden="true" tabindex="-1"></a>        time <span class="sc">&gt;</span> summary_t_cut) <span class="sc">%&gt;%</span></span>
+<span id="cb4-19"><a href="#cb4-19" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(schedule) <span class="sc">%&gt;%</span></span>
+<span id="cb4-20"><a href="#cb4-20" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarise</span>(</span>
+<span id="cb4-21"><a href="#cb4-21" aria-hidden="true" tabindex="-1"></a>    <span class="at">max_biomass   =</span> <span class="fu">max</span>(biomass), <span class="at">min_biomass =</span> <span class="fu">min</span>(biomass),</span>
+<span id="cb4-22"><a href="#cb4-22" aria-hidden="true" tabindex="-1"></a>    <span class="at">rel_amplitude =</span> (max_biomass <span class="sc">-</span> min_biomass) <span class="sc">/</span> ((max_biomass <span class="sc">+</span> min_biomass) <span class="sc">/</span> <span class="dv">2</span>),</span>
+<span id="cb4-23"><a href="#cb4-23" aria-hidden="true" tabindex="-1"></a>    <span class="at">.groups =</span> <span class="st">"drop"</span></span>
+<span id="cb4-24"><a href="#cb4-24" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb4-25"><a href="#cb4-25" aria-hidden="true" tabindex="-1"></a>osc_amplitude_df</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code># A tibble: 4 × 4
+  schedule           max_biomass min_biomass rel_amplitude
+  &lt;chr&gt;                    &lt;dbl&gt;       &lt;dbl&gt;         &lt;dbl&gt;
+1 Constant                 0.105      0.0498         0.714
+2 Peaks only               0.111      0.0460         0.831
+3 Troughs only             0.110      0.0501         0.749
+4 Unfished reference       0.112      0.0493         0.779</code></pre>
+</div>
+</div>
+<p>Against a real baseline (the unfished reference, <code>rel_amplitude = 0.779</code>), at <code>resource_decrease = 0.005</code>:</p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Schedule</th>
+<th>rel_amplitude</th>
+<th>vs.&nbsp;unfished</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Constant</td>
+<td>0.714</td>
+<td>eases it, -8.3%</td>
+</tr>
+<tr class="even">
+<td>Troughs only</td>
+<td>0.749</td>
+<td>eases it slightly, -3.9%</td>
+</tr>
+<tr class="odd">
+<td>Peaks only</td>
+<td>0.831</td>
+<td><strong>worsens it, +6.7%</strong></td>
+</tr>
+</tbody>
+</table>
+<p>A 6x5 <code>window</code>/<code>fish_level</code> scan settled it further. The settle-and-detect step (expensive, independent of <code>window</code>/<code>fish_level</code>) runs once; only the post-fork branches repeat per grid point, and <code>mean_effort</code>, the time-averaged effort actually applied, whatever its timing, is recorded per point for later use:</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>run_window_effort_scan <span class="ot">&lt;-</span> <span class="cf">function</span>(resource_decrease, fish_level_seq, t_fork,</span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>                                   scan_post_fork_years, scan_summary_window,</span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>                                   <span class="at">window_seq =</span> <span class="cn">NULL</span>,</span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>                                   <span class="at">schedules =</span> <span class="fu">c</span>(<span class="st">"Peaks only"</span>, <span class="st">"Troughs only"</span>, <span class="st">"Constant"</span>)) {</span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>  scan_t_cut <span class="ot">&lt;-</span> t_fork <span class="sc">+</span> scan_post_fork_years <span class="sc">-</span> scan_summary_window</span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a>  p_scan    <span class="ot">&lt;-</span> <span class="fu">make_fishing_params</span>(<span class="at">resource_decrease =</span> resource_decrease)</span>
+<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a>  gp_scan   <span class="ot">&lt;-</span> <span class="fu">gear_params</span>(p_scan)</span>
+<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a>  gear_name <span class="ot">&lt;-</span> gp_scan<span class="sc">$</span>gear[gp_scan<span class="sc">$</span>species <span class="sc">==</span> <span class="st">"Anchovy"</span>][<span class="dv">1</span>]</span>
+<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-11"><a href="#cb6-11" aria-hidden="true" tabindex="-1"></a>  sim_fork <span class="ot">&lt;-</span> <span class="fu">make_limit_cycle_sim</span>(p_scan, <span class="at">t_total =</span> t_fork, <span class="at">effort =</span> <span class="dv">0</span>)</span>
+<span id="cb6-12"><a href="#cb6-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-13"><a href="#cb6-13" aria-hidden="true" tabindex="-1"></a>  needs_events <span class="ot">&lt;-</span> <span class="fu">any</span>(<span class="fu">c</span>(<span class="st">"Peaks only"</span>, <span class="st">"Troughs only"</span>) <span class="sc">%in%</span> schedules) <span class="sc">&amp;&amp;</span> <span class="sc">!</span><span class="fu">is.null</span>(window_seq)</span>
+<span id="cb6-14"><a href="#cb6-14" aria-hidden="true" tabindex="-1"></a>  peak_times   <span class="ot">&lt;-</span> <span class="fu">numeric</span>(<span class="dv">0</span>)</span>
+<span id="cb6-15"><a href="#cb6-15" aria-hidden="true" tabindex="-1"></a>  trough_times <span class="ot">&lt;-</span> <span class="fu">numeric</span>(<span class="dv">0</span>)</span>
+<span id="cb6-16"><a href="#cb6-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-17"><a href="#cb6-17" aria-hidden="true" tabindex="-1"></a>  <span class="cf">if</span> (needs_events) {</span>
+<span id="cb6-18"><a href="#cb6-18" aria-hidden="true" tabindex="-1"></a>    sim_ref <span class="ot">&lt;-</span> <span class="fu">project</span>(sim_fork, <span class="at">t_max =</span> scan_post_fork_years, <span class="at">dt =</span> <span class="fl">0.1</span>, <span class="at">t_save =</span> <span class="fl">0.2</span>,</span>
+<span id="cb6-19"><a href="#cb6-19" aria-hidden="true" tabindex="-1"></a>                       <span class="at">progress_bar =</span> <span class="cn">FALSE</span>, <span class="at">effort =</span> <span class="dv">0</span>, <span class="at">method =</span> <span class="st">"tr_bdf2"</span>)</span>
+<span id="cb6-20"><a href="#cb6-20" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-21"><a href="#cb6-21" aria-hidden="true" tabindex="-1"></a>    all_times <span class="ot">&lt;-</span> <span class="fu">as.numeric</span>(<span class="fu">dimnames</span>(sim_ref<span class="sc">@</span>n)[[<span class="dv">1</span>]])</span>
+<span id="cb6-22"><a href="#cb6-22" aria-hidden="true" tabindex="-1"></a>    keep      <span class="ot">&lt;-</span> all_times <span class="sc">&gt;=</span> t_fork</span>
+<span id="cb6-23"><a href="#cb6-23" aria-hidden="true" tabindex="-1"></a>    t_p       <span class="ot">&lt;-</span> all_times[keep]</span>
+<span id="cb6-24"><a href="#cb6-24" aria-hidden="true" tabindex="-1"></a>    time_lbls <span class="ot">&lt;-</span> <span class="fu">dimnames</span>(sim_ref<span class="sc">@</span>n)[[<span class="dv">1</span>]][keep]</span>
+<span id="cb6-25"><a href="#cb6-25" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-26"><a href="#cb6-26" aria-hidden="true" tabindex="-1"></a>    bm <span class="ot">&lt;-</span> <span class="fu">getBiomass</span>(sim_ref)[, <span class="st">"Anchovy"</span>][time_lbls]</span>
+<span id="cb6-27"><a href="#cb6-27" aria-hidden="true" tabindex="-1"></a>    n  <span class="ot">&lt;-</span> <span class="fu">length</span>(bm)</span>
+<span id="cb6-28"><a href="#cb6-28" aria-hidden="true" tabindex="-1"></a>    is_peak   <span class="ot">&lt;-</span> <span class="fu">logical</span>(n)</span>
+<span id="cb6-29"><a href="#cb6-29" aria-hidden="true" tabindex="-1"></a>    is_trough <span class="ot">&lt;-</span> <span class="fu">logical</span>(n)</span>
+<span id="cb6-30"><a href="#cb6-30" aria-hidden="true" tabindex="-1"></a>    is_peak[<span class="dv">2</span><span class="sc">:</span>(n <span class="sc">-</span> <span class="dv">1</span>)]   <span class="ot">&lt;-</span> bm[<span class="dv">2</span><span class="sc">:</span>(n <span class="sc">-</span> <span class="dv">1</span>)] <span class="sc">&gt;</span> bm[<span class="dv">1</span><span class="sc">:</span>(n <span class="sc">-</span> <span class="dv">2</span>)] <span class="sc">&amp;</span> bm[<span class="dv">2</span><span class="sc">:</span>(n <span class="sc">-</span> <span class="dv">1</span>)] <span class="sc">&gt;</span> bm[<span class="dv">3</span><span class="sc">:</span>n]</span>
+<span id="cb6-31"><a href="#cb6-31" aria-hidden="true" tabindex="-1"></a>    is_trough[<span class="dv">2</span><span class="sc">:</span>(n <span class="sc">-</span> <span class="dv">1</span>)] <span class="ot">&lt;-</span> bm[<span class="dv">2</span><span class="sc">:</span>(n <span class="sc">-</span> <span class="dv">1</span>)] <span class="sc">&lt;</span> bm[<span class="dv">1</span><span class="sc">:</span>(n <span class="sc">-</span> <span class="dv">2</span>)] <span class="sc">&amp;</span> bm[<span class="dv">2</span><span class="sc">:</span>(n <span class="sc">-</span> <span class="dv">1</span>)] <span class="sc">&lt;</span> bm[<span class="dv">3</span><span class="sc">:</span>n]</span>
+<span id="cb6-32"><a href="#cb6-32" aria-hidden="true" tabindex="-1"></a>    peak_times   <span class="ot">&lt;-</span> t_p[is_peak]</span>
+<span id="cb6-33"><a href="#cb6-33" aria-hidden="true" tabindex="-1"></a>    trough_times <span class="ot">&lt;-</span> t_p[is_trough]</span>
+<span id="cb6-34"><a href="#cb6-34" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-35"><a href="#cb6-35" aria-hidden="true" tabindex="-1"></a>    build_schedule <span class="ot">&lt;-</span> <span class="cf">function</span>(event_times, window, fish_level) {</span>
+<span id="cb6-36"><a href="#cb6-36" aria-hidden="true" tabindex="-1"></a>      ev <span class="ot">&lt;-</span> <span class="fu">rep</span>(<span class="dv">0</span>, <span class="fu">length</span>(t_p))</span>
+<span id="cb6-37"><a href="#cb6-37" aria-hidden="true" tabindex="-1"></a>      <span class="cf">for</span> (et <span class="cf">in</span> event_times) {</span>
+<span id="cb6-38"><a href="#cb6-38" aria-hidden="true" tabindex="-1"></a>        ev[t_p <span class="sc">&gt;=</span> et <span class="sc">-</span> window <span class="sc">/</span> <span class="dv">2</span> <span class="sc">&amp;</span> t_p <span class="sc">&lt;=</span> et <span class="sc">+</span> window <span class="sc">/</span> <span class="dv">2</span>] <span class="ot">&lt;-</span> fish_level</span>
+<span id="cb6-39"><a href="#cb6-39" aria-hidden="true" tabindex="-1"></a>      }</span>
+<span id="cb6-40"><a href="#cb6-40" aria-hidden="true" tabindex="-1"></a>      <span class="fu">matrix</span>(ev, <span class="at">ncol =</span> <span class="dv">1</span>, <span class="at">dimnames =</span> <span class="fu">list</span>(time_lbls, gear_name))</span>
+<span id="cb6-41"><a href="#cb6-41" aria-hidden="true" tabindex="-1"></a>    }</span>
+<span id="cb6-42"><a href="#cb6-42" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb6-43"><a href="#cb6-43" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-44"><a href="#cb6-44" aria-hidden="true" tabindex="-1"></a>  scan_metrics <span class="ot">&lt;-</span> <span class="cf">function</span>(sim) {</span>
+<span id="cb6-45"><a href="#cb6-45" aria-hidden="true" tabindex="-1"></a>    bmv <span class="ot">&lt;-</span> <span class="fu">getBiomass</span>(sim)[, <span class="st">"Anchovy"</span>]</span>
+<span id="cb6-46"><a href="#cb6-46" aria-hidden="true" tabindex="-1"></a>    ylv <span class="ot">&lt;-</span> <span class="fu">getYield</span>(sim)[, <span class="st">"Anchovy"</span>]</span>
+<span id="cb6-47"><a href="#cb6-47" aria-hidden="true" tabindex="-1"></a>    tv  <span class="ot">&lt;-</span> <span class="fu">as.numeric</span>(<span class="fu">names</span>(bmv))</span>
+<span id="cb6-48"><a href="#cb6-48" aria-hidden="true" tabindex="-1"></a>    bm_late <span class="ot">&lt;-</span> bmv[tv <span class="sc">&gt;</span> scan_t_cut]</span>
+<span id="cb6-49"><a href="#cb6-49" aria-hidden="true" tabindex="-1"></a>    yl_late <span class="ot">&lt;-</span> ylv[tv <span class="sc">&gt;</span> scan_t_cut]</span>
+<span id="cb6-50"><a href="#cb6-50" aria-hidden="true" tabindex="-1"></a>    <span class="fu">data.frame</span>(</span>
+<span id="cb6-51"><a href="#cb6-51" aria-hidden="true" tabindex="-1"></a>      <span class="at">rel_amplitude =</span> (<span class="fu">max</span>(bm_late) <span class="sc">-</span> <span class="fu">min</span>(bm_late)) <span class="sc">/</span> ((<span class="fu">max</span>(bm_late) <span class="sc">+</span> <span class="fu">min</span>(bm_late)) <span class="sc">/</span> <span class="dv">2</span>),</span>
+<span id="cb6-52"><a href="#cb6-52" aria-hidden="true" tabindex="-1"></a>      <span class="at">mean_yield    =</span> <span class="fu">mean</span>(yl_late)</span>
+<span id="cb6-53"><a href="#cb6-53" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb6-54"><a href="#cb6-54" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb6-55"><a href="#cb6-55" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-56"><a href="#cb6-56" aria-hidden="true" tabindex="-1"></a>  out <span class="ot">&lt;-</span> <span class="fu">list</span>()</span>
+<span id="cb6-57"><a href="#cb6-57" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-58"><a href="#cb6-58" aria-hidden="true" tabindex="-1"></a>  <span class="cf">if</span> (<span class="st">"Constant"</span> <span class="sc">%in%</span> schedules) {</span>
+<span id="cb6-59"><a href="#cb6-59" aria-hidden="true" tabindex="-1"></a>    out<span class="sc">$</span>constant <span class="ot">&lt;-</span> <span class="fu">bind_rows</span>(<span class="fu">lapply</span>(fish_level_seq, <span class="cf">function</span>(fl) {</span>
+<span id="cb6-60"><a href="#cb6-60" aria-hidden="true" tabindex="-1"></a>      sim <span class="ot">&lt;-</span> <span class="fu">project</span>(sim_fork, <span class="at">t_max =</span> scan_post_fork_years, <span class="at">dt =</span> <span class="fl">0.1</span>, <span class="at">t_save =</span> <span class="fl">0.2</span>,</span>
+<span id="cb6-61"><a href="#cb6-61" aria-hidden="true" tabindex="-1"></a>                    <span class="at">progress_bar =</span> <span class="cn">FALSE</span>, <span class="at">effort =</span> fl, <span class="at">method =</span> <span class="st">"tr_bdf2"</span>)</span>
+<span id="cb6-62"><a href="#cb6-62" aria-hidden="true" tabindex="-1"></a>      <span class="fu">cbind</span>(<span class="fu">scan_metrics</span>(sim), <span class="at">window =</span> <span class="cn">NA_real_</span>, <span class="at">fish_level =</span> fl, <span class="at">schedule =</span> <span class="st">"Constant"</span>,</span>
+<span id="cb6-63"><a href="#cb6-63" aria-hidden="true" tabindex="-1"></a>           <span class="at">mean_effort =</span> fl)</span>
+<span id="cb6-64"><a href="#cb6-64" aria-hidden="true" tabindex="-1"></a>    }))</span>
+<span id="cb6-65"><a href="#cb6-65" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb6-66"><a href="#cb6-66" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-67"><a href="#cb6-67" aria-hidden="true" tabindex="-1"></a>  <span class="cf">if</span> (needs_events) {</span>
+<span id="cb6-68"><a href="#cb6-68" aria-hidden="true" tabindex="-1"></a>    out<span class="sc">$</span>events <span class="ot">&lt;-</span> <span class="fu">bind_rows</span>(<span class="fu">lapply</span>(fish_level_seq, <span class="cf">function</span>(fl) {</span>
+<span id="cb6-69"><a href="#cb6-69" aria-hidden="true" tabindex="-1"></a>      <span class="fu">bind_rows</span>(<span class="fu">lapply</span>(window_seq, <span class="cf">function</span>(w) {</span>
+<span id="cb6-70"><a href="#cb6-70" aria-hidden="true" tabindex="-1"></a>        rows <span class="ot">&lt;-</span> <span class="fu">list</span>()</span>
+<span id="cb6-71"><a href="#cb6-71" aria-hidden="true" tabindex="-1"></a>        <span class="cf">if</span> (<span class="st">"Peaks only"</span> <span class="sc">%in%</span> schedules) {</span>
+<span id="cb6-72"><a href="#cb6-72" aria-hidden="true" tabindex="-1"></a>          effort_p <span class="ot">&lt;-</span> <span class="fu">build_schedule</span>(peak_times, w, fl)</span>
+<span id="cb6-73"><a href="#cb6-73" aria-hidden="true" tabindex="-1"></a>          sim_p <span class="ot">&lt;-</span> <span class="fu">project</span>(sim_fork, <span class="at">t_max =</span> scan_post_fork_years, <span class="at">dt =</span> <span class="fl">0.1</span>, <span class="at">t_save =</span> <span class="fl">0.2</span>,</span>
+<span id="cb6-74"><a href="#cb6-74" aria-hidden="true" tabindex="-1"></a>                           <span class="at">progress_bar =</span> <span class="cn">FALSE</span>, <span class="at">effort =</span> effort_p, <span class="at">method =</span> <span class="st">"tr_bdf2"</span>)</span>
+<span id="cb6-75"><a href="#cb6-75" aria-hidden="true" tabindex="-1"></a>          rows<span class="sc">$</span>peaks <span class="ot">&lt;-</span> <span class="fu">cbind</span>(<span class="fu">scan_metrics</span>(sim_p), <span class="at">window =</span> w, <span class="at">fish_level =</span> fl, <span class="at">schedule =</span> <span class="st">"Peaks only"</span>,</span>
+<span id="cb6-76"><a href="#cb6-76" aria-hidden="true" tabindex="-1"></a>                              <span class="at">mean_effort =</span> <span class="fu">mean</span>(effort_p))</span>
+<span id="cb6-77"><a href="#cb6-77" aria-hidden="true" tabindex="-1"></a>        }</span>
+<span id="cb6-78"><a href="#cb6-78" aria-hidden="true" tabindex="-1"></a>        <span class="cf">if</span> (<span class="st">"Troughs only"</span> <span class="sc">%in%</span> schedules) {</span>
+<span id="cb6-79"><a href="#cb6-79" aria-hidden="true" tabindex="-1"></a>          effort_t <span class="ot">&lt;-</span> <span class="fu">build_schedule</span>(trough_times, w, fl)</span>
+<span id="cb6-80"><a href="#cb6-80" aria-hidden="true" tabindex="-1"></a>          sim_t <span class="ot">&lt;-</span> <span class="fu">project</span>(sim_fork, <span class="at">t_max =</span> scan_post_fork_years, <span class="at">dt =</span> <span class="fl">0.1</span>, <span class="at">t_save =</span> <span class="fl">0.2</span>,</span>
+<span id="cb6-81"><a href="#cb6-81" aria-hidden="true" tabindex="-1"></a>                           <span class="at">progress_bar =</span> <span class="cn">FALSE</span>, <span class="at">effort =</span> effort_t, <span class="at">method =</span> <span class="st">"tr_bdf2"</span>)</span>
+<span id="cb6-82"><a href="#cb6-82" aria-hidden="true" tabindex="-1"></a>          rows<span class="sc">$</span>troughs <span class="ot">&lt;-</span> <span class="fu">cbind</span>(<span class="fu">scan_metrics</span>(sim_t), <span class="at">window =</span> w, <span class="at">fish_level =</span> fl, <span class="at">schedule =</span> <span class="st">"Troughs only"</span>,</span>
+<span id="cb6-83"><a href="#cb6-83" aria-hidden="true" tabindex="-1"></a>                                <span class="at">mean_effort =</span> <span class="fu">mean</span>(effort_t))</span>
+<span id="cb6-84"><a href="#cb6-84" aria-hidden="true" tabindex="-1"></a>        }</span>
+<span id="cb6-85"><a href="#cb6-85" aria-hidden="true" tabindex="-1"></a>        <span class="fu">bind_rows</span>(rows)</span>
+<span id="cb6-86"><a href="#cb6-86" aria-hidden="true" tabindex="-1"></a>      }))</span>
+<span id="cb6-87"><a href="#cb6-87" aria-hidden="true" tabindex="-1"></a>    }))</span>
+<span id="cb6-88"><a href="#cb6-88" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb6-89"><a href="#cb6-89" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-90"><a href="#cb6-90" aria-hidden="true" tabindex="-1"></a>  <span class="fu">bind_rows</span>(out) <span class="sc">%&gt;%</span></span>
+<span id="cb6-91"><a href="#cb6-91" aria-hidden="true" tabindex="-1"></a>    <span class="fu">mutate</span>(<span class="at">resource_decrease =</span> resource_decrease, <span class="at">n_peaks =</span> <span class="fu">length</span>(peak_times), <span class="at">n_troughs =</span> <span class="fu">length</span>(trough_times))</span>
+<span id="cb6-92"><a href="#cb6-92" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+</div>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>window_seq     <span class="ot">&lt;-</span> <span class="fu">seq</span>(<span class="fl">0.5</span>, <span class="dv">3</span>, <span class="at">by =</span> <span class="fl">0.5</span>)</span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>fish_level_seq <span class="ot">&lt;-</span> <span class="fu">seq</span>(<span class="fl">0.2</span>, <span class="dv">1</span>, <span class="at">by =</span> <span class="fl">0.2</span>)</span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>scan_df <span class="ot">&lt;-</span> <span class="fu">run_window_effort_scan</span>(</span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a>  rd_focus, <span class="at">fish_level_seq =</span> fish_level_seq, <span class="at">window_seq =</span> window_seq,</span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">t_fork =</span> t_fork, <span class="at">scan_post_fork_years =</span> <span class="dv">100</span>, <span class="at">scan_summary_window =</span> <span class="dv">30</span></span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a><span class="co"># Best available combinations: event-triggered points at or below Constant's</span></span>
+<span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a><span class="co"># own median amplitude, ranked by yield.</span></span>
+<span id="cb7-11"><a href="#cb7-11" aria-hidden="true" tabindex="-1"></a>constant_scan_df <span class="ot">&lt;-</span> scan_df <span class="sc">%&gt;%</span> <span class="fu">filter</span>(schedule <span class="sc">==</span> <span class="st">"Constant"</span>)</span>
+<span id="cb7-12"><a href="#cb7-12" aria-hidden="true" tabindex="-1"></a>constant_median_amplitude <span class="ot">&lt;-</span> <span class="fu">median</span>(constant_scan_df<span class="sc">$</span>rel_amplitude)</span>
+<span id="cb7-13"><a href="#cb7-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-14"><a href="#cb7-14" aria-hidden="true" tabindex="-1"></a>event_scan_df <span class="ot">&lt;-</span> scan_df <span class="sc">%&gt;%</span> <span class="fu">filter</span>(schedule <span class="sc">!=</span> <span class="st">"Constant"</span>)</span>
+<span id="cb7-15"><a href="#cb7-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-16"><a href="#cb7-16" aria-hidden="true" tabindex="-1"></a>amplitude_heatmap <span class="ot">&lt;-</span> <span class="fu">ggplot</span>(event_scan_df, <span class="fu">aes</span>(<span class="at">x =</span> window, <span class="at">y =</span> fish_level, <span class="at">fill =</span> rel_amplitude)) <span class="sc">+</span></span>
+<span id="cb7-17"><a href="#cb7-17" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_tile</span>() <span class="sc">+</span></span>
+<span id="cb7-18"><a href="#cb7-18" aria-hidden="true" tabindex="-1"></a>  <span class="fu">facet_wrap</span>(<span class="sc">~</span>schedule) <span class="sc">+</span></span>
+<span id="cb7-19"><a href="#cb7-19" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_fill_viridis_c</span>() <span class="sc">+</span></span>
+<span id="cb7-20"><a href="#cb7-20" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"Window (years either side of event)"</span>, <span class="at">y =</span> <span class="st">"fish_level (effort)"</span>,</span>
+<span id="cb7-21"><a href="#cb7-21" aria-hidden="true" tabindex="-1"></a>       <span class="at">fill =</span> <span class="st">"Relative</span><span class="sc">\n</span><span class="st">amplitude"</span>,</span>
+<span id="cb7-22"><a href="#cb7-22" aria-hidden="true" tabindex="-1"></a>       <span class="at">title =</span> <span class="st">"Oscillation amplitude across window x fish_level"</span>,</span>
+<span id="cb7-23"><a href="#cb7-23" aria-hidden="true" tabindex="-1"></a>       <span class="at">subtitle =</span> <span class="fu">sprintf</span>(<span class="st">"resource_decrease=%.4g -- darker = lower amplitude = more eased"</span>, rd_focus)) <span class="sc">+</span></span>
+<span id="cb7-24"><a href="#cb7-24" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_minimal</span>()</span>
+<span id="cb7-25"><a href="#cb7-25" aria-hidden="true" tabindex="-1"></a>amplitude_heatmap</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="2026-07-23-day-thirty-four_files/figure-html/window-effort-scan-run-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb8"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>tradeoff_plot <span class="ot">&lt;-</span> <span class="fu">ggplot</span>(scan_df, <span class="fu">aes</span>(<span class="at">x =</span> rel_amplitude, <span class="at">y =</span> mean_yield, <span class="at">color =</span> schedule, <span class="at">size =</span> fish_level)) <span class="sc">+</span></span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_point</span>(<span class="at">alpha =</span> <span class="fl">0.7</span>) <span class="sc">+</span></span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"Relative amplitude of biomass (lower = more eased)"</span>,</span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>       <span class="at">y =</span> <span class="st">"Mean yield (higher = better)"</span>,</span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a>       <span class="at">title =</span> <span class="st">"Amplitude vs. yield trade-off across the window x fish_level scan"</span>,</span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a>       <span class="at">subtitle =</span> <span class="fu">sprintf</span>(<span class="st">"resource_decrease=%.4g -- ideal points sit toward the top-left; point size = fish_level"</span>, rd_focus)) <span class="sc">+</span></span>
+<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_minimal</span>()</span>
+<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a>tradeoff_plot</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="2026-07-23-day-thirty-four_files/figure-html/window-effort-scan-run-2.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+<p><strong>Constant dominates outright</strong>, improving on both amplitude and yield together with no trade-off. Peaks-only has a genuine resonance-like hot spot (moderate window + high effort actively pumps the cycle, worse than not fishing at all); Troughs-only never does this, but still never beats Constant.</p>
+<hr>
+</section>
+<section id="pushing-constant-effort-further" class="level2">
+<h2 class="anchored" data-anchor-id="pushing-constant-effort-further">Pushing Constant Effort Further</h2>
+<p>Constant was still improving on both axes at the top of the range tested (<code>fish_level = 1</code>). Extending the constant-effort scan out to <code>fish_level = 4</code> (same settle recipe, <code>schedules = "Constant"</code> so it skips peak/trough detection entirely) finds something new:</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb9"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>fish_level_seq_constant_ext <span class="ot">&lt;-</span> <span class="fu">seq</span>(<span class="fl">0.2</span>, <span class="dv">4</span>, <span class="at">by =</span> <span class="fl">0.2</span>)</span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a>constant_ext_df <span class="ot">&lt;-</span> <span class="fu">run_window_effort_scan</span>(</span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a>  rd_focus, <span class="at">fish_level_seq =</span> fish_level_seq_constant_ext,</span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">t_fork =</span> t_fork, <span class="at">scan_post_fork_years =</span> <span class="dv">100</span>, <span class="at">scan_summary_window =</span> <span class="dv">30</span>,</span>
+<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">schedules =</span> <span class="st">"Constant"</span></span>
+<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb9-8"><a href="#cb9-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-9"><a href="#cb9-9" aria-hidden="true" tabindex="-1"></a>constant_ext_long <span class="ot">&lt;-</span> <span class="fu">bind_rows</span>(</span>
+<span id="cb9-10"><a href="#cb9-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">data.frame</span>(<span class="at">fish_level =</span> constant_ext_df<span class="sc">$</span>fish_level, <span class="at">value =</span> constant_ext_df<span class="sc">$</span>rel_amplitude, <span class="at">metric =</span> <span class="st">"Relative amplitude"</span>),</span>
+<span id="cb9-11"><a href="#cb9-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">data.frame</span>(<span class="at">fish_level =</span> constant_ext_df<span class="sc">$</span>fish_level, <span class="at">value =</span> constant_ext_df<span class="sc">$</span>mean_yield,   <span class="at">metric =</span> <span class="st">"Mean yield"</span>)</span>
+<span id="cb9-12"><a href="#cb9-12" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb9-13"><a href="#cb9-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-14"><a href="#cb9-14" aria-hidden="true" tabindex="-1"></a>constant_ext_plot <span class="ot">&lt;-</span> <span class="fu">ggplot</span>(constant_ext_long, <span class="fu">aes</span>(<span class="at">x =</span> fish_level, <span class="at">y =</span> value)) <span class="sc">+</span></span>
+<span id="cb9-15"><a href="#cb9-15" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>(<span class="at">linewidth =</span> <span class="dv">1</span>, <span class="at">color =</span> <span class="st">"steelblue"</span>) <span class="sc">+</span></span>
+<span id="cb9-16"><a href="#cb9-16" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_point</span>(<span class="at">size =</span> <span class="fl">1.5</span>, <span class="at">color =</span> <span class="st">"steelblue"</span>) <span class="sc">+</span></span>
+<span id="cb9-17"><a href="#cb9-17" aria-hidden="true" tabindex="-1"></a>  <span class="fu">facet_wrap</span>(<span class="sc">~</span>metric, <span class="at">scales =</span> <span class="st">"free_y"</span>) <span class="sc">+</span></span>
+<span id="cb9-18"><a href="#cb9-18" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"fish_level (constant effort)"</span>, <span class="at">y =</span> <span class="cn">NULL</span>,</span>
+<span id="cb9-19"><a href="#cb9-19" aria-hidden="true" tabindex="-1"></a>       <span class="at">title =</span> <span class="st">"Constant fishing: amplitude and yield across a wider effort range"</span>,</span>
+<span id="cb9-20"><a href="#cb9-20" aria-hidden="true" tabindex="-1"></a>       <span class="at">subtitle =</span> <span class="fu">sprintf</span>(<span class="st">"resource_decrease=%.4g -- does the amplitude-down/yield-up trend from fish_level&lt;=1 continue, plateau, or reverse?"</span>, rd_focus)) <span class="sc">+</span></span>
+<span id="cb9-21"><a href="#cb9-21" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_minimal</span>()</span>
+<span id="cb9-22"><a href="#cb9-22" aria-hidden="true" tabindex="-1"></a>constant_ext_plot</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="2026-07-23-day-thirty-four_files/figure-html/constant-extended-scan-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Note</span>A second bifurcation, on the effort axis this time
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>Amplitude doesn’t just ease gradually, it <strong>collapses</strong>: 0.76 at <code>fish_level=0.2</code> down through a steep fall between 1.2 and 2.2, to essentially zero by 2.2 and flat there to 4.0. Sufficiently hard constant fishing doesn’t just dampen the cycle - it appears to eliminate it outright, pushing the population back to a fixed point from the <em>effort</em> side, mirroring Section 1’s own resource-side bifurcation.</p>
+<p>Yield, meanwhile, keeps climbing the entire way to <code>fish_level=4</code> (8x baseline) with no turnover. The shape is concave, diminishing returns visibly setting in, but no peak found in this range.</p>
+</div>
+</div>
+<hr>
+</section>
+<section id="does-the-pattern-hold-across-resource_decrease-and-a-correction" class="level2">
+<h2 class="anchored" data-anchor-id="does-the-pattern-hold-across-resource_decrease-and-a-correction">Does the Pattern Hold Across resource_decrease? (And a Correction)</h2>
+<p>A densified scan (12 <code>resource_decrease</code> values, log-spaced 0.0005-0.011, coarse 3x3 window/effort grid at each) pins the amplitude crossover precisely: <code>resource_decrease = 0.00357</code> to <code>0.00473</code>. Below that, event-triggered fishing has <em>some</em> foothold on amplitude; above it, Constant wins outright everywhere.</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb10"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>rd_scan_seq <span class="ot">&lt;-</span> <span class="fu">exp</span>(<span class="fu">seq</span>(<span class="fu">log</span>(<span class="fl">0.0005</span>), <span class="fu">log</span>(<span class="fl">0.011</span>), <span class="at">length.out =</span> <span class="dv">12</span>))</span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a>window_seq_coarse     <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="fl">0.5</span>, <span class="fl">1.5</span>, <span class="dv">3</span>)</span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a>fish_level_seq_coarse <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="fl">0.2</span>, <span class="fl">0.6</span>, <span class="dv">1</span>)</span>
+<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a>rd_scan_df <span class="ot">&lt;-</span> <span class="fu">bind_rows</span>(<span class="fu">lapply</span>(rd_scan_seq, <span class="cf">function</span>(rd) {</span>
+<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">run_window_effort_scan</span>(</span>
+<span id="cb10-8"><a href="#cb10-8" aria-hidden="true" tabindex="-1"></a>    rd, <span class="at">fish_level_seq =</span> fish_level_seq_coarse, <span class="at">window_seq =</span> window_seq_coarse,</span>
+<span id="cb10-9"><a href="#cb10-9" aria-hidden="true" tabindex="-1"></a>    <span class="at">t_fork =</span> t_fork, <span class="at">scan_post_fork_years =</span> <span class="dv">100</span>, <span class="at">scan_summary_window =</span> <span class="dv">30</span></span>
+<span id="cb10-10"><a href="#cb10-10" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb10-11"><a href="#cb10-11" aria-hidden="true" tabindex="-1"></a>}))</span>
+<span id="cb10-12"><a href="#cb10-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-13"><a href="#cb10-13" aria-hidden="true" tabindex="-1"></a>rd_scan_tradeoff_plot <span class="ot">&lt;-</span> <span class="fu">ggplot</span>(rd_scan_df, <span class="fu">aes</span>(<span class="at">x =</span> rel_amplitude, <span class="at">y =</span> mean_yield, <span class="at">color =</span> schedule, <span class="at">size =</span> fish_level)) <span class="sc">+</span></span>
+<span id="cb10-14"><a href="#cb10-14" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_point</span>(<span class="at">alpha =</span> <span class="fl">0.7</span>) <span class="sc">+</span></span>
+<span id="cb10-15"><a href="#cb10-15" aria-hidden="true" tabindex="-1"></a>  <span class="fu">facet_wrap</span>(<span class="sc">~</span><span class="fu">sprintf</span>(<span class="st">"resource_decrease=%.4g"</span>, resource_decrease), <span class="at">scales =</span> <span class="st">"free"</span>, <span class="at">ncol =</span> <span class="dv">4</span>) <span class="sc">+</span></span>
+<span id="cb10-16"><a href="#cb10-16" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"Relative amplitude of biomass (lower = more eased)"</span>,</span>
+<span id="cb10-17"><a href="#cb10-17" aria-hidden="true" tabindex="-1"></a>       <span class="at">y =</span> <span class="st">"Mean yield (higher = better)"</span>,</span>
+<span id="cb10-18"><a href="#cb10-18" aria-hidden="true" tabindex="-1"></a>       <span class="at">title =</span> <span class="st">"Amplitude vs. yield trade-off across resource_decrease"</span>,</span>
+<span id="cb10-19"><a href="#cb10-19" aria-hidden="true" tabindex="-1"></a>       <span class="at">subtitle =</span> <span class="st">"Coarse 3x3 window x fish_level grid at each resource_decrease -- does Constant stay dominant everywhere?"</span>) <span class="sc">+</span></span>
+<span id="cb10-20"><a href="#cb10-20" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_minimal</span>()</span>
+<span id="cb10-21"><a href="#cb10-21" aria-hidden="true" tabindex="-1"></a>rd_scan_tradeoff_plot</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="2026-07-23-day-thirty-four_files/figure-html/rd-densified-scan-1.png" class="img-fluid figure-img" width="1536"></p>
+</figure>
+</div>
+</div>
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb11"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="co"># The direct generalisation check: for each resource_decrease, does ANY</span></span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a><span class="co"># event-triggered point beat Constant's own best on amplitude, and separately</span></span>
+<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a><span class="co"># on yield?</span></span>
+<span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a>rd_scan_verdict <span class="ot">&lt;-</span> rd_scan_df <span class="sc">%&gt;%</span></span>
+<span id="cb11-5"><a href="#cb11-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(resource_decrease) <span class="sc">%&gt;%</span></span>
+<span id="cb11-6"><a href="#cb11-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarise</span>(</span>
+<span id="cb11-7"><a href="#cb11-7" aria-hidden="true" tabindex="-1"></a>    <span class="at">constant_best_amplitude =</span> <span class="fu">min</span>(rel_amplitude[schedule <span class="sc">==</span> <span class="st">"Constant"</span>]),</span>
+<span id="cb11-8"><a href="#cb11-8" aria-hidden="true" tabindex="-1"></a>    <span class="at">constant_best_yield     =</span> <span class="fu">max</span>(mean_yield[schedule <span class="sc">==</span> <span class="st">"Constant"</span>]),</span>
+<span id="cb11-9"><a href="#cb11-9" aria-hidden="true" tabindex="-1"></a>    <span class="at">any_event_beats_constant_amplitude =</span> <span class="fu">any</span>(rel_amplitude[schedule <span class="sc">!=</span> <span class="st">"Constant"</span>] <span class="sc">&lt;</span> constant_best_amplitude),</span>
+<span id="cb11-10"><a href="#cb11-10" aria-hidden="true" tabindex="-1"></a>    <span class="at">any_event_beats_constant_yield     =</span> <span class="fu">any</span>(mean_yield[schedule <span class="sc">!=</span> <span class="st">"Constant"</span>] <span class="sc">&gt;</span> constant_best_yield),</span>
+<span id="cb11-11"><a href="#cb11-11" aria-hidden="true" tabindex="-1"></a>    <span class="at">.groups =</span> <span class="st">"drop"</span></span>
+<span id="cb11-12"><a href="#cb11-12" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb11-13"><a href="#cb11-13" aria-hidden="true" tabindex="-1"></a>rd_scan_verdict</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code># A tibble: 12 × 5
+   resource_decrease constant_best_amplitude constant_best_yield
+               &lt;dbl&gt;                   &lt;dbl&gt;               &lt;dbl&gt;
+ 1          0.0005                 1.68                0.0000380
+ 2          0.000662               1.65                0.0000408
+ 3          0.000877               1.61                0.0000391
+ 4          0.00116                1.55                0.0000365
+ 5          0.00154                1.47                0.0000357
+ 6          0.00204                1.35                0.0000329
+ 7          0.00270                1.19                0.0000318
+ 8          0.00357                0.972               0.0000309
+ 9          0.00473                0.657               0.0000289
+10          0.00627                0.284               0.0000286
+11          0.00831                0.00983             0.0000281
+12          0.0110                 0.0000280           0.0000278
+# ℹ 2 more variables: any_event_beats_constant_amplitude &lt;lgl&gt;,
+#   any_event_beats_constant_yield &lt;lgl&gt;</code></pre>
+</div>
+</div>
+<p>The interesting part is what happened when the two amplitude “wins” at the bottom of that range got rechecked with Section 3’s own longer, more careful settle (<code>post_fork_years=300</code> vs.&nbsp;the scan’s <code>100</code>) instead of trusted at face value:</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb13"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a>verify_points <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(</span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>  <span class="at">resource_decrease =</span> <span class="fu">c</span>(<span class="fl">0.001</span>, <span class="fl">0.0025</span>),</span>
+<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">window             =</span> <span class="fu">c</span>(<span class="fl">0.5</span>, <span class="dv">3</span>),</span>
+<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">fish_level         =</span> <span class="fu">c</span>(<span class="fl">0.6</span>, <span class="fl">0.6</span>)</span>
+<span id="cb13-5"><a href="#cb13-5" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb13-6"><a href="#cb13-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-7"><a href="#cb13-7" aria-hidden="true" tabindex="-1"></a>verify_df <span class="ot">&lt;-</span> <span class="fu">bind_rows</span>(<span class="fu">lapply</span>(<span class="fu">seq_len</span>(<span class="fu">nrow</span>(verify_points)), <span class="cf">function</span>(i) {</span>
+<span id="cb13-8"><a href="#cb13-8" aria-hidden="true" tabindex="-1"></a>  rd <span class="ot">&lt;-</span> verify_points<span class="sc">$</span>resource_decrease[i]</span>
+<span id="cb13-9"><a href="#cb13-9" aria-hidden="true" tabindex="-1"></a>  w  <span class="ot">&lt;-</span> verify_points<span class="sc">$</span>window[i]</span>
+<span id="cb13-10"><a href="#cb13-10" aria-hidden="true" tabindex="-1"></a>  fl <span class="ot">&lt;-</span> verify_points<span class="sc">$</span>fish_level[i]</span>
+<span id="cb13-11"><a href="#cb13-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-12"><a href="#cb13-12" aria-hidden="true" tabindex="-1"></a>  comparison <span class="ot">&lt;-</span> <span class="fu">run_focus_yield_comparison</span>(</span>
+<span id="cb13-13"><a href="#cb13-13" aria-hidden="true" tabindex="-1"></a>    rd, <span class="at">window =</span> w, <span class="at">fish_level =</span> fl, <span class="at">regime_label =</span> <span class="fu">sprintf</span>(<span class="st">"resource_decrease=%.4g"</span>, rd),</span>
+<span id="cb13-14"><a href="#cb13-14" aria-hidden="true" tabindex="-1"></a>    <span class="at">t_fork =</span> t_fork, <span class="at">post_fork_years =</span> post_fork_years, <span class="at">summary_window =</span> summary_window</span>
+<span id="cb13-15"><a href="#cb13-15" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb13-16"><a href="#cb13-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-17"><a href="#cb13-17" aria-hidden="true" tabindex="-1"></a>  comparison<span class="sc">$</span>biomass_df <span class="sc">%&gt;%</span></span>
+<span id="cb13-18"><a href="#cb13-18" aria-hidden="true" tabindex="-1"></a>    <span class="fu">filter</span>(time <span class="sc">&gt;</span> summary_t_cut) <span class="sc">%&gt;%</span></span>
+<span id="cb13-19"><a href="#cb13-19" aria-hidden="true" tabindex="-1"></a>    <span class="fu">group_by</span>(schedule) <span class="sc">%&gt;%</span></span>
+<span id="cb13-20"><a href="#cb13-20" aria-hidden="true" tabindex="-1"></a>    <span class="fu">summarise</span>(</span>
+<span id="cb13-21"><a href="#cb13-21" aria-hidden="true" tabindex="-1"></a>      <span class="at">max_biomass   =</span> <span class="fu">max</span>(biomass), <span class="at">min_biomass =</span> <span class="fu">min</span>(biomass),</span>
+<span id="cb13-22"><a href="#cb13-22" aria-hidden="true" tabindex="-1"></a>      <span class="at">rel_amplitude =</span> (max_biomass <span class="sc">-</span> min_biomass) <span class="sc">/</span> ((max_biomass <span class="sc">+</span> min_biomass) <span class="sc">/</span> <span class="dv">2</span>),</span>
+<span id="cb13-23"><a href="#cb13-23" aria-hidden="true" tabindex="-1"></a>      <span class="at">.groups =</span> <span class="st">"drop"</span></span>
+<span id="cb13-24"><a href="#cb13-24" aria-hidden="true" tabindex="-1"></a>    ) <span class="sc">%&gt;%</span></span>
+<span id="cb13-25"><a href="#cb13-25" aria-hidden="true" tabindex="-1"></a>    <span class="fu">mutate</span>(<span class="at">resource_decrease =</span> rd, <span class="at">window =</span> w, <span class="at">fish_level =</span> fl)</span>
+<span id="cb13-26"><a href="#cb13-26" aria-hidden="true" tabindex="-1"></a>}))</span>
+<span id="cb13-27"><a href="#cb13-27" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-28"><a href="#cb13-28" aria-hidden="true" tabindex="-1"></a>verify_df</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code># A tibble: 8 × 7
+  schedule        max_biomass min_biomass rel_amplitude resource_decrease window
+  &lt;chr&gt;                 &lt;dbl&gt;       &lt;dbl&gt;         &lt;dbl&gt;             &lt;dbl&gt;  &lt;dbl&gt;
+1 Constant              0.198      0.0214          1.61            0.001     0.5
+2 Peaks only            0.195      0.0226          1.58            0.001     0.5
+3 Troughs only          0.190      0.0197          1.62            0.001     0.5
+4 Unfished refer…       0.183      0.0237          1.54            0.001     0.5
+5 Constant              0.139      0.0308          1.27            0.0025    3  
+6 Peaks only            0.127      0.0312          1.21            0.0025    3  
+7 Troughs only          0.131      0.0336          1.18            0.0025    3  
+8 Unfished refer…       0.134      0.0319          1.23            0.0025    3  
+# ℹ 1 more variable: fish_level &lt;dbl&gt;</code></pre>
+</div>
+</div>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Note</span>The coarse scan wasn’t just imprecise - it was wrong about <em>which</em> schedule wins
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<ul>
+<li><strong>At <code>resource_decrease = 0.001</code></strong>: Peaks-only still beats Constant (1.584 vs.&nbsp;1.610). But the <em>unfished</em> reference is 1.542, lower than both. Neither fished schedule actually eases anything here; Constant is worse by 4.4%, Peaks-only “only” 2.7%. Peaks-only isn’t easing the oscillation, it’s just losing least.</li>
+<li><strong>At <code>resource_decrease = 0.0025</code></strong>: the coarse scan flagged Peaks-only as the winner. Under the careful methodology, <strong>Troughs-only wins instead</strong> (1.182 vs.&nbsp;Peaks-only’s 1.211 and Constant’s 1.275), and both beat the unfished baseline here. The short scan didn’t just get the margin wrong, it named the wrong schedule.</li>
+</ul>
+</div>
+</div>
+<p>Lesson: the amplitude-beats-Constant phenomenon below <code>resource_decrease ≈ 0.004</code> is real, but a coarse scan can’t be trusted to say <em>which</em> strategy is responsible for it, only that something is going on worth rechecking properly.</p>
+<hr>
+</section>
+<section id="the-circle-in-the-trade-off-plot" class="level2">
+<h2 class="anchored" data-anchor-id="the-circle-in-the-trade-off-plot">The Circle in the Trade-off Plot</h2>
+<p>The amplitude-vs-yield scatter, faceted across all twelve <code>resource_decrease</code> values, had a visible structure: points tracing an arc rather than scattering randomly, suggestive of one hidden variable driving both axes rather than <code>window</code> and <code>fish_level</code> acting independently. <code>mean_effort</code>, the time-averaged effort actually applied, however it’s distributed in time, already recorded per point by <code>run_window_effort_scan()</code> above, is the natural thing to test that against: plot <code>rel_amplitude</code> and <code>mean_yield</code> each directly against <code>mean_effort</code>, faceted by <code>resource_decrease</code>, colored by schedule, instead of against each other.</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb15"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a>mean_effort_amplitude_plot <span class="ot">&lt;-</span> <span class="fu">ggplot</span>(rd_scan_df, <span class="fu">aes</span>(<span class="at">x =</span> mean_effort, <span class="at">y =</span> rel_amplitude, <span class="at">color =</span> schedule)) <span class="sc">+</span></span>
+<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_point</span>(<span class="at">alpha =</span> <span class="fl">0.6</span>) <span class="sc">+</span></span>
+<span id="cb15-3"><a href="#cb15-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">facet_wrap</span>(<span class="sc">~</span><span class="fu">sprintf</span>(<span class="st">"resource_decrease=%.4g"</span>, resource_decrease), <span class="at">ncol =</span> <span class="dv">4</span>, <span class="at">scales =</span> <span class="st">"free"</span>) <span class="sc">+</span></span>
+<span id="cb15-4"><a href="#cb15-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"Mean effort actually applied over the post-fork run"</span>,</span>
+<span id="cb15-5"><a href="#cb15-5" aria-hidden="true" tabindex="-1"></a>       <span class="at">y =</span> <span class="st">"Relative amplitude of biomass"</span>,</span>
+<span id="cb15-6"><a href="#cb15-6" aria-hidden="true" tabindex="-1"></a>       <span class="at">title =</span> <span class="st">"Amplitude vs. mean effort actually applied -- one curve, or separate by schedule?"</span>,</span>
+<span id="cb15-7"><a href="#cb15-7" aria-hidden="true" tabindex="-1"></a>       <span class="at">subtitle =</span> <span class="st">"Peaks-only/Troughs-only points overlapping Constant's own curve here would mean window/fish_level only matter through how much they raise mean effort"</span>) <span class="sc">+</span></span>
+<span id="cb15-8"><a href="#cb15-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_minimal</span>()</span>
+<span id="cb15-9"><a href="#cb15-9" aria-hidden="true" tabindex="-1"></a>mean_effort_amplitude_plot</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="2026-07-23-day-thirty-four_files/figure-html/mean-effort-plots-1.png" class="img-fluid figure-img" width="1536"></p>
+</figure>
+</div>
+</div>
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb16"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a>mean_effort_yield_plot <span class="ot">&lt;-</span> <span class="fu">ggplot</span>(rd_scan_df, <span class="fu">aes</span>(<span class="at">x =</span> mean_effort, <span class="at">y =</span> mean_yield, <span class="at">color =</span> schedule)) <span class="sc">+</span></span>
+<span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_point</span>(<span class="at">alpha =</span> <span class="fl">0.6</span>) <span class="sc">+</span></span>
+<span id="cb16-3"><a href="#cb16-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">facet_wrap</span>(<span class="sc">~</span><span class="fu">sprintf</span>(<span class="st">"resource_decrease=%.4g"</span>, resource_decrease), <span class="at">ncol =</span> <span class="dv">4</span>, <span class="at">scales =</span> <span class="st">"free"</span>) <span class="sc">+</span></span>
+<span id="cb16-4"><a href="#cb16-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"Mean effort actually applied over the post-fork run"</span>,</span>
+<span id="cb16-5"><a href="#cb16-5" aria-hidden="true" tabindex="-1"></a>       <span class="at">y =</span> <span class="st">"Mean yield"</span>,</span>
+<span id="cb16-6"><a href="#cb16-6" aria-hidden="true" tabindex="-1"></a>       <span class="at">title =</span> <span class="st">"Yield vs. mean effort actually applied -- one curve, or separate by schedule?"</span>,</span>
+<span id="cb16-7"><a href="#cb16-7" aria-hidden="true" tabindex="-1"></a>       <span class="at">subtitle =</span> <span class="st">"Same test as the amplitude version above, applied to yield"</span>) <span class="sc">+</span></span>
+<span id="cb16-8"><a href="#cb16-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_minimal</span>()</span>
+<span id="cb16-9"><a href="#cb16-9" aria-hidden="true" tabindex="-1"></a>mean_effort_yield_plot</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="2026-07-23-day-thirty-four_files/figure-html/mean-effort-plots-2.png" class="img-fluid figure-img" width="1536"></p>
+</figure>
+</div>
+</div>
+</div>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Note</span>Yield collapses onto one curve. Amplitude does not.
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<ul>
+<li><strong>Yield</strong>: Constant, Peaks-only, and Troughs-only all sit on the <em>same</em> tight, near-linear curve against <code>mean_effort</code>, in every panel. Total catch is essentially indifferent to <em>when</em> the effort lands but cares only about how much of it there is on average.</li>
+<li><strong>Amplitude</strong>: no such collapse. At low <code>resource_decrease</code> there’s real scatter (window’s specific value matters, not just its average effort). At higher <code>resource_decrease</code>, the separation is stark: Constant sits on a visibly lower curve than either event-triggered schedule, for the <em>same or even less</em> average effort.</li>
+</ul>
+</div>
+</div>
+<p>That resolves the circle: yield is pinned to a single curve in one variable, while amplitude depends on <em>two</em> - effort and timing. Varying window and fish_level slides points along yield’s fixed backbone while fanning them out vertically in amplitude by schedule, which is exactly the “one axis pinned, one forking” shape that reads as an arc.</p>
+<p>It also sharpens the whole day into one sentence: <strong>fishing’s effect on yield is timing-indifferent (you get what your average effort buys you) but its effect on easing the oscillation is not, and spreading effort evenly beats concentrating it in bursts by a widening margin the closer the system sits to its own bifurcation boundary.</strong></p>
+<hr>
+</section>
+<section id="whats-next" class="level2">
+<h2 class="anchored" data-anchor-id="whats-next">What’s Next</h2>
+<ol type="1">
+<li><strong>Rerun the <code>resource_decrease = 0.0005</code>, Peaks-only yield “win” through Section 3’s careful methodology</strong> (<code>t_fork = 500</code>, <code>post_fork_years = 300</code>, <code>summary_window = 50</code>) before trusting it. The two amplitude wins that got this same recheck both flipped or lost their margin, and this yield claim has had no recheck at all yet, so it’s next in line, not a nice-to-have.</li>
+<li><strong>Load the calibrated cod params and rerun the <code>mean_effort</code> diagnostic (Section 4d’s two plots) against it.</strong> If yield still collapses onto one curve regardless of schedule there too, that’s a general mizer result worth stating as one; if it doesn’t, that’s just as informative, since it would mean anchovy’s collapse was a feature of this particular calibration and not fishing dynamics in general.</li>
+<li><strong>Extend the constant-effort scan past <code>fish_level = 4</code></strong>, in <code>fish_level</code> steps of 1 up to at least 8, and check specifically whether yield actually turns over or keeps climbing indefinitely, since the current data only shows it still climbing at the edge of the range tested.</li>
+</ol>
+
+
+</section>
+
+</main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp('/' + window.location.host + '/');
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+</div> <!-- /content -->
+
+
+
+
+</body></html>
