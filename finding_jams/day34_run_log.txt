@@ -1,1 +1,0 @@
-Gear sanity check: selectivity at 90% of w_mat (w=8.841 g) = 0 (should be 0); at 110% of w_mat (w=10.82 g) = 1 (should be 1); at the largest size in the model = 1 (should be 1, unlike a dome).

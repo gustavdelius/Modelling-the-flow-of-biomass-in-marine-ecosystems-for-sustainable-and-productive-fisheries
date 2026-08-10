@@ -60,7 +60,7 @@ Reading this against the resource equation: `kappa` *is* the constant in $K_R(w)
 This calibration was never fitted to real anchovy survey data. It was adapted (Day 6) from a two-species (anchovy-feeding-on-plankton) `mizer` worked example published on RPubs (`gustav/plankton-anchovy`), translated onto current `mizer` syntax. What turns a merely oscillation-*capable* calibration into a genuinely oscillating one is suppressing resource replenishment (`resource_decrease`) far enough that the steady state itself loses stability - the actual value used varies by experiment (from $10^{-3}$ down to $10^{-7}$ depending on the day), which is why it is a function argument rather than baked into the parameter table below.
 
 | Parameter | Value | Role |
-|------------------------|------------------------|------------------------|
+|----|----|----|
 | $w_{\min}$ | $0.0003$ g | size at birth |
 | $w_{\max}$ | $66.5$ g | asymptotic adult mass |
 | $w_{\mathrm{mat}}$ | $10$ g | maturation size ($\approx 15\%$ of $w_{\max}$) |
@@ -205,7 +205,7 @@ Seeding each point from the *previous* point's own settled state (rather than a 
 Testing whether a lag (rather than size structure) could produce mizer's hysteresis, all four ways a single delay $\tau$ can sit inside the toy predator-prey model's intake term were checked (Days 25-27, reference params $D=1,a=1,e=0.5,m=0.3,K=1$):
 
 | Delay placement | Hopf possible? | Onset |
-|------------------------|------------------------|------------------------|
+|----|----|----|
 | Both $N,P$ delayed in predator's conversion term | Never (any params) | — |
 | $N(t-\tau)$ in prey's self-limitation term | Yes, iff $aP^*<D$ (holds here) | $\tau\approx2.4$ |
 | $P(t-\tau)$ only, in predator's intake term | Never - corrected from Day 26's wrong "conditional" verdict (checked only the root-sum condition, not the discriminant) | — |
@@ -483,6 +483,6 @@ Separately, Day 33 tested whether narrow-selectivity fishing (at maturity, or at
 ## 9. Timetable for the Next Two Weeks
 
 | Dates | Focus |
-|------------------------------------|------------------------------------|
+|----|----|
 | 10/08 - 16/08 | Work on Item 1 and explore other methods to dampen the oscillations by reading other academic papers and begin work on first draft of the final report for project |
 | 17/08 - 23/08 | Write up final report of the project |
