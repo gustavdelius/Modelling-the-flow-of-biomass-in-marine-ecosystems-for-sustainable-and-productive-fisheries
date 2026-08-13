@@ -1,0 +1,15 @@
+{
+  "mcpServers": {
+    "r-mizer": {
+      "type": "stdio",
+      "command": "/mnt/c/Program Files/R/R-4.5.3/bin/Rscript.exe",
+      "args": [
+        "-e",
+        "btw::btw_mcp_server(btw::btw_tools('docs', 'env', 'sessioninfo', 'ide', 'run'))"
+      ],
+      "env": {
+        "BTW_RUN_R_ENABLED": "true"
+      }
+    }
+  }
+}

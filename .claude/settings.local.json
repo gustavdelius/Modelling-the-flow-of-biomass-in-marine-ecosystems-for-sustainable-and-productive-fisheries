@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__r-mizer__btw_tool_run_r",
+      "WebSearch",
+      "WebFetch(domain:staff.fnwi.uva.nl)",
+      "WebFetch(domain:sizespectrum.org)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "mcp__r-mizer__btw_tool_docs_help_page"
+    ]
+  },
+  "enabledMcpjsonServers": [
+    "r-mizer"
+  ]
+}

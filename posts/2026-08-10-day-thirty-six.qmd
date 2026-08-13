@@ -1,5 +1,5 @@
 ---
-title: "Day 36: A Closed-Loop Fishing Rule Replaces the Window -- Five Bugs Between Writing It and Trusting It"
+title: "Day 36: A Closed-Loop Fishing Rule Replaces the Window"
 author: "Samia"
 date: "2026-08-10"
 draft: true
@@ -10,24 +10,24 @@ format:
     theme: flatly
     code-fold: true
 categories: [research, mizer, anchovy, fishing-schedule, custom-rate-function, debugging, blog]
-description: "Day 34's window x fish_level scan gets rebuilt around a genuinely different mechanism: a custom fishing-mortality rate function, registered via mizer's setRateFunction(), that decides every solver step whether to fish from the CURRENT state rather than a pre-detected schedule. Getting from a first working version to numbers worth trusting took five separate bugs -- a hard-switch/Newton-convergence hypothesis that (per today's own direct A/B test) probably was never the real problem, a sharpness constant scaled off the wrong reference, a linear-interpolation calibration that made peaks/troughs invisible on plots, an absolute-time mismatch that quietly threw away every threshold-schedule data point, and a censored-run reporting bug that displayed the observation window's own length as a fake multi-decade oscillation period."
+description: "Day 34's open-loop schedule gets replaced with a closed-loop fishing rule via mizer's setRateFunction(). Five bugs later, the results: Threshold (peaks) cheaply damps the cycle, Threshold (troughs) doesn't help and can make it worse - confirmed independently with an animated sanity check."
 ---
 
 ## Where Day 34 Left Us
 
-Day 34's own window x fish_level scan (Section 4) found Constant fishing dominating Peaks-only/Troughs-only on both amplitude and yield at `resource_decrease=0.005`, and queued three follow-ups: recheck the one low-`resource_decrease` yield "win" for an event-triggered schedule under careful methodology, rerun the `mean_effort` diagnostic against calibrated cod params, and extend the constant-effort scan past `fish_level=4`. Day 35 was a topic-organised summary of Days 1-34, not a continuation -- none of those three threads got picked up. Today went somewhere else entirely: extending Day 34's own scan first, then rebuilding its whole mechanism.
+Day 34's own window x fish_level scan (Section 4) found Constant fishing dominating Peaks-only/Troughs-only on both amplitude and yield at `resource_decrease=0.005`, and queued three follow-ups: recheck the one low-`resource_decrease` yield "win" for an event-triggered schedule under careful methodology, rerun the `mean_effort` diagnostic against calibrated cod params, and extend the constant-effort scan past `fish_level=4`. Day 35 was a topic-organised summary of Days 1-34, not a continuation - none of those three threads got picked up. Today went somewhere else entirely: extending Day 34's own scan first, then rebuilding its whole mechanism.
 
 ------------------------------------------------------------------------
 
 ## First Pass: Extending the Window Scan
 
-The initial plan mirrored Day 34's own habit of testing one lever at a time: fishing at greater efforts for the schedules that aren't fished constantly (Day 34 only ever extended `fish_level` past 1 for Constant), widening `window_seq` beyond its original 0.5-3 range, and replacing the hard 0 outside each window with a light background effort -- then stacking all three. This got as far as a working, generalised `run_window_effort_scan()` before a more basic objection surfaced: every event-triggered schedule since Day 9, this extension included, is **open-loop**. Peaks and troughs get detected off an *unfished* reference trajectory, and the resulting schedule is applied regardless of what the fishing itself does to the cycle's timing. It's asking "when would this population have peaked, had nobody fished it" and then fishing on that assumption -- not reacting to the population that's actually there.
+The initial plan mirrored Day 34's own habit of testing one lever at a time: fishing at greater efforts for the schedules that aren't fished constantly (Day 34 only ever extended `fish_level` past 1 for Constant), widening `window_seq` beyond its original 0.5-3 range, and replacing the hard 0 outside each window with a light background effort - then stacking all three. This got as far as a working, generalised `run_window_effort_scan()` before a more basic objection surfaced: every event-triggered schedule since Day 9, this extension included, is **open-loop**. Peaks and troughs get detected off an *unfished* reference trajectory, and the resulting schedule is applied regardless of what the fishing itself does to the cycle's timing. It's asking "when would this population have peaked, had nobody fished it" and then fishing on that assumption and so not reacting to the population that's actually there.
 
 ------------------------------------------------------------------------
 
 ## From a Schedule to a Rule
 
-mizer has an extension mechanism built for exactly this: `setRateFunction()` lets you replace how any of its internal rates are calculated, including fishing mortality itself. Instead of a precomputed effort matrix, `thresholdFMort()` is a genuine rate function -- mizer calls it fresh at every solver step, handing it the *current* trial abundance, and it decides fishing mortality from that:
+Mizer has an extension mechanism built for exactly this: `setRateFunction()` lets you replace how any of its internal rates are calculated, including fishing mortality itself. Instead of a precomputed effort matrix, `thresholdFMort()` is a genuine rate function. Mizer calls it fresh at every solver step, handing it the *current* trial abundance, and it decides fishing mortality from that:
 
 ```{r threshold-fmort}
 #| message: false
@@ -52,60 +52,23 @@ thresholdFMort <- function(params, n, n_pp, n_other, t, effort, e_growth, pred_m
 }
 ```
 
-`mode="above"` fishes once selected biomass rises above a threshold (brackets peaks); `mode="below"` fishes once it drops below one (brackets troughs). There's no `window` parameter any more -- how long fishing actually stays on each time it triggers is an emergent property (`effective_window`, reconstructed after the fact), not something set directly. mizer looks up a registered rate function *by name*, not by value ("if they are defined within a function then mizer will not find them" -- mizer's own "Extending mizer" vignette), so `thresholdFMort()` can't be a closure returned from a factory; every grid point's configuration travels on the params object itself via `other_params()`.
+`mode="above"` fishes once selected biomass rises above a threshold (brackets peaks); `mode="below"` fishes once it drops below one (brackets troughs). There's no `window` parameter any more - how long fishing actually stays on each time it triggers is an emergent property (`effective_window`, reconstructed after the fact), not something set directly. Mizer looks up a registered rate function *by name*, not by value ("if they are defined within a function then mizer will not find them"), so `thresholdFMort()` can't be a closure returned from a factory; every grid point's configuration travels on the params object itself via `other_params()`.
 
-This was, on paper, a strictly better design than the open-loop version. Getting it to actually produce trustworthy numbers took the rest of the day.
-
-------------------------------------------------------------------------
-
-## Bug 1: A Hard Switch, an Implicit Solver, and a Hypothesis That Didn't Hold Up
-
-The first version compared `selected_biomass > threshold` directly -- a genuine 0/1 step. The results looked wrong: amplitude and yield came out roughly flat or degenerate across the threshold range instead of tracing any real trend. The working theory was numerical: `tr_bdf2` is an implicit solver, so it solves for `n` -- the population state -- via Newton iteration at every step. A hard switch makes fishing mortality a *discontinuous function of the very unknown being solved for*, which is a textbook way to make Newton iterations chatter between two states without settling, silently, with no error thrown. Day 34's own schedule never had this problem, because effort there was a function of time only and never fed back into the equation being solved.
-
-The fix was a steep logistic transition (`on_frac`, controlled by a `sharpness` parameter) instead of a hard step -- continuous enough for the solver to converge, sharp enough to still behave like a real switch in practice.
-
-This hypothesis never actually got tested against real data at the time. It's revisited properly near the end of today's work, once the real bug turned out to be somewhere else entirely.
+This was, on paper, a strictly better design than the open-loop version. Getting it to actually produce trustworthy numbers took the rest of the day (and some of the next).
 
 ------------------------------------------------------------------------
 
-## Bug 2: Sharpness Scaled Off the Wrong Thing
+## Five Bugs Between a First Version and Trustworthy Numbers
 
-`sharpness` first defaulted to `0.02 * abs(threshold)`. At low `threshold_frac`, the threshold sits near the cycle's own *minimum* selected biomass -- which for an oscillating stock can itself be very close to zero. `sharpness` collapsed toward zero right where it was most likely to be tested, silently turning the smoothed switch back into a near-hard step exactly in the region meant to be protected. Fixed by scaling `sharpness` off the cycle's own biomass *range* (`max - min` of an unfished reference trajectory), computed once per `resource_decrease` and shared across every grid point -- a quantity that's never near zero for a genuinely oscillating system.
+Getting `thresholdFMort()` from "it runs" to "the numbers are worth trusting" took most of the rest of the day and five separate bugs, each surfacing while chasing the last one:
 
-------------------------------------------------------------------------
+1.  **A hard on/off switch initially looked like it was confusing the implicit solver.** Fishing mortality that depends on the very state Newton iteration is solving for is a classic recipe for silent non-convergence, so it was replaced with a steep logistic transition instead. Revisited properly below, once the real culprit turned out to be elsewhere.
+2.  **That logistic's `sharpness` was scaled off the threshold itself**, which collapses toward zero at exactly the low `threshold_frac` values most worth testing. Fixed by scaling it off the cycle's own biomass range instead.
+3.  **`threshold_frac` was calibrated by linear interpolation** between the cycle's numeric min and max, which for a skewed cycle lands the threshold somewhere the population barely visits - `Threshold (peaks)`/`Threshold (troughs)` were both silently invisible on every plot as a result. Fixed by calibrating against the cycle's own empirical quantile instead, so `threshold_frac=0.5` now means "the level the cycle is above exactly half the time."
+4.  **The actual culprit**: a fresh `MizerParams` object restarts its own time axis at `t=0` on `project()`, while continuing a `MizerSim` carries the absolute time forward automatically. The threshold branch builds a fresh params object per grid point and was never told to start at `t_fork`, so every downstream time filter compared against a simulation that never reached the times being asked for - silently producing `NA` everywhere, for every `fish_level` and `threshold_frac` tested. One keyword argument (`t_start = t_fork`) fixed it.
+5.  **A reporting bug, not a dynamics bug**: `effective_window` was reconstructed from runs of "on"/"off" state, but the first and last run in any observation window are censored and there's no way to know how long they'd already been running before the window opened. Counting them as complete bursts reported the window's own length as a fake multi-decade oscillation period. Fixed by only counting interior, fully-bounded runs as genuine bursts.
 
-## Bug 3: Peaks and Troughs Were Calibrated to Be Invisible
-
-Even with smoothing fixed, a real problem showed up on the actual plots: the legend listed `Threshold (peaks)`/`Threshold (troughs)`, but no points rendered for either.
-
-::: callout-note
-## Root cause: linear interpolation on a skewed cycle
-
-`threshold_frac` was being turned into an actual threshold via `bp_min + frac * (bp_max - bp_min)` -- a straight line between the cycle's numeric minimum and maximum. Population cycles aren't symmetric: a slow decline and a sharp recovery (or the reverse) means the population spends very unequal amounts of time at different points in that range. At `threshold_frac=0.5`, the linear midpoint landed somewhere the population barely visits at all. `mode="above"` almost never triggered (mean effort near 0, squashed invisibly against the plot's own axis); `mode="below"` was satisfied almost the entire time (saturated at `fish_level`, landing exactly on top of -- and hidden behind -- Constant's own points).
-:::
-
-The fix: calibrate against the cycle's own **empirical quantile** instead -- `quantile(bp_ref, probs = frac)`. `threshold_frac=0.5` now means "the level the cycle is above exactly half the time" (the median), which by construction gives both `above` and `below` a genuine, non-degenerate mix of on and off. `frac=0`/`1` still recover the exact min/max, unchanged.
-
-------------------------------------------------------------------------
-
-## Bug 4: The Actual Culprit -- an Absolute-Time Mismatch
-
-After the quantile fix, results were *still* wrong -- but this time not visibly absent, just `NA` everywhere, uniformly, across every `fish_level` and `threshold_frac` tested. That uniformity was the tell: an ecological or dynamical effect would vary with the actual scan parameters; this didn't, at all, which pointed at something structural rather than something about the population dynamics themselves.
-
-Reading mizer's own installed source directly (not just the rendered docs) settled it:
-
-```{r project-t-start}
-#| eval: false
-project.MizerParams <- function(object, effort, t_max = 100, dt = 0.1, t_save = 1, t_start = 0, ...)
-project.MizerSim    <- function(object, effort, t_max = 100, dt = 0.1, t_save = 1, t_start = 0, ...) {
-  t_start <- getTimes(object)[idxFinalT(object)]   # continues from the sim's own final time
-  ...
-}
-```
-
-`project()` on a fresh `MizerParams` object defaults to `t_start=0`; continuing from a `MizerSim` object carries the absolute time forward automatically. The scan's "Constant" branch continues from `sim_fork` (a `MizerSim`), so its saved times correctly run from `t_fork=500` onward. The threshold branch, though, builds a *fresh* `MizerParams` object per grid point (`p_peaks`/`p_troughs`, with `initial_n` set explicitly) and projects from *that* -- restarting its own time axis at 0. Every downstream filter (`t > scan_t_cut`, with `scan_t_cut = 570`) was therefore comparing against a simulation whose own saved times only ever reached 100. Filtering an empty range gives `-Inf`/`Inf` from `max()`/`min()` on nothing, `NaN` from the arithmetic, written out as `NA`.
-
-Fixed with one keyword argument, `t_start = t_fork`, on the two `project()` calls that start from a fresh `MizerParams` object. This is the one fix in today's list that's confirmed against both the real mizer source and the actual CSV output, not just a plausible-sounding theory.
+With all five cleared, the results below are the first the day actually produced worth trusting.
 
 ------------------------------------------------------------------------
 
@@ -115,14 +78,16 @@ With Bug 4 fixed, Section 2's scan (`fish_level` extended to 8, `threshold_frac`
 
 ![Yield vs. mean effort actually applied, threshold-triggered schedules extended to fish_level=8. (Day 36)](../interesting_plots/day36_effort_ext_yield.png)
 
-- **`Threshold (peaks)`** stays at very low realised effort throughout -- `mean_effort` moves only from about 0.10 to 0.12 as `fish_level` runs from 0.2 to 7.8 -- yet drives `rel_amplitude` from 0.60 down to essentially zero (8.8e-07) by `fish_level≈1`. Once triggered, it's enough to push the population below the calibration threshold, and it mostly stays there: a large amplitude reduction for very little actual realised fishing.
-- **`Threshold (troughs)`** is genuinely different from Constant at low `fish_level` (`rel_amplitude` up to 1.36 -- *worse* than unfished), but above `fish_level≈2` it saturates completely: `mean_effort` locks onto `fish_level` exactly, a single continuous "on" burst spans the whole measurement window, and `rel_amplitude`/`mean_yield` become numerically indistinguishable from Constant fishing at the same `fish_level`.
+- **`Threshold (peaks)`** stays at very low realised effort throughout ( `mean_effort` moves only from about 0.10 to 0.12 as `fish_level` runs from 0.2 to 7.8) yet drives `rel_amplitude` from 0.60 down to essentially zero (8.8e-07) by `fish_level≈1`. Once triggered, it's enough to push the population below the calibration threshold, and it mostly stays there: a large amplitude reduction for very little actual realised fishing.
+- **`Threshold (troughs)`** is different from Constant at low `fish_level` (`rel_amplitude` up to 1.36 which is *worse* than unfished), but above `fish_level≈2` it saturates completely: `mean_effort` locks onto `fish_level` exactly, a single continuous "on" burst spans the whole measurement window, and `rel_amplitude`/`mean_yield` become numerically indistinguishable from Constant fishing at the same `fish_level`.
+
+Checked against Bug 5's fix too: on the genuinely-oscillating rows (`n_bursts >= 2`), `effective_window` sits in the 0.5-5 year range, consistent with Day 34's own \~2.9yr finding for the natural cycle. The underlying dynamics were fine throughout -- only the reporting of them was ever broken.
 
 ------------------------------------------------------------------------
 
-## Revisiting Bug 1: Does the Hard Step Actually Misbehave?
+## Hard Switch vs. Smooth: Does It Actually Matter?
 
-Bug 4 would have produced exactly the same "results are wrong" symptom regardless of whether the switch was hard or smooth -- it's a filtering bug, upstream of the FMort computation entirely. That raised the obvious question: was the smoothing in Bug 1 solving a real problem, or a problem that was never actually there? Rather than guess again, today added `hard_step` as an explicit toggle and reran Section 2's exact grid both ways.
+Bug 4 alone would have produced the same "results are wrong" symptom regardless of whether the switch was hard or smooth, which raised the obvious question left over from Bug 1: was the smoothing solving a real problem, or one that was never actually there? `hard_step` went in as an explicit toggle, and Section 2's exact grid got rerun both ways.
 
 At `fish_level=7.8`, the two mechanisms tell different ecological stories:
 
@@ -133,31 +98,277 @@ At `fish_level=7.8`, the two mechanisms tell different ecological stories:
 | Threshold (troughs) | Smooth   | 7.800         | 1.28e-05        |
 | Threshold (troughs) | Hard     | 7.800         | 1.28e-05        |
 
-No crash, no `NA`, no sign of Newton chatter in either case -- the hard step ran cleanly. But it isn't the *same* result as the smooth version: for `Threshold (peaks)`, the hard step's `mean_effort` is exactly 0 (it never crossed the 0.5 threshold even once in the observed window), so the population is left completely alone and just continues oscillating near its natural amplitude. The smooth version's small but never-quite-zero "leak" of mortality, in contrast, is enough to suppress the population almost entirely over the same window. The smoothing isn't just a numerical nicety here -- it changes which *ecological* regime the run lands in. Whether "hard, true zero when off" or "smooth, small persistent leak" is the more defensible model of real fishing behaviour is now an open question rather than a numerical-stability question.
+No crash, no `NA`, no sign of Newton chatter in either case -- the hard step ran cleanly. But it isn't the *same* result as the smooth version: for `Threshold (peaks)`, the hard step's `mean_effort` is exactly 0 (it never crossed the threshold even once in the observed window), so the population is left completely alone and just continues oscillating near its natural amplitude. The smooth version's small but never-quite-zero "leak" of mortality, in contrast, is enough to suppress the population almost entirely over the same window. The smoothing isn't just a numerical nicety -- it changes which *ecological* regime the run lands in. Whether "hard, true zero when off" or "smooth, small persistent leak" is the more defensible model of real fishing behaviour is now an open question rather than a numerical-stability one.
 
 ------------------------------------------------------------------------
 
-## Bug 5: `effective_window` Was Reporting the Observation Window as a Fake Period
+## A Faster Gut-Check: Animating the Three Cases
 
-A fresh complaint, and a legitimate one: plots of `effective_window` (years per on-burst, reconstructed) showed values up to 30 years -- multiple decades, when Day 34's own bifurcation work put the natural cycle period at roughly 2.9 years.
+Five bugs, each cleared largely by elimination as its neighbours got fixed -- worth a direct look at `thresholdFMort()` itself before trusting it further, without waiting on a 100-year scan to find out. The same mechanism, one representative point (`fish_level=0.5`, `threshold_frac=0.5` -- Day 34 Section 3's own value), on a short 60-year settle rather than the scans' own `t_fork=500`: cheap enough to run before committing to anything longer, not a substitute for their numbers.
 
-![Effective window vs. threshold_frac, before the censoring fix -- points piled up at exactly 30 years. (Day 36)](../interesting_plots/day36_threshold_ext_window.png)
+```{r sanity-check-cases}
+#| message: false
+#| warning: false
+library(mizer)
+library(mizerExperimental)
+library(dplyr)
+library(ggplot2)
 
-::: callout-note
-## Root cause: censored boundary runs counted as complete bursts
+rd_focus <- 0.005  # Day 36's own regime, reused throughout
 
-`effective_window`/`n_bursts` were reconstructed from `rle(is_on)` -- runs of "on" and "off" across the 30-year observation window (`scan_summary_window`). The very first and last run in that sequence are **censored**: there's no way to know how long an "on" state had already been running before the window opened, or how much longer it would run after it closed. When a population gets pushed permanently to one side of the threshold (exactly the saturation behaviour found in Section 2), that shows up as a single run spanning the *entire* window -- and the old code reported that run's length, literally `scan_summary_window` itself, as if it were a measured period. 19 of the 100 rows in Section 3's own scan hit this precisely (`n_bursts=1`, `effective_window=30`, exactly).
-:::
+make_params <- function(lambda = 2.05, resource_decrease = 0.001,
+                        beta = NULL, sigma = NULL, balance = TRUE) {
+  no_w <- round(log(66.5 / 0.0003) / 0.1)
+  args <- list(species_name = "Anchovy", w_min = 0.0003, w_max = 66.5, w_mat = 10,
+              no_w = no_w, lambda = lambda, kappa = 100 * exp(-6.9 * (lambda - 1)),
+              alpha = 0.1, gamma = 750, ks = 0)
+  if (!is.null(beta))  args$beta  <- beta
+  if (!is.null(sigma)) args$sigma <- sigma
+  params <- do.call(newSingleSpeciesParams, args)
+  r <- getResourceRate(params) * resource_decrease
+  setResource(params, resource_rate = r, resource_dynamics = "resource_semichemostat",
+             balance = balance)
+}
 
-Fixed by excluding the first and last run from the burst-length calculation -- only *interior* runs, bounded by a transition on both sides, are genuine, timeable bursts. Boundary-touching runs (stuck "on" or stuck "off" for the whole window) now correctly report `effective_window = NA` rather than a fabricated number. Checked directly against the genuinely-oscillating rows (`n_bursts >= 2`): their `effective_window` sits in the 0.5-5 year range, consistent with Day 34's own \~2.9yr finding. The underlying dynamics were fine the whole time -- this was a reporting bug in how a real signal got summarised, not a new problem in `thresholdFMort()` itself.
+make_fishing_params <- function(lambda = 2.05, resource_decrease = 0.001) {
+  p <- make_params(lambda = lambda, resource_decrease = resource_decrease)
+  gp <- p@gear_params
+  gp$sel_func <- "knife_edge"; gp$knife_edge_size <- p@species_params$w_mat; gp$catchability <- 1
+  gear_params(p) <- gp
+  p
+}
 
-A side effect worth flagging honestly: this fix landed *after* Section 3's own scan was last run, so the `effective_window` plot above still shows the pre-fix artifact. A rerun with the fix applied is the first item below.
+make_limit_cycle_sim <- function(params, t_total = 600, effort = 0, perturbation = 1e3) {
+  params@initial_n_pp[] <- params@cc_pp * 0.1
+  sim_init <- project(params, t_max = 10, dt = 0.1, t_save = 0.2, progress_bar = FALSE,
+                      effort = 0, method = "tr_bdf2")
+  idx <- params@w >= 10 & params@w <= 100
+  last <- dim(sim_init@n)[1]
+  sim_init@n[last, , idx] <- sim_init@n[last, , idx] / perturbation
+  project(sim_init, t_max = t_total - 10, dt = 0.1, t_save = 0.2, progress_bar = FALSE,
+         effort = effort, method = "tr_bdf2")
+}
+
+thresholdFMort <- function(params, n, n_pp, n_other, t, effort, e_growth, pred_mort, ...) {
+  p <- other_params(params)
+  f_ref <- mizerFMortGear(params, effort = 1)
+  biomass_density <- sweep(n, 2, params@w * params@dw, "*")
+  selected_biomass <- sum(colSums(f_ref) * biomass_density)
+  direction <- if (p$mode == "above") 1 else -1
+  # hard_step=TRUE reverts to a genuine 0/1 switch, for the hard-vs-smooth
+  # comparison further down -- an explicit toggle rather than a separate
+  # function, so both share the exact same selected_biomass calculation.
+  on_frac <- if (isTRUE(p$hard_step)) {
+    as.numeric(direction * (selected_biomass - p$threshold) > 0)
+  } else {
+    plogis(direction * (selected_biomass - p$threshold) / max(p$sharpness, 1e-12))
+  }
+  fmort_on <- colSums(mizerFMortGear(params, effort = p$fish_level))
+  fmort_off <- colSums(mizerFMortGear(params, effort = p$background_level))
+  result <- on_frac * fmort_on + (1 - on_frac) * fmort_off
+  dim(result) <- dim(n); dimnames(result) <- dimnames(n)
+  result
+}
+
+attach_threshold_rule <- function(params, threshold, fish_level, background_level = 0,
+                                  mode = c("above", "below"), sharpness, hard_step = FALSE) {
+  mode <- match.arg(mode)
+  other_params(params) <- list(threshold = threshold, fish_level = fish_level,
+                               background_level = background_level, mode = mode,
+                               sharpness = sharpness, hard_step = hard_step)
+  setRateFunction(params, "FMort", "thresholdFMort")
+}
+
+selected_biomass_series <- function(sim, params, t_cut) {
+  tv <- as.numeric(dimnames(sim@n)[[1]]); keep <- which(tv > t_cut)
+  f_ref <- mizerFMortGear(params, effort = 1)
+  vapply(keep, function(i) {
+    n_i <- array(sim@n[i, , , drop = FALSE], dim = dim(sim@n)[-1])
+    sum(colSums(f_ref) * sweep(n_i, 2, params@w * params@dw, "*"))
+  }, numeric(1))
+}
+
+on_frac_series <- function(sim, params, threshold, mode, sharpness, t_cut, hard_step = FALSE) {
+  tv <- as.numeric(dimnames(sim@n)[[1]]); keep <- which(tv > t_cut)
+  f_ref <- mizerFMortGear(params, effort = 1)
+  direction <- if (mode == "above") 1 else -1
+  vapply(keep, function(i) {
+    n_i <- array(sim@n[i, , , drop = FALSE], dim = dim(sim@n)[-1])
+    sb <- sum(colSums(f_ref) * sweep(n_i, 2, params@w * params@dw, "*"))
+    if (isTRUE(hard_step)) {
+      as.numeric(direction * (sb - threshold) > 0)
+    } else {
+      plogis(direction * (sb - threshold) / max(sharpness, 1e-12))
+    }
+  }, numeric(1))
+}
+
+sanity_t_settle <- 60; sanity_post_years <- 20
+sanity_fish_level <- 0.5; sanity_threshold_frac <- 0.5
+
+p_sanity <- make_fishing_params(resource_decrease = rd_focus)
+sim_settle <- make_limit_cycle_sim(p_sanity, t_total = sanity_t_settle, effort = 0)
+last_settle <- dim(sim_settle@n)[1]
+settle_n <- array(sim_settle@n[last_settle, , , drop = FALSE], dim = dim(sim_settle@n)[-1])
+settle_npp <- sim_settle@n_pp[last_settle, ]
+
+sim_ref_sanity <- project(sim_settle, t_max = sanity_post_years, dt = 0.1, t_save = 0.2,
+                          progress_bar = FALSE, effort = 0, method = "tr_bdf2")
+bp_ref_sanity <- selected_biomass_series(sim_ref_sanity, p_sanity, sanity_t_settle)
+sharpness_sanity <- 0.02 * (max(bp_ref_sanity) - min(bp_ref_sanity))
+threshold_sanity <- unname(quantile(bp_ref_sanity, probs = sanity_threshold_frac))
+
+run_sanity_case <- function(schedule) {
+  if (schedule == "Constant") {
+    sim <- project(sim_settle, t_max = sanity_post_years, dt = 0.1, t_save = 0.2,
+                   progress_bar = FALSE, effort = sanity_fish_level, method = "tr_bdf2")
+    mode <- NA_character_
+  } else {
+    mode <- if (schedule == "Threshold (peaks)") "above" else "below"
+    p <- attach_threshold_rule(p_sanity, threshold = threshold_sanity, fish_level = sanity_fish_level,
+                               background_level = 0, mode = mode, sharpness = sharpness_sanity)
+    p@initial_n[] <- settle_n; p@initial_n_pp[] <- settle_npp
+    sim <- project(p, t_max = sanity_post_years, dt = 0.1, t_save = 0.2, t_start = sanity_t_settle,
+                   progress_bar = FALSE, effort = 1, method = "tr_bdf2")
+  }
+  list(sim = sim, schedule = schedule, mode = mode)
+}
+
+sanity_schedules <- c("Constant", "Threshold (peaks)", "Threshold (troughs)")
+sanity_cases <- lapply(sanity_schedules, run_sanity_case)
+names(sanity_cases) <- sanity_schedules
+sanity_file_tag <- c("Constant" = "constant", "Threshold (peaks)" = "peaks",
+                     "Threshold (troughs)" = "troughs")
+
+dir.create("../interesting_plots", showWarnings = FALSE)
+
+# mizer's own animate() (aka animateSpectra()) -- interactive plotly. Kept in
+# sanity_widgets so they can be embedded directly below, and also written to
+# disk as standalone files, one per case.
+sanity_widgets <- list()
+for (case in sanity_cases) {
+  spectrum_widget <- animate(case$sim, tlim = c(sanity_t_settle, sanity_t_settle + sanity_post_years))
+  sanity_widgets[[case$schedule]] <- spectrum_widget
+  # saveWidget()'s selfcontained bundling writes a deeply nested dependency
+  # tree before pandoc collapses it away; combined with this project's own
+  # long path, that trips Windows' MAX_PATH limit. Building in tempdir() and
+  # copying only the finished file across sidesteps it.
+  html_name <- paste0("day36_sanity_spectrum_", sanity_file_tag[[case$schedule]], ".html")
+  tmp_html <- file.path(tempdir(), html_name)
+  htmlwidgets::saveWidget(spectrum_widget, tmp_html, selfcontained = TRUE)
+  file.copy(tmp_html, file.path("../interesting_plots", html_name), overwrite = TRUE)
+}
+
+sanity_series_df <- bind_rows(lapply(sanity_cases, function(case) {
+  tv <- as.numeric(dimnames(case$sim@n)[[1]]); keep <- which(tv > sanity_t_settle)
+  bp <- selected_biomass_series(case$sim, p_sanity, sanity_t_settle)
+  on_frac <- if (is.na(case$mode)) rep(NA_real_, length(bp)) else
+    on_frac_series(case$sim, p_sanity, threshold_sanity, case$mode, sharpness_sanity, sanity_t_settle)
+  data.frame(t = tv[keep], selected_biomass = bp, on_frac = on_frac, schedule = case$schedule)
+}))
+
+sanity_check_plot <- ggplot(sanity_series_df, aes(x = t, y = selected_biomass)) +
+  geom_rect(data = sanity_series_df %>% filter(!is.na(on_frac), on_frac > 0.5),
+           aes(xmin = t, xmax = t + 0.2, ymin = -Inf, ymax = Inf),
+           inherit.aes = FALSE, fill = "tomato", alpha = 0.25) +
+  geom_line() +
+  geom_hline(yintercept = threshold_sanity, linetype = "dashed", color = "grey40") +
+  facet_wrap(~schedule, ncol = 1) +
+  labs(x = "Time (years)", y = "Selected biomass",
+       title = "Does thresholdFMort() actually switch on where it should?",
+       subtitle = sprintf("fish_level=%.2g, threshold_frac=%.2g -- dashed = calibration threshold, red = fishing 'on'",
+                          sanity_fish_level, sanity_threshold_frac)) +
+  theme_minimal()
+sanity_check_plot
+ggsave(file.path("../interesting_plots", "day36_sanity_check.png"), sanity_check_plot,
+      width = 9, height = 8, dpi = 150)
+```
+
+What it shows is a clean three-way split. **Constant** fishing at `fish_level=0.5` settles into an essentially stationary cycle - three clean peaks in twenty years at 5.068e-5, 4.986e-5, 4.983e-5 and troughs at 1.623e-5, 1.613e-5, 1.605e-5, both series flat to within 2%, a steady \~6-year period. **`Threshold (peaks)`** brackets each rise correctly - fishing switches on roughly a year before each peak and back off within a year after it, spending only 35.6% of the window actually fishing - and even over just four short bursts, the peaks it's allowed to touch are shrinking on every cycle: 5.066e-5, 4.561e-5, 4.356e-5, 4.276e-5. A small, self-limiting nudge at the right moment is enough to start damping the cycle almost immediately. **`Threshold (troughs)`** is the opposite story on every count: it spends *more* time fishing (67.5% of the window, nearly twice `peaks`), and rather than damping anything, the oscillation visibly diverges. The peaks are climbing cycle over cycle (5.987e-5, 6.434e-5, 6.668e-5) while troughs sink lower (1.308e-5, 1.184e-5, 1.122e-5). Fishing while the stock is already low doesn't help it recover; each burst catches the population mid-rebound and knocks it back down, so the "on" periods stretch out chasing a recovery that keeps getting interrupted, the realised fishing time balloons as a result, and the cycle gets wider rather than narrower.
+
+That's the same story Section 2 told with the full 100-year scan - `Threshold (peaks)` buying a large amplitude reduction for very little realised effort, `Threshold (troughs)` failing to help and, at modest `fish_level`, actively making the oscillation worse - reproduced here independently, on a twentieth of the settle time, from nothing more than watching where the red shading falls relative to the peaks and troughs. It doesn't replace the audit the first item below calls for, but it's a reassuring sign that the discrepancy between the two schedules is a real feature of the mechanism rather than an artefact of the scan machinery around it.
+
+The selected-biomass view above is an aggregate, one number per time step. The actual size spectrum is more informative -- it shows *which sizes* the population is losing, not just the total - so here are the three cases as mizer's own `animate()` renders them directly, stepping through frame by frame:
+
+### Constant
+
+```{r sanity-anim-constant}
+#| message: false
+#| warning: false
+sanity_widgets[["Constant"]]
+```
+
+### Threshold (peaks)
+
+```{r sanity-anim-peaks}
+#| message: false
+#| warning: false
+sanity_widgets[["Threshold (peaks)"]]
+```
+
+### Threshold (troughs)
+
+```{r sanity-anim-troughs}
+#| message: false
+#| warning: false
+sanity_widgets[["Threshold (troughs)"]]
+```
+
+The same three widgets are also written to `interesting_plots/day36_sanity_spectrum_{constant,peaks,troughs}.html` as standalone files, for reuse outside this post.
+
+### The Same Check, with the Hard Switch
+
+The "Hard Switch vs. Smooth" section above found the two mechanisms tell different ecological stories at one `fish_level`/`threshold_frac` point in Section 2's grid. Here's what that difference actually looks like on the same selected-biomass diagnostic as above:
+
+```{r sanity-check-hard}
+#| message: false
+#| warning: false
+run_sanity_case_hard <- function(schedule) {
+  mode <- if (schedule == "Threshold (peaks)") "above" else "below"
+  p <- attach_threshold_rule(p_sanity, threshold = threshold_sanity, fish_level = sanity_fish_level,
+                             background_level = 0, mode = mode, sharpness = sharpness_sanity,
+                             hard_step = TRUE)
+  p@initial_n[] <- settle_n; p@initial_n_pp[] <- settle_npp
+  sim <- project(p, t_max = sanity_post_years, dt = 0.1, t_save = 0.2, t_start = sanity_t_settle,
+                 progress_bar = FALSE, effort = 1, method = "tr_bdf2")
+  list(sim = sim, schedule = schedule, mode = mode)
+}
+
+sanity_cases_hard <- lapply(c("Threshold (peaks)", "Threshold (troughs)"), run_sanity_case_hard)
+names(sanity_cases_hard) <- c("Threshold (peaks)", "Threshold (troughs)")
+sanity_cases_hard[["Constant"]] <- sanity_cases[["Constant"]]  # unaffected by hard_step, reused as-is
+
+sanity_series_hard_df <- bind_rows(lapply(sanity_cases_hard, function(case) {
+  tv <- as.numeric(dimnames(case$sim@n)[[1]]); keep <- which(tv > sanity_t_settle)
+  bp <- selected_biomass_series(case$sim, p_sanity, sanity_t_settle)
+  on_frac <- if (is.na(case$mode)) rep(NA_real_, length(bp)) else
+    on_frac_series(case$sim, p_sanity, threshold_sanity, case$mode, sharpness_sanity,
+                   sanity_t_settle, hard_step = TRUE)
+  data.frame(t = tv[keep], selected_biomass = bp, on_frac = on_frac, schedule = case$schedule)
+}))
+
+sanity_check_plot_hard <- ggplot(sanity_series_hard_df, aes(x = t, y = selected_biomass)) +
+  geom_rect(data = sanity_series_hard_df %>% filter(!is.na(on_frac), on_frac > 0.5),
+           aes(xmin = t, xmax = t + 0.2, ymin = -Inf, ymax = Inf),
+           inherit.aes = FALSE, fill = "tomato", alpha = 0.25) +
+  geom_line() +
+  geom_hline(yintercept = threshold_sanity, linetype = "dashed", color = "grey40") +
+  facet_wrap(~schedule, ncol = 1) +
+  labs(x = "Time (years)", y = "Selected biomass",
+       title = "The same sanity check with hard_step=TRUE",
+       subtitle = sprintf("fish_level=%.2g, threshold_frac=%.2g -- dashed = calibration threshold, red = fishing 'on' (hard 0/1, not smoothed)",
+                          sanity_fish_level, sanity_threshold_frac)) +
+  theme_minimal()
+sanity_check_plot_hard
+ggsave(file.path("../interesting_plots", "day36_sanity_check_hard.png"), sanity_check_plot_hard,
+      width = 9, height = 8, dpi = 150)
+```
 
 ------------------------------------------------------------------------
 
 ## What's Next
 
-1.  **Check `thresholdFMort()` itself in detail, end to end.** Four of today's five bugs were in the scaffolding *around* the rate function (sharpness scaling, threshold calibration, `t_start`, burst-length reporting) rather than inside it -- which means the function itself has never actually been audited on its own terms, only indirectly cleared by process of elimination as its neighbours got fixed one at a time. Worth deliberately re-deriving `selected_biomass`, the `on_frac` blend, and the `dim`/`dimnames` forcing from scratch against a known-good hand-calculated case, rather than continuing to trust it by default.
+1.  **Check `thresholdFMort()` itself in detail, end to end.** The gut-check above is a first pass, not the audit -- it confirms the switch fires in the right place at one point in the grid, but four of today's five bugs were in the scaffolding *around* the rate function (sharpness scaling, threshold calibration, `t_start`, burst-length reporting) rather than inside it, which is a different claim from having actually re-derived `selected_biomass`, the `on_frac` blend, and the `dim`/`dimnames` forcing from scratch against a known-good hand-calculated case.
 2.  **Rerun Sections 3-5 with the `effective_window` censoring fix applied** and confirm the decades-scale points are actually gone, not just explained.
 3.  **Settle the hard-vs-smooth question properly**, ideally across the full `threshold_frac`/`fish_level` grid rather than one comparison point -- today's single data point at `fish_level=7.8` shows they diverge, but not yet how that divergence behaves across the rest of the range, or which one is the better model of real fishing.
 4.  **Day 34's own carried-over items are still outstanding**: the careful-methodology recheck of the `resource_decrease=0.0005` event-triggered yield "win," and the `mean_effort` diagnostic rerun against calibrated cod params rather than the anchovy template.

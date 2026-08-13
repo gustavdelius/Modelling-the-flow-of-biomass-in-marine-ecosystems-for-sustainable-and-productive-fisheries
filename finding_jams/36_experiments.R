@@ -4,6 +4,27 @@ library(dplyr)
 library(tidyverse)
 library(ggplot2)
 
+
+
+p <- newSingleSpeciesParams(lambda = 2.05)
+
+r <- resource_rate(p)
+r <- r * 0.001
+p <- setResource(p, resource_rate = r, resource_dynamics = "resource_semichemostat")
+rng <- test_sizes[["large"]]
+idx <- p@w >= rng[1] & p@w <= rng[2]
+initialN(p)[, idx] <- initialN(p)[, idx] * 5
+given_species_params(p)$erepro
+sim <- project(p, t_max = 100, t_save = 0.5)
+animateSpectra(sim, resource = FALSE, log_x = FALSE, log_y = FALSE, power = 2)
+
+
+
+
+
+
+
+
 # Day 36 replaces Day 34 Section 4's open-loop window x fish_level scan with
 # a closed-loop one: a custom fishing-mortality (FMort) rate function,
 # registered via setRateFunction(), decides every solver step whether to
@@ -58,6 +79,7 @@ make_params <- function(lambda = 2.05, resource_decrease = 0.001,
               resource_dynamics = "resource_semichemostat", balance = balance)
 }
 
+
 # Knife-edge gear pinned at w_mat -- selects everything at/above maturity.
 make_fishing_params <- function(lambda = 2.05, resource_decrease = 0.001) {
   p  <- make_params(lambda = lambda, resource_decrease = resource_decrease)
@@ -86,6 +108,13 @@ make_limit_cycle_sim <- function(params, t_total = 600, effort = 0, perturbation
           method = "tr_bdf2")
 }
 
+
+p <- make_params()
+species_params(p)$f0
+
+sim <- make_limit_cycle_sim(p)
+plotBiomass(sim)
+plotFeedingLevel(p)
 # Same regime/fork point as Day 34 throughout, for direct comparison.
 rd_focus             <- 0.005
 t_fork               <- 500
@@ -329,6 +358,146 @@ run_window_effort_scan <- function(resource_decrease, fish_level_seq, t_fork,
 
   bind_rows(out) %>% mutate(resource_decrease = resource_decrease)
 }
+# 
+################################################################################
+# Section 1b: Quick visual sanity check -- animate the three fishing cases
+#
+# Before spending any time on the grid scans below, a direct look at
+# thresholdFMort() itself: does "Threshold (peaks)" actually fire near
+# biomass peaks, does "Threshold (troughs)" actually fire near troughs, and
+# does the resulting size spectrum look sane? One representative
+# fish_level/threshold_frac, animated with mizer's own animate() (aka
+# animateSpectra()), plus a selected-biomass/on-off diagnostic for all three
+# schedules side by side.
+#
+# Deliberately NOT the scans' own t_fork=500 settle -- that's tuned for
+# landing on a clean, representative point on the limit cycle for careful
+# comparison, which is exactly the expensive part. This uses a much shorter
+# settle (60yr) purely to eyeball whether the switch logic itself behaves
+# sensibly before committing to the long runs; it's not a substitute for
+# the scans' own numbers.
+################################################################################
+
+sanity_t_settle       <- 60
+sanity_post_years     <- 20
+sanity_fish_level     <- 0.5     # Day 34 Section 3's own value, reused
+sanity_threshold_frac <- 0.5     # median, reused from Sections 2/4
+
+p_sanity    <- make_fishing_params(resource_decrease = rd_focus)
+sim_settle  <- make_limit_cycle_sim(p_sanity, t_total = sanity_t_settle, effort = 0)
+last_settle <- dim(sim_settle@n)[1]
+settle_n    <- array(sim_settle@n[last_settle, , , drop = FALSE], dim = dim(sim_settle@n)[-1])
+settle_npp  <- sim_settle@n_pp[last_settle, ]
+
+# Unfished continuation, same role as run_window_effort_scan()'s own
+# sim_ref_unfished -- calibrates threshold/sharpness off the cycle's own
+# swing rather than off arbitrary numbers.
+sim_ref_sanity   <- project(sim_settle, t_max = sanity_post_years, dt = 0.1, t_save = 0.2,
+                            progress_bar = FALSE, effort = 0, method = "tr_bdf2")
+bp_ref_sanity    <- compute_selected_biomass_series(sim_ref_sanity, p_sanity, sanity_t_settle)
+sharpness_sanity <- 0.02 * (max(bp_ref_sanity) - min(bp_ref_sanity))
+threshold_sanity <- unname(quantile(bp_ref_sanity, probs = sanity_threshold_frac))
+
+run_sanity_case <- function(schedule) {
+  if (schedule == "Constant") {
+    sim  <- project(sim_settle, t_max = sanity_post_years, dt = 0.1, t_save = 0.2,
+                    progress_bar = FALSE, effort = sanity_fish_level, method = "tr_bdf2")
+    mode <- NA_character_
+  } else {
+    mode <- if (schedule == "Threshold (peaks)") "above" else "below"
+    p <- attach_threshold_rule(p_sanity, threshold = threshold_sanity, fish_level = sanity_fish_level,
+                               background_level = 0, mode = mode, sharpness = sharpness_sanity)
+    p@initial_n[]    <- settle_n
+    p@initial_n_pp[] <- settle_npp
+    # t_start=sanity_t_settle for the same reason as the scans below (Bug 4):
+    # project() on a fresh MizerParams object restarts its time axis at 0
+    # otherwise.
+    sim <- projectToSteady(p, t_max = sanity_post_years, dt = 0.1, progress_bar = FALSE, effort = 1,
+                   method = "tr_bdf2",return_sim = TRUE)
+  }
+  list(sim = sim, schedule = schedule, mode = mode)
+}
+
+p <- attach_threshold_rule(p_sanity, threshold = threshold_sanity, fish_level = sanity_fish_level,
+                           background_level = 0, mode = "above", sharpness = sharpness_sanity)
+p@initial_n[]    <- settle_n
+p@initial_n_pp[] <- settle_npp
+# t_start=sanity_t_settle for the same reason as the scans below (Bug 4):
+# project() on a fresh MizerParams object restarts its time axis at 0
+# otherwise.
+sim <- projectToSteady(p, t_max = 1000, dt = 0.1, progress_bar = FALSE, effort = 1,
+                       method = "tr_bdf2",return_sim = TRUE)
+sim <- project(sim,t_max=50, t_save = 0.2,dt = 0.1, progress_bar = FALSE, effort = 1,
+             method = "tr_bdf2")
+
+plotBiomass(sim,tlim=c(1000,1050))
+
+sanity_schedules <- c("Constant", "Threshold (peaks)", "Threshold (troughs)")
+sanity_cases     <- lapply(sanity_schedules, run_sanity_case)
+names(sanity_cases) <- sanity_schedules
+
+sanity_file_tag <- c("Constant" = "constant", "Threshold (peaks)" = "peaks",
+                     "Threshold (troughs)" = "troughs")
+
+# mizer's own animate() (aka animateSpectra()) -- an interactive plotly
+# animation stepping through the size spectrum frame by frame, one file per
+# case, so the actual population shape (not just a summary statistic) can be
+# inspected directly.
+for (case in sanity_cases) {
+  spectrum_widget <- animate(case$sim,
+                             tlim = c(sanity_t_settle, sanity_t_settle + sanity_post_years))
+  # htmlwidgets::saveWidget()'s selfcontained=TRUE step writes a deeply nested
+  # dependency tree (e.g. ..._files/htmltools-fill-0.5.9/...) before pandoc
+  # bundles it away -- combined with this project's own long path, that trips
+  # the same Windows MAX_PATH limit save_plot() above already guards against.
+  # Building the widget in the short tempdir() and copying only the finished,
+  # single self-contained .html file into place sidesteps it.
+  html_name <- paste0("day36_sanity_spectrum_", sanity_file_tag[[case$schedule]], ".html")
+  tmp_html  <- file.path(tempdir(), html_name)
+  htmlwidgets::saveWidget(spectrum_widget, tmp_html, selfcontained = TRUE)
+  file.copy(tmp_html, file.path("interesting_plots", html_name), overwrite = TRUE)
+}
+
+
+
+# Companion static check: selected_biomass(t) against the calibration
+# threshold, with fishing "on" periods shaded -- the thing actually driving
+# thresholdFMort(), for all three cases stacked so "does it switch where I
+# think it does" doesn't require opening three separate animations.
+sanity_series_df <- bind_rows(lapply(sanity_cases, function(case) {
+  tv   <- as.numeric(dimnames(case$sim@n)[[1]])
+  keep <- which(tv > 10)
+  bp   <- compute_selected_biomass_series(case$sim, p_sanity, sanity_t_settle)
+  on_frac <- if (is.na(case$mode)) {
+    rep(NA_real_, length(bp))
+  } else {
+    compute_on_frac_series(case$sim, p_sanity, threshold_sanity, case$mode,
+                           sharpness_sanity, sanity_t_settle)
+  }
+  data.frame(t = tv[keep], selected_biomass = bp, on_frac = on_frac, schedule = case$schedule)
+}))
+
+write.csv(sanity_series_df, file.path("interesting_plots", "day36_sanity_series.csv"), row.names = FALSE)
+
+sanity_check_plot <- ggplot(sanity_series_df, aes(x = t, y = selected_biomass)) +
+  geom_rect(data = sanity_series_df %>% filter(!is.na(on_frac), on_frac > 0.5),
+           aes(xmin = t, xmax = t + 0.2, ymin = -Inf, ymax = Inf),
+           inherit.aes = FALSE, fill = "tomato", alpha = 0.25) +
+  geom_line() +
+  geom_hline(yintercept = threshold_sanity, linetype = "dashed", color = "grey40") +
+  facet_wrap(~schedule, ncol = 1) +
+  labs(x = "Time (years)", y = "Selected biomass",
+       title = "Sanity check: does thresholdFMort() actually switch on where it should?",
+       subtitle = sprintf("resource_decrease=%.4g, fish_level=%.2g, threshold_frac=%.2g -- dashed line = calibration threshold, red shading = fishing 'on' (Constant has no on/off state, so none is shaded)",
+                          rd_focus, sanity_fish_level, sanity_threshold_frac)) +
+  theme_minimal()
+sanity_check_plot
+save_plot(sanity_check_plot, "day36_sanity_check.png", width = 9, height = 8)
+
+cat(sprintf(
+  "Section 1b (sanity check, fish_level=%.2g, threshold_frac=%.2g, %.0fyr settle + %.0fyr fished): three interactive size-spectrum animations written to interesting_plots/day36_sanity_spectrum_{constant,peaks,troughs}.html; day36_sanity_check.png shows the same three runs' selected_biomass(t) against the calibration threshold with fishing 'on' periods shaded -- a fast look at whether the switch fires where it should, before the long scans below commit to it.\n",
+  sanity_fish_level, sanity_threshold_frac, sanity_t_settle, sanity_post_years
+))
 
 ################################################################################
 # Section 2 (Improvement A): greater effort for the non-constant schedules
