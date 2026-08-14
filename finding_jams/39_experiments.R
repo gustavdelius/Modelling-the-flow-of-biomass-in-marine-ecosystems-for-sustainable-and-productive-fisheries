@@ -5,30 +5,10 @@ library(tidyverse)
 library(ggplot2)
 library(reshape2)
 
-# Day 39 takes Day 38's cannibalism model -- the Figure 2e plankton-anchovy
-# model (Canales, Delius & Law 2020), cannibalism only, mu_l=0 -- and asks
-# this of it:
-#
-#   Section 1: cut its dependence on cannibalism, to make it MORE sensitive
-#   to fishing.
-#   Section 2: cut cannibalism the same way again, but this time raise its
-#   interaction with the resource too, because Section 1 alone risks
-#   dropping growth rates too far. Once the script actually ran (see
-#   Section 2's own header), this turned out to be badly insufficient --
-#   growth at w>=w_mat stayed crushed to roughly a seventh of its original
-#   value, not "restored".
-#   Section 3: an actual sweep of theta x interaction_resource together
-#   (added after reading Section 1/2's own saved results back), to see
-#   what combination, if any, actually restores growth without giving back
-#   all of Section 1's fishing sensitivity.
-#   Section 4: test whether the result actually depends on fishing effort,
-#   sweeping at the default knife-edge size (10), a slightly lower one (9),
-#   and a much lower one (5). A first pass at this compared "Constant"
-#   fishing against nothing at all, which conflates timing with average
-#   effort -- fixed here (see Section 4's own header) into three schedules
-#   that all share the same Constant floor, differing only in whether extra
-#   effort gets layered on near cycle peaks, near troughs, or not at all.
-#   Section 5: summary.
+# Day 39: cut Day 38's cannibalism model's dependence on cannibalism (S1),
+# compensate via resource interaction (S2), grid-sweep both (S3), test fishing-schedule dependence at 3 knife-edges on the S2 model and the original model (S4-5),
+# then zoom in on theta=0.3 alone at knife_edge=5 over a realistic effort range (S6),
+# and scan the most fishing-sensitive model (theta=0.3+ir=1.3) at the one knife-edge it hadn't covered yet (S7).
 #
 # Self-contained convention since Day 20: helpers redefined here, not
 # sourced from 38_experiments.R.
@@ -49,13 +29,8 @@ save_plot <- function(plot, filename, width = 9, height = 6, dpi = 150) {
 }
 
 ################################################################################
-# Section 0: rebuilding Day 38's Figure 2e plankton-anchovy model, plus
-# fishing -- verbatim from 38_experiments.R (p2 list, setAnchovyMort(),
-# plankton_logistic(), norm_box_pred_kernel(), setAnchovyModel(),
-# make_anchovy_fishing_params()). Day 38 already checked the kernel and
-# mortality curve this builds match the paper (day37_anchovy_kernel_check.png,
-# day37_anchovy_mort_check.png) and that this exact config sustains a limit
-# cycle where Day 37's other two candidates don't -- not repeated here.
+# Section 0: rebuild Day 38's Figure 2e model, verbatim from 38_experiments.R.
+# Kernel/mortality already checked against the paper in Day 38 -- not repeated here.
 ################################################################################
 
 p2 <- list(
@@ -170,12 +145,8 @@ cat(sprintf("Figure 2e plankton-anchovy erepro: %.4g (should sit in [0,1])\n",
            species_params(p_scan)$erepro))
 
 ################################################################################
-# Section 0b: building and calibrating the fork
-#
-# Day 37/38's own settle+kick recipe (10yr settle from a power-law abundance,
-# 10^7 knockdown across the whole grid at t=10), continued unfished up to
-# t_fork=20 -- Day 37 found the cycle is already at full amplitude well
-# before then. Confirmed below rather than assumed.
+# Section 0b: settle+kick fork (Day 37/38's recipe) to t_fork=20 -- cycle is
+# already full-amplitude well before then (confirmed below).
 ################################################################################
 
 t_fork               <- 20
@@ -214,77 +185,12 @@ cat(sprintf(
 ))
 
 ################################################################################
-# Section 1: decreasing the model's dependence on cannibalism, to make it
-# more sensitive to fishing
+# Section 1: decrease dependence on cannibalism, to make the model more
+# fishing-sensitive.
 #
-# getEncounter()'s own formula (checked via ?getEncounter this session) is
-#   E_i(w) = gamma_i(w) * integral[ theta_ip*N_R(w_p) + sum_j theta_ij*N_j(w_p) ] * phi(w,w_p) w_p dw_p
-# so for this single-species model theta_11 (the one entry of @interaction,
-# set to 1 by make_anchovy_fishing_params()) IS the cannibalism knob -- how
-# strongly an Anchovy's own encounter rate (both food, and via getPredMort()
-# the mortality it inflicts on smaller conspecifics) counts other Anchovy as
-# prey. theta_1p (species_params$interaction_resource, default 1, untouched
-# here) is the separate resource-interaction knob Section 2 uses.
-# setInteraction()'s own help page confirms these are two distinct levers,
-# not one -- interaction_resource is not part of the interaction matrix.
-#
-# Why lowering theta should make the model MORE fishing sensitive: Day 38
-# Section 3c found this model's whole resistance to fishing (the
-# "cultivation effect") comes from cannibalistic adults suppressing
-# juveniles -- fish the adults, juveniles gain more than the fishery
-# removes. That relief only exists because cannibalism is doing real work in
-# the first place. Turn cannibalism down and there is less of that relief
-# for fishing to trigger, so the population's response to effort should owe
-# less to the cultivation effect and more to straightforward biomass
-# removal.
-#
-# theta_low=0.3 (70% cut): an early interactive check, done BEFORE this file
-# first ran end-to-end, evaluated growth at theta=0 vs. theta=1 while
-# holding the population state fixed at the theta=1 baseline's own cycling
-# abundance -- a snapshot of the DIRECT diet-share effect only. It found
-# conspecifics are under 0.1% of an Anchovy's own diet at every size
-# checked (kappa's own resource spectrum dwarfs the single-species fish
-# spectrum here), and concluded growth "barely moves with theta". That
-# conclusion was WRONG, or at least badly incomplete -- caught only once
-# the script actually ran end-to-end and growth_compare_df below could be
-# read back against real numbers, not predicted:
-#
-#   - at the two SMALL sizes (w=0.01, 0.1g), growth is fine, even improved
-#     (+10%, +19%) -- consistent with the direct diet-share check above.
-#   - at w=1g growth is UP substantially (+70%).
-#   - but at the two LARGE sizes (w=10.1g, 28.6g -- at and above w_mat),
-#     growth CRASHES: -88% and -89% versus the theta=1 baseline.
-#
-# The direct diet-share check wasn't wrong about the mechanism it measured
-# -- it's genuinely true that cannibalism is a negligible direct food
-# source here. What it missed is the INDIRECT, population-mediated effect:
-# theta=0.3 removes most of the predation mortality that normally caps the
-# small/juvenile size classes, so that population booms (Section 1's own
-# effort-probe below shows total biomass roughly 50% higher than baseline
-# at every fish_level tested). A much bigger population of small-to-mid
-# fish grazes the SAME shared resource spectrum that large fish depend on
-# for nearly all of their own food -- resource competition between size
-# classes, mediated through n_pp, not a direct cannibalism/growth link.
-# Fixing this by holding the population fixed and only perturbing theta
-# (the first check's own method) structurally cannot see this, because the
-# whole effect runs through letting the population size-structure actually
-# change.
-#
-# predation MORTALITY (getPredMort()) is similarly not the clean
-# linear-in-theta story a fixed-population check would suggest: at
-# w=0.01g it roughly halves (51.9 -> 27.3/yr, not the ~3.3x drop naive
-# theta-scaling alone would predict), because the much larger population at
-# theta=0.3 partly offsets the lower per-capita theta. At w=0.1g it goes
-# the OTHER way -- UP by ~9x (0.49 -> 4.54/yr) -- the population-size effect
-# dominates the per-capita theta cut entirely at that size. Turning
-# cannibalism's per-capita strength down does not mean turning its
-# population-level consequences down uniformly.
-#
-# That growth check matters directly for Section 2: the "too-low growth"
-# risk is not a small, mostly-theoretical concern here -- it is the
-# dominant effect at exactly the sizes (w>=w_mat) this whole project's
-# fishing analysis is built around. Section 2's fix needs to be judged
-# against an ~88% growth deficit at w=10g, not against "barely moves".
+# theta_11 (@interaction) is the cannibalism knob; interaction_resource (Section 2) is separate.
+# Cutting theta to 0.3 crashes growth -88%/-89% at w=10.1/28.6g via indirect resource competition
+# (juvenile population boom grazes the shared resource), not direct diet loss -- see growth_compare_df.
 ################################################################################
 
 make_anchovy_fishing_params_theta <- function(interaction_val, interaction_resource_val,
@@ -321,8 +227,7 @@ cat(sprintf(
   theta_low, scan_summary_window, t_fork, min(bp_theta_low), max(bp_theta_low)
 ))
 
-# Growth vs. predation-mortality decomposition, baseline (theta=1) vs.
-# theta_low, both evaluated on their OWN cycling fork state.
+# Growth vs. predation-mortality, baseline (theta=1) vs. theta_low, both on their OWN fork state.
 w_check   <- c(0.01, 0.1, 1, 10, 30)
 idx_check <- vapply(w_check, function(x) which.min(abs(p_scan@w - x)), integer(1))
 
@@ -337,14 +242,8 @@ write.csv(growth_compare_df, file.path("interesting_plots", "day39_theta_low_gro
 cat("Section 1 growth/mortality comparison (theta=1 vs. theta=0.3), by size -- see day39_theta_low_growth_mort.csv:\n")
 print(growth_compare_df)
 
-# Constant-effort probe. Originally just fish_level=[1,3,5,7,9] (this
-# project's own established range, Day 34/36/38 Sections 2-5) -- extended
-# here up to 100 to match Section 4's own scale, since [1,9] alone showed
-# almost no curvature (Day 38's own finding: this whole model class needs
-# far more effort than [1,9] to register anything). Gear left at
-# knife_edge=10 (w_mat, the default) throughout, so this isolates the
-# effect of theta/interaction_resource alone, not the gear-cutoff effect
-# Section 4 tests separately.
+# Extended from [1,3,5,7,9] up to 100, matching Section 4's scale -- [1,9] alone
+# showed almost no curvature. Gear fixed at knife_edge=10 to isolate theta's effect.
 fish_level_seq_theta <- c(1, 3, 5, 7, 9, 20, 30, 50, 75, 100)
 
 cannibalism_fishing_probe <- function(params, seed_n, seed_npp, fish_level_seq,
@@ -361,7 +260,8 @@ cannibalism_fishing_probe <- function(params, seed_n, seed_npp, fish_level_seq,
     yield    <- unname(getYield(sim)[, "Anchovy"])[keep]
     data.frame(fish_level = fl, mean_total = mean(total), min_total = min(total),
               mean_selected = mean(selected), mean_juvenile = mean(total - selected),
-              mean_yield = mean(yield))
+              mean_yield = mean(yield),
+              rel_amplitude = (max(total) - min(total)) / ((max(total) + min(total)) / 2))
   }))
 }
 
@@ -394,43 +294,27 @@ theta_probe_yield_plot <- ggplot(theta_probe_df, aes(x = fish_level, y = mean_yi
 theta_probe_yield_plot
 save_plot(theta_probe_yield_plot, "day39_theta_low_effort_yield.png", width = 9, height = 6)
 
-cat("Section 1 (theta=0.3 vs. baseline effort probe, knife_edge=10): see day39_theta_low_effort_probe.png / day39_theta_low_effort_yield.png / .csv.\n")
+# Relative amplitude alongside yield -- is the population still genuinely cycling
+# at each effort level, or has yield kept climbing while the cycle itself died out?
+theta_probe_amplitude_plot <- ggplot(theta_probe_df, aes(x = fish_level, y = rel_amplitude, color = model)) +
+  geom_line() +
+  geom_point(size = 2) +
+  labs(x = "Fishing effort (Constant schedule, knife_edge=10)", y = "Relative amplitude of biomass",
+       title = "Relative amplitude vs. effort -- alongside the yield plot above",
+       subtitle = "Gear unchanged (knife_edge=10)") +
+  theme_minimal()
+theta_probe_amplitude_plot
+save_plot(theta_probe_amplitude_plot, "day39_theta_low_effort_amplitude.png", width = 9, height = 6)
+
+cat("Section 1 (theta=0.3 vs. baseline effort probe, knife_edge=10): see day39_theta_low_effort_probe.png / day39_theta_low_effort_yield.png / day39_theta_low_effort_amplitude.png / .csv.\n")
 print(theta_probe_df)
 
 ################################################################################
-# Section 2: same cannibalism cut, but with interaction_resource raised to
-# guard against Section 1's growth-rate risk
+# Section 2: same cannibalism cut, with interaction_resource raised to guard
+# against Section 1's growth-rate risk.
 #
-# Section 1 found growth barely moved with theta in this particular
-# parameterisation, but the risk was real in principle, and the fix this
-# task asks for is a direct one: species_params$interaction_resource
-# (theta_1p in getEncounter()'s own formula, see Section 1's header) scales
-# exactly the resource half of the encounter integral, independent of
-# theta_11's cannibalism half. Raising it gives the fish more food from the
-# resource to offset less food from cannibalism, without touching mortality
-# at all -- getPredMort() only involves the species interaction matrix,
-# never interaction_resource, so this section's mortality profile is
-# identical to Section 1's own theta_low case (not re-shown here).
-#
-# interaction_resource=1.3 (30% more resource food) was an early, hand-picked
-# guess -- checked here against growth_resboost_df, read back once the
-# script actually ran, not assumed to have worked:
-#   - unfished, the settle+kick fork still cycles.
-#   - at the small sizes that were ALREADY fine or improved under theta=0.3
-#     alone, +1.3x resource pushes growth further above the ORIGINAL
-#     baseline: +31% at w=0.01g, +28% at w=0.1g, +15% at w=1g.
-#   - at the two LARGE sizes that actually needed rescuing, it barely moves
-#     the needle: w=10.1g goes from -88% (theta=0.3 alone) to -86% versus
-#     baseline; w=28.6g goes from -89% to -87%. A 30% resource boost against
-#     an ~88% growth deficit was never going to close that gap, and it
-#     doesn't -- growth at w>=w_mat is STILL crushed to roughly a seventh to
-#     an eighth of its original value.
-#
-# interaction_resource=1.3 is not a working fix for Section 1's growth
-# problem, just a first guess that turned out insufficient by a wide
-# margin -- it over-corrects the sizes that didn't need it and
-# under-corrects the sizes that did. Section 3 sweeps both knobs together
-# to find out what, if anything, actually closes that gap.
+# interaction_resource=1.3 does NOT fix it: growth at w=10.1/28.6g only recovers to -86%/-87%
+# vs. baseline (was -88%/-89%), while over-correcting the small sizes that didn't need it.
 ################################################################################
 
 interaction_resource_boost <- 1.3
@@ -488,51 +372,64 @@ resboost_probe_yield_plot <- ggplot(theta_probe_df_s2, aes(x = fish_level, y = m
 resboost_probe_yield_plot
 save_plot(resboost_probe_yield_plot, "day39_theta_resboost_effort_yield.png", width = 9, height = 6)
 
-cat("Section 2 (theta=0.3+interaction_resource=1.3 effort probe, knife_edge=10): see day39_theta_resboost_effort_probe.png / day39_theta_resboost_effort_yield.png / .csv.\n")
+resboost_probe_amplitude_plot <- ggplot(theta_probe_df_s2, aes(x = fish_level, y = rel_amplitude, color = model)) +
+  geom_line() +
+  geom_point(size = 2) +
+  labs(x = "Fishing effort (Constant schedule, knife_edge=10)", y = "Relative amplitude of biomass",
+       title = "Relative amplitude vs. effort, all three variants -- alongside the yield plot above",
+       subtitle = "All three models share the same gear (knife_edge=10) -- only theta/interaction_resource differ") +
+  theme_minimal()
+resboost_probe_amplitude_plot
+save_plot(resboost_probe_amplitude_plot, "day39_theta_resboost_effort_amplitude.png", width = 9, height = 6)
+
+cat("Section 2 (theta=0.3+interaction_resource=1.3 effort probe, knife_edge=10): see day39_theta_resboost_effort_probe.png / day39_theta_resboost_effort_yield.png / day39_theta_resboost_effort_amplitude.png / .csv.\n")
 print(theta_probe_df_s2)
 
+# Same three-way comparison, knife_edge=5 -- Day 38's own collapse-capable gear,
+# vs. the knife_edge=10 isolation above. Unfished trajectory is gear-independent
+# (Day 38 Section 7), so last_n/last_n_theta_low/last_n_resboost are reused.
+p_scan_ke5              <- make_anchovy_fishing_params_theta(1, 1, knife_edge_size = 5)
+p_theta_low_ke5         <- make_anchovy_fishing_params_theta(theta_low, 1, knife_edge_size = 5)
+p_theta_low_resboost_ke5 <- make_anchovy_fishing_params_theta(theta_low, interaction_resource_boost, knife_edge_size = 5)
+
+theta_probe_df_ke5 <- bind_rows(
+  cannibalism_fishing_probe(p_scan_ke5, last_n, last_npp, fish_level_seq_theta) %>%
+    mutate(model = "Baseline (theta=1)"),
+  cannibalism_fishing_probe(p_theta_low_ke5, last_n_theta_low, last_npp_theta_low, fish_level_seq_theta) %>%
+    mutate(model = "theta=0.3"),
+  cannibalism_fishing_probe(p_theta_low_resboost_ke5, last_n_resboost, last_npp_resboost, fish_level_seq_theta) %>%
+    mutate(model = "theta=0.3, interaction_resource=1.3")
+)
+write.csv(theta_probe_df_ke5, file.path("interesting_plots", "day39_theta_resboost_effort_yield_ke5.csv"), row.names = FALSE)
+
+theta_probe_yield_plot_ke5 <- ggplot(theta_probe_df_ke5, aes(x = fish_level, y = mean_yield, color = model)) +
+  geom_line() +
+  geom_point(size = 2) +
+  labs(x = "Fishing effort (Constant schedule, knife_edge=5)", y = "Mean yield",
+       title = "Yield vs. effort at knife_edge=5, all three variants -- does gear that actually reaches the collapse zone change the picture?",
+       subtitle = "Day 38's own collapse-capable gear setting, vs. Sections 1/2's knife_edge=10 isolation above") +
+  theme_minimal()
+theta_probe_yield_plot_ke5
+save_plot(theta_probe_yield_plot_ke5, "day39_theta_resboost_effort_yield_ke5.png", width = 9, height = 6)
+
+theta_probe_amplitude_plot_ke5 <- ggplot(theta_probe_df_ke5, aes(x = fish_level, y = rel_amplitude, color = model)) +
+  geom_line() +
+  geom_point(size = 2) +
+  labs(x = "Fishing effort (Constant schedule, knife_edge=5)", y = "Relative amplitude of biomass",
+       title = "Relative amplitude vs. effort at knife_edge=5, all three variants -- alongside the yield plot above",
+       subtitle = "Day 38's own collapse-capable gear setting") +
+  theme_minimal()
+theta_probe_amplitude_plot_ke5
+save_plot(theta_probe_amplitude_plot_ke5, "day39_theta_resboost_effort_amplitude_ke5.png", width = 9, height = 6)
+
+cat("Section 2 (yield vs. effort at knife_edge=5, all three variants): see day39_theta_resboost_effort_yield_ke5.png / day39_theta_resboost_effort_amplitude_ke5.png / .csv.\n")
+print(theta_probe_df_ke5)
+
 ################################################################################
-# Section 3: an actual sweep of theta x interaction_resource, to find a
-# combination that's actually good, rather than hand-picking one pair and
-# hoping (which Sections 1/2 did, and which Section 2's own growth_
-# resboost_df shows failed -- see Section 2's header)
-#
-# Two things Sections 1/2 were separately trying to buy pull in OPPOSITE
-# directions, which is exactly why hand-picking one point in a 2D space
-# didn't work:
-#   - MORE fishing sensitivity (Section 1's goal) wants LESS cannibalism
-#     (theta down), because that's what weakens the cultivation-effect
-#     relief fishing currently gets rewarded with.
-#   - RESTORED growth (Section 2's goal) wants MORE resource food
-#     (interaction_resource up) to offset the population boom that theta
-#     down causes -- but more resource food also means a bigger, better-fed
-#     population overall, which Section 4's own knife_edge=10/9 numbers
-#     below show makes the model MORE resistant to fishing, not less. The
-#     resource fix risks undoing the cannibalism fix.
-#
-# So this is a genuine two-objective trade-off, not a single number to
-# solve for. Sweep both knobs on a grid, read off three things per cell,
-# and look at the trade-off directly rather than asserting a winner:
-#   - unfished_cycle_ratio: is it even still a working oscillator?
-#   - growth_recovery_w10: growth at w=10.1g (the size Section 1 crashed by
-#     -88%) as a fraction of the ORIGINAL theta=1/interaction_resource=1
-#     baseline's own growth there. 1.0 = fully restored.
-#   - fishing_sensitivity: fraction of unfished total biomass lost at a
-#     single moderate probe effort (fish_level=10, Day 38 Section 7's own
-#     "healthy" checkpoint for knife_edge=5) -- higher = more responsive to
-#     fishing, which is what Section 1 was chasing in the first place.
-#
-# Kept to knife_edge=10 (the default gear) throughout and a single probe
-# effort rather than a full effort sweep per cell -- a 5x5 grid at
-# Section 4's own per-cell cost (fork + multi-point sweep) would be far too
-# expensive; this section is about finding a better (theta,
-# interaction_resource) pair, not about characterising it fully once found.
-# The (theta=1, interaction_resource=1) cell IS the original baseline,
-# included in the grid rather than computed separately, so it doubles as
-# the reference point for both growth_recovery (=1 there by construction)
-# and fishing_sensitivity (whatever that baseline's own value comes out
-# to) -- read as directly comparable numbers, not two different
-# computations.
+# Section 3: actual grid sweep of theta x interaction_resource -- Sections
+# 1/2 pull in opposite directions (less theta = more fishing-sensitive but
+# less growth; more interaction_resource = more growth but less fishing-sensitive),
+# so this looks for a combination that beats the baseline on both, not just one hand-picked pair.
 ################################################################################
 
 theta_grid_seq     <- c(1, 0.7, 0.5, 0.3, 0.1)
@@ -637,73 +534,16 @@ cat(sprintf(
 print(grid_candidates)
 
 ################################################################################
-# Section 4: is the reduced-cannibalism model actually dependent on fishing
-# effort? Sweep at the default knife-edge size (10, = w_mat) and two lower
-# ones (9, 5)
+# Section 4: is the reduced-cannibalism model dependent on fishing effort?
+# Sweep at knife_edge=10/9/5.
 #
-# FIRST PASS AT THIS SECTION WAS FLAWED, fixed here rather than patched: it
-# compared "Constant" (fishing the nominal fish_level all the time) against
-# nothing at all otherwise (a schedule concept that was never built into
-# this section in the first place -- it was Constant-only). That's not a
-# comparison of WHEN to fish, only of HOW MUCH, and it silently dropped the
-# one comparison this project actually cares about -- whether *timing*
-# fishing around the cycle matters. Day 38's own What's Next (item 1)
-# flagged the general fix: "keep Constant fishing running as a baseline all
-# the time, and layer extra effort on top specifically during peaks/
-# troughs" -- so the question becomes whether topping up an existing
-# fishery in good years beats fishing that same floor flat, not whether an
-# intermittent fishery beats a continuous one from a standing start.
-#
-# Built here with thresholdFMort()/attach_threshold_rule() (Day 36/38's own
-# rate-function machinery, ported in below, self-contained per this file's
-# own convention) using background_level = baseline_effort_s4 for EVERY
-# schedule, including "Constant" (which is just the degenerate case of a
-# threshold rule that never switches). "Threshold (peaks)"/"Threshold
-# (troughs)" add a boost on top of that same floor only near cycle peaks/
-# troughs. All three schedules now share the same floor, so any difference
-# between them is genuinely about timing, not about average effort.
-#
-# Sections 1/2's own probes kept the gear fixed at knife_edge=10 to isolate
-# theta's effect -- and at that gear, Day 38 Section 3c/7's structural
-# juvenile refuge (the gear never touches w<w_mat, so >95% of biomass is
-# untouchable regardless of theta) dominates over anything theta does, so
-# both variants stayed resistant. Day 38 Section 7 found that refuge is
-# exactly what a lower knife_edge_size cuts into. This section reruns that
-# same lever -- knife_edge=10 (default), 9 (a small cut just below w_mat),
-# 5 (Day 38 Section 7's own collapse-capable value) -- on Section 2's model
-# (theta=0.3, interaction_resource=1.3), NOT on whatever Section 3's grid
-# sweep turns up as a better candidate. Deliberate, not an oversight: this
-# section's own machinery (per-knife_edge fork, threshold calibration
-# against that fork) is expensive enough that re-running it against a
-# second (theta, interaction_resource) pair roughly doubles this section's
-# cost, and Section 3's grid was evaluated at a single knife_edge=10 probe
-# point, not validated across knife_edge=9/5 -- rerunning THIS section on a
-# grid candidate before checking that candidate still cycles and still
-# collapses sensibly at knife_edge=5 would be building on an unverified
-# choice. Natural next step, not done today.
-#
-# baseline_effort_s4=10 is Day 38 Section 7's own "healthy" checkpoint for
-# knife_edge=5 (mean_total=0.381, ~unfished). boost_fish_level_seq_s4 pushes
-# the ON-period effort from there up into Section 7's own stressed/extinct
-# range (30 -> stressed, 100 -> extinct at theta=1). See the blog post for
-# why these numbers -- effort in the tens, sometimes 100 -- are not
-# remotely realistic fishing efforts; that's flagged there as unresolved,
-# not fixed here.
-#
-# Reference point, not rerun here: Day 38 Section 7's OWN numbers for the
-# original (theta=1, interaction_resource=1) model, Constant schedule only,
-# at these same three knife-edge sizes are already in
-# day38_knife_edge_summary.csv -- knife_edge=10 stayed resistant to
-# effort=30 (mean_total still rising), knife_edge=5 was healthy at
-# effort=10 (0.381), stressed at 30 (0.083), extinct by 100 (3.5e-10).
-# knife_edge=9 wasn't in Day 38 Section 7's own sweep (c(10,5,1,0.1,w_l)) --
-# new here, and Day 38 never tested layered schedules at all (only
-# Constant) -- so this section has no direct Day 38 precedent to reuse for
-# the threshold schedules, only for the Constant floor.
+# First pass compared Constant fishing against nothing at all -- fixed here: every
+# schedule (Constant/Threshold peaks/Threshold troughs) shares the same Constant
+# floor (background_level=baseline_effort_s4), so only the boost timing differs.
+# Runs on Section 2's model (theta=0.3, ir=1.3); Section 5 reruns it on the original.
 ################################################################################
 
-# Day 36/38's own threshold-rule machinery, ported in verbatim (self-
-# contained convention).
+# Day 36/38's own threshold-rule machinery, ported in verbatim.
 thresholdFMort <- function(params, n, n_pp, n_other, t, effort, e_growth, pred_mort, ...) {
   p <- other_params(params)
 
@@ -775,11 +615,75 @@ threshold_diagnostics <- function(sim, threshold, fish_level, background_level, 
   )
 }
 
+# Sanity check before trusting the scan below, Day 36/38's own convention: one
+# representative case, all three schedules, biomass plotted against the
+# calibration threshold with "on" periods shaded -- does peaks/troughs actually
+# fire where it should, or does it barely engage?
+sanity_ke    <- 5
+sanity_boost <- 50
+
+p_sanity <- make_anchovy_fishing_params_theta(theta_low, interaction_resource_boost, knife_edge_size = sanity_ke)
+p_sanity@initial_n[]    <- last_n_resboost
+p_sanity@initial_n_pp[] <- last_npp_resboost
+sim_const_sanity <- project(p_sanity, t_max = scan_post_fork_years, dt = p2$dt, t_save = 0.2,
+                            t_start = t_fork, progress_bar = FALSE, effort = baseline_effort_s4)
+bp_const_sanity  <- compute_selected_biomass_series(sim_const_sanity, p_sanity, scan_t_cut)
+sharpness_sanity <- 0.02 * (max(bp_const_sanity) - min(bp_const_sanity))
+threshold_sanity <- unname(quantile(bp_const_sanity, probs = 0.5))
+
+run_sanity_schedule <- function(schedule_name) {
+  if (schedule_name == "Constant") {
+    return(list(sim = sim_const_sanity, mode = NA_character_))
+  }
+  mode <- if (schedule_name == "Threshold (peaks)") "above" else "below"
+  p_rule <- attach_threshold_rule(p_sanity, threshold = threshold_sanity, fish_level = sanity_boost,
+                                  background_level = baseline_effort_s4, mode = mode, sharpness = sharpness_sanity)
+  p_rule@initial_n[]    <- last_n_resboost
+  p_rule@initial_n_pp[] <- last_npp_resboost
+  sim <- project(p_rule, t_max = scan_post_fork_years, dt = p2$dt, t_save = 0.2,
+                 t_start = t_fork, progress_bar = FALSE, effort = 1)
+  list(sim = sim, mode = mode)
+}
+
+sanity_schedules <- c("Constant", "Threshold (peaks)", "Threshold (troughs)")
+sanity_cases     <- setNames(lapply(sanity_schedules, run_sanity_schedule), sanity_schedules)
+
+sanity_series_df <- bind_rows(lapply(names(sanity_cases), function(nm) {
+  case <- sanity_cases[[nm]]
+  tv   <- as.numeric(dimnames(case$sim@n)[[1]])
+  keep <- which(tv > t_fork)
+  bp   <- compute_selected_biomass_series(case$sim, p_sanity, t_fork)
+  on_frac <- if (is.na(case$mode)) {
+    rep(NA_real_, length(bp))
+  } else {
+    compute_on_frac_series(case$sim, p_sanity, threshold_sanity, case$mode, sharpness_sanity, t_fork)
+  }
+  data.frame(t = tv[keep], selected_biomass = bp, on_frac = on_frac, schedule = nm)
+}))
+write.csv(sanity_series_df, file.path("interesting_plots", "day39_schedule_sanity_series.csv"), row.names = FALSE)
+
+sanity_check_plot <- ggplot(sanity_series_df, aes(x = t, y = selected_biomass)) +
+  geom_rect(data = sanity_series_df %>% filter(!is.na(on_frac), on_frac > 0.5),
+           aes(xmin = t, xmax = t + 0.2, ymin = -Inf, ymax = Inf),
+           inherit.aes = FALSE, fill = "tomato", alpha = 0.25) +
+  geom_line() +
+  geom_hline(yintercept = threshold_sanity, linetype = "dashed", color = "grey40") +
+  facet_wrap(~schedule, ncol = 1, scales = "free_y") +
+  labs(x = "Time (years)", y = "Selected biomass",
+       title = "Sanity check: does thresholdFMort() actually fire where it should?",
+       subtitle = sprintf("knife_edge=%.0f, floor=%.2g, boost=%.2g -- dashed = calibration threshold, red = boosted 'on'",
+                          sanity_ke, baseline_effort_s4, sanity_boost)) +
+  theme_minimal()
+sanity_check_plot
+save_plot(sanity_check_plot, "day39_schedule_sanity_check.png", width = 9, height = 8)
+
+cat(sprintf(
+  "Schedule sanity check (knife_edge=%.0f, boost=%.2g): see day39_schedule_sanity_check.png / day39_schedule_sanity_series.csv.\n",
+  sanity_ke, sanity_boost
+))
+
 baseline_effort_s4      <- 10
-# Extended from c(20,30,50,75,100) -- the original range never showed
-# knife_edge=10/9 turning over (they plateau rather than collapse, see
-# below), so it was never clear whether that's a genuine plateau or just
-# not enough range. 150/200 settle that.
+# Extended to 150/200 -- knife_edge=10/9 plateaued rather than collapsed at the old max of 100.
 boost_fish_level_seq_s4 <- c(20, 30, 50, 75, 100, 150, 200)
 knife_edge_seq_s4       <- c(10, 9, 5)
 
@@ -791,43 +695,47 @@ scan_metrics_layered <- function(sim) {
   yield_bm    <- unname(getYield(sim)[, "Anchovy"])[keep]
   data.frame(min_total = min(total_bm), mean_total = mean(total_bm),
             mean_selected = mean(selected_bm), mean_juvenile = mean(total_bm - selected_bm),
-            mean_yield = mean(yield_bm))
+            mean_yield = mean(yield_bm),
+            rel_amplitude = (max(total_bm) - min(total_bm)) / ((max(total_bm) + min(total_bm)) / 2))
 }
 
-run_layered_ke_case <- function(knife_edge_size) {
-  params <- make_anchovy_fishing_params_theta(theta_low, interaction_resource_boost,
+# Generalised over (theta_val, ir_val, seed_n, seed_npp) so Section 5 can rerun
+# this verbatim on the original model -- only the model differs, not the schedule code.
+# baseline_effort/boost_seq default to Sections 4/5's own floor+boost range,
+# but are now parameters (not globals) so Section 6 can reuse this with a
+# different, much lower range instead of duplicating the whole function.
+run_layered_ke_case <- function(knife_edge_size, theta_val, ir_val, seed_n, seed_npp,
+                                baseline_effort = baseline_effort_s4,
+                                boost_seq = boost_fish_level_seq_s4) {
+  params <- make_anchovy_fishing_params_theta(theta_val, ir_val,
                                               knife_edge_size = knife_edge_size)
-  params@initial_n[]    <- last_n_resboost   # Section 2's own fork state -- same
-  params@initial_n_pp[] <- last_npp_resboost # starting point for every knife-edge value
+  params@initial_n[]    <- seed_n
+  params@initial_n_pp[] <- seed_npp
 
-  # "Constant": the shared floor every schedule below is layered on top of.
-  # Run once per knife_edge_size and reused twice -- as the Constant result
-  # itself, and as the reference series the threshold/sharpness below are
-  # calibrated against (the floor's OWN cycle, not a hypothetical unfished
-  # one, since the "off" state for every schedule here is "fishing at the
-  # floor", not "not fishing at all").
+  # Constant = the shared floor every other schedule is layered on top of; its own
+  # cycle also calibrates the threshold/sharpness used below.
   sim_const <- project(params, t_max = scan_post_fork_years, dt = p2$dt, t_save = 0.2,
-                       t_start = t_fork, progress_bar = FALSE, effort = baseline_effort_s4)
+                       t_start = t_fork, progress_bar = FALSE, effort = baseline_effort)
   bp_const     <- compute_selected_biomass_series(sim_const, params, scan_t_cut)
   sharpness_ke <- 0.02 * (max(bp_const) - min(bp_const))
   threshold_ke <- unname(quantile(bp_const, probs = 0.5))
 
   const_row <- cbind(scan_metrics_layered(sim_const),
                      knife_edge_size = knife_edge_size, schedule = "Constant",
-                     boost_level = NA_real_, mean_effort = baseline_effort_s4,
+                     boost_level = NA_real_, mean_effort = baseline_effort,
                      effective_window = NA_real_, n_bursts = NA_integer_)
 
-  boosted_rows <- bind_rows(lapply(boost_fish_level_seq_s4, function(boost) {
+  boosted_rows <- bind_rows(lapply(boost_seq, function(boost) {
     bind_rows(lapply(c("above", "below"), function(mode) {
       schedule_name <- if (mode == "above") "Threshold (peaks)" else "Threshold (troughs)"
       p_rule <- attach_threshold_rule(params, threshold = threshold_ke, fish_level = boost,
-                                      background_level = baseline_effort_s4, mode = mode,
+                                      background_level = baseline_effort, mode = mode,
                                       sharpness = sharpness_ke)
-      p_rule@initial_n[]    <- last_n_resboost
-      p_rule@initial_n_pp[] <- last_npp_resboost
+      p_rule@initial_n[]    <- seed_n
+      p_rule@initial_n_pp[] <- seed_npp
       sim <- project(p_rule, t_max = scan_post_fork_years, dt = p2$dt, t_save = 0.2,
                      t_start = t_fork, progress_bar = FALSE, effort = 1)
-      diag <- threshold_diagnostics(sim, threshold_ke, boost, baseline_effort_s4, mode,
+      diag <- threshold_diagnostics(sim, threshold_ke, boost, baseline_effort, mode,
                                     sharpness_ke, scan_t_cut)
       cbind(scan_metrics_layered(sim),
            knife_edge_size = knife_edge_size, schedule = schedule_name,
@@ -839,7 +747,9 @@ run_layered_ke_case <- function(knife_edge_size) {
   bind_rows(const_row, boosted_rows)
 }
 
-theta_ke_layered_summary <- bind_rows(lapply(knife_edge_seq_s4, run_layered_ke_case))
+theta_ke_layered_summary <- bind_rows(lapply(knife_edge_seq_s4, function(ke) {
+  run_layered_ke_case(ke, theta_low, interaction_resource_boost, last_n_resboost, last_npp_resboost)
+}))
 write.csv(theta_ke_layered_summary, file.path("interesting_plots", "day39_theta_ke_layered_summary.csv"), row.names = FALSE)
 
 theta_ke_layered_plot <- ggplot(theta_ke_layered_summary,
@@ -873,11 +783,22 @@ theta_ke_layered_yield_plot <- ggplot(theta_ke_layered_summary,
 theta_ke_layered_yield_plot
 save_plot(theta_ke_layered_yield_plot, "day39_theta_ke_layered_yield.png", width = 11, height = 5)
 
-# Nominal boost vs. what actually got applied -- Day 38's own headline
-# finding was that "Threshold (peaks)" self-limits (a bigger nominal burst
-# depletes the peak faster, so effective_window shrinks and mean_effort
-# saturates well below the nominal fish_level). Worth checking that holds
-# here too, now that there's a nonzero floor under it.
+theta_ke_layered_amplitude_plot <- ggplot(theta_ke_layered_summary,
+                                          aes(x = mean_effort, y = rel_amplitude, color = schedule)) +
+  geom_line(aes(group = schedule)) +
+  geom_point(size = 2) +
+  geom_vline(xintercept = baseline_effort_s4, linetype = "dashed", color = "grey50") +
+  facet_wrap(~knife_edge_size, labeller = label_both) +
+  labs(x = "Realised mean effort actually applied", y = "Relative amplitude of biomass",
+       color = "Schedule",
+       title = "Relative amplitude vs. realised effort -- alongside the yield plot above",
+       subtitle = sprintf("baseline_effort=%.2g (dashed line). Reduced-cannibalism model (theta=0.3, interaction_resource=1.3).",
+                          baseline_effort_s4)) +
+  theme_minimal()
+theta_ke_layered_amplitude_plot
+save_plot(theta_ke_layered_amplitude_plot, "day39_theta_ke_layered_amplitude.png", width = 11, height = 5)
+
+# Does "Threshold (peaks)" still self-limit (Day 38's finding) now there's a nonzero floor?
 boost_realised_plot <- ggplot(theta_ke_layered_summary %>% filter(schedule != "Constant"),
                               aes(x = boost_level, y = mean_effort, color = schedule)) +
   geom_abline(slope = 1, intercept = 0, linetype = "dotted", color = "grey60") +
@@ -893,7 +814,7 @@ boost_realised_plot
 save_plot(boost_realised_plot, "day39_theta_ke_boost_realised.png", width = 11, height = 5)
 
 cat(sprintf(
-  "Section 4 (layered schedules -- Constant floor=%.2g, boosted at peaks/troughs, knife_edge=10/9/5): see day39_theta_ke_layered_collapse.png / day39_theta_ke_layered_yield.png / day39_theta_ke_boost_realised.png / day39_theta_ke_layered_summary.csv.\n",
+  "Section 4 (layered schedules -- Constant floor=%.2g, boosted at peaks/troughs, knife_edge=10/9/5): see day39_theta_ke_layered_collapse.png / day39_theta_ke_layered_yield.png / day39_theta_ke_layered_amplitude.png / day39_theta_ke_boost_realised.png / day39_theta_ke_layered_summary.csv.\n",
   baseline_effort_s4
 ))
 print(theta_ke_layered_summary)
@@ -906,17 +827,211 @@ cat("Correlation of realised mean_effort with mean_total, by knife_edge_size and
 print(theta_ke_layered_trend)
 
 ################################################################################
-# Section 5: summary
+# Section 5: same layered schedules, on the ORIGINAL paper model (theta=1,
+# interaction_resource=1) -- Section 4 only tested Section 2's modified model,
+# and Sections 1-3 found theta/interaction_resource change fishing response a lot,
+# so the original model's own schedule comparison can't just be inferred.
+################################################################################
+
+original_ke_layered_summary <- bind_rows(lapply(knife_edge_seq_s4, function(ke) {
+  run_layered_ke_case(ke, 1, 1, last_n, last_npp)
+}))
+write.csv(original_ke_layered_summary, file.path("interesting_plots", "day39_original_ke_layered_summary.csv"), row.names = FALSE)
+
+original_ke_layered_plot <- ggplot(original_ke_layered_summary,
+                                   aes(x = mean_effort, y = pmax(mean_total, 1e-12), color = schedule)) +
+  geom_line(aes(group = schedule)) +
+  geom_point(size = 2) +
+  geom_vline(xintercept = baseline_effort_s4, linetype = "dashed", color = "grey50") +
+  facet_wrap(~knife_edge_size, labeller = label_both) +
+  scale_y_log10() +
+  labs(x = "Realised mean effort actually applied", y = "Mean total biomass (log scale)",
+       color = "Schedule",
+       title = "Original paper model (theta=1, interaction_resource=1): Constant floor vs. boosting at peaks vs. troughs",
+       subtitle = sprintf("baseline_effort=%.2g (dashed line) -- every schedule fishes at least this much, always.",
+                          baseline_effort_s4)) +
+  theme_minimal()
+original_ke_layered_plot
+save_plot(original_ke_layered_plot, "day39_original_ke_layered_collapse.png", width = 11, height = 5)
+
+original_ke_layered_yield_plot <- ggplot(original_ke_layered_summary,
+                                         aes(x = mean_effort, y = mean_yield, color = schedule)) +
+  geom_line(aes(group = schedule)) +
+  geom_point(size = 2) +
+  geom_vline(xintercept = baseline_effort_s4, linetype = "dashed", color = "grey50") +
+  facet_wrap(~knife_edge_size, labeller = label_both, scales = "free_y") +
+  labs(x = "Realised mean effort actually applied", y = "Mean yield",
+       color = "Schedule",
+       title = "Original paper model: yield vs. realised effort, same floor throughout",
+       subtitle = sprintf("baseline_effort=%.2g (dashed line).", baseline_effort_s4)) +
+  theme_minimal()
+original_ke_layered_yield_plot
+save_plot(original_ke_layered_yield_plot, "day39_original_ke_layered_yield.png", width = 11, height = 5)
+
+original_ke_layered_amplitude_plot <- ggplot(original_ke_layered_summary,
+                                             aes(x = mean_effort, y = rel_amplitude, color = schedule)) +
+  geom_line(aes(group = schedule)) +
+  geom_point(size = 2) +
+  geom_vline(xintercept = baseline_effort_s4, linetype = "dashed", color = "grey50") +
+  facet_wrap(~knife_edge_size, labeller = label_both) +
+  labs(x = "Realised mean effort actually applied", y = "Relative amplitude of biomass",
+       color = "Schedule",
+       title = "Original paper model: relative amplitude vs. realised effort -- alongside the yield plot above",
+       subtitle = sprintf("baseline_effort=%.2g (dashed line).", baseline_effort_s4)) +
+  theme_minimal()
+original_ke_layered_amplitude_plot
+save_plot(original_ke_layered_amplitude_plot, "day39_original_ke_layered_amplitude.png", width = 11, height = 5)
+
+original_boost_realised_plot <- ggplot(original_ke_layered_summary %>% filter(schedule != "Constant"),
+                                       aes(x = boost_level, y = mean_effort, color = schedule)) +
+  geom_abline(slope = 1, intercept = 0, linetype = "dotted", color = "grey60") +
+  geom_line() +
+  geom_point(size = 2) +
+  facet_wrap(~knife_edge_size, labeller = label_both) +
+  labs(x = "Nominal boost (on-period fish_level)", y = "Realised mean effort",
+       color = "Schedule",
+       title = "Original paper model: how much of the nominal boost actually gets applied?",
+       subtitle = "Dotted line = boost applied in full, all the time (upper bound); floor=10 is the lower bound") +
+  theme_minimal()
+original_boost_realised_plot
+save_plot(original_boost_realised_plot, "day39_original_ke_boost_realised.png", width = 11, height = 5)
+
+cat(sprintf(
+  "Section 5 (layered schedules on the ORIGINAL model, theta=1/interaction_resource=1): see day39_original_ke_layered_collapse.png / day39_original_ke_layered_yield.png / day39_original_ke_layered_amplitude.png / day39_original_ke_boost_realised.png / day39_original_ke_layered_summary.csv.\n"
+))
+print(original_ke_layered_summary)
+
+original_ke_layered_trend <- original_ke_layered_summary %>%
+  group_by(knife_edge_size, schedule) %>%
+  summarise(total_trend = cor(mean_effort, mean_total), .groups = "drop") %>%
+  arrange(desc(knife_edge_size), schedule)
+cat("Correlation of realised mean_effort with mean_total, ORIGINAL model, by knife_edge_size and schedule:\n")
+print(original_ke_layered_trend)
+
+# Direct side-by-side: does cutting cannibalism change which schedule wins, or just shift the picture?
+model_comparison_df <- bind_rows(
+  original_ke_layered_summary %>% mutate(model = "Original (theta=1, ir=1)"),
+  theta_ke_layered_summary %>% mutate(model = "Reduced-cannibalism (theta=0.3, ir=1.3)")
+)
+write.csv(model_comparison_df, file.path("interesting_plots", "day39_schedule_model_comparison.csv"), row.names = FALSE)
+
+schedule_model_comparison_plot <- ggplot(model_comparison_df,
+                                         aes(x = mean_effort, y = pmax(mean_total, 1e-12), color = schedule)) +
+  geom_line(aes(group = schedule)) +
+  geom_point(size = 1.5) +
+  facet_grid(model ~ knife_edge_size, labeller = label_both, scales = "free_y") +
+  scale_y_log10() +
+  labs(x = "Realised mean effort actually applied", y = "Mean total biomass (log scale)",
+       color = "Schedule",
+       title = "Does cutting cannibalism change which fishing schedule wins?",
+       subtitle = "Same schedules, same knife-edge sweep, same effort range -- original paper model (top) vs. Section 2's reduced-cannibalism model (bottom)") +
+  theme_minimal()
+schedule_model_comparison_plot
+save_plot(schedule_model_comparison_plot, "day39_schedule_model_comparison.png", width = 12, height = 7)
+
+cat("Section 5 model comparison (original vs. reduced-cannibalism, same schedules): see day39_schedule_model_comparison.png / .csv.\n")
+
+################################################################################
+# Section 6: zoomed-in sweep, theta=0.3 alone (NOT Section 2's resource-boosted
+# variant -- that one reversed theta=0.3's own good yield-curve shape, see
+# Section 2's header), knife_edge=5, effort in [0,7] rather than Section 4/5's
+# collapse-hunting [10,200] range -- the actual promising region.
+################################################################################
+
+zoom_ke              <- 5
+zoom_baseline_effort <- 1
+zoom_boost_seq       <- c(2, 3, 4, 5, 6, 7)
+
+zoom_summary <- run_layered_ke_case(zoom_ke, theta_low, 1, last_n_theta_low, last_npp_theta_low,
+                                    baseline_effort = zoom_baseline_effort, boost_seq = zoom_boost_seq)
+write.csv(zoom_summary, file.path("interesting_plots", "day39_zoom_ke5_summary.csv"), row.names = FALSE)
+
+zoom_collapse_plot <- ggplot(zoom_summary, aes(x = mean_effort, y = mean_total, color = schedule)) +
+  geom_line(aes(group = schedule)) +
+  geom_point(size = 2) +
+  geom_vline(xintercept = zoom_baseline_effort, linetype = "dashed", color = "grey50") +
+  labs(x = "Realised mean effort", y = "Mean total biomass",
+       title = "theta=0.3, knife_edge=5, effort in [0,7]: biomass vs. realised effort",
+       subtitle = sprintf("floor=%.2g (dashed line)", zoom_baseline_effort)) +
+  theme_minimal()
+zoom_collapse_plot
+save_plot(zoom_collapse_plot, "day39_zoom_ke5_collapse.png", width = 9, height = 6)
+
+zoom_yield_plot <- ggplot(zoom_summary, aes(x = mean_effort, y = mean_yield, color = schedule)) +
+  geom_line(aes(group = schedule)) +
+  geom_point(size = 2) +
+  geom_vline(xintercept = zoom_baseline_effort, linetype = "dashed", color = "grey50") +
+  labs(x = "Realised mean effort", y = "Mean yield",
+       title = "theta=0.3, knife_edge=5, effort in [0,7]: yield vs. realised effort",
+       subtitle = sprintf("floor=%.2g (dashed line)", zoom_baseline_effort)) +
+  theme_minimal()
+zoom_yield_plot
+save_plot(zoom_yield_plot, "day39_zoom_ke5_yield.png", width = 9, height = 6)
+
+zoom_amplitude_plot <- ggplot(zoom_summary, aes(x = mean_effort, y = rel_amplitude, color = schedule)) +
+  geom_line(aes(group = schedule)) +
+  geom_point(size = 2) +
+  geom_vline(xintercept = zoom_baseline_effort, linetype = "dashed", color = "grey50") +
+  labs(x = "Realised mean effort", y = "Relative amplitude of biomass",
+       title = "theta=0.3, knife_edge=5, effort in [0,7]: relative amplitude vs. realised effort",
+       subtitle = sprintf("floor=%.2g (dashed line)", zoom_baseline_effort)) +
+  theme_minimal()
+zoom_amplitude_plot
+save_plot(zoom_amplitude_plot, "day39_zoom_ke5_amplitude.png", width = 9, height = 6)
+
+cat("Section 6 (theta=0.3, knife_edge=5, effort in [0,7]): see day39_zoom_ke5_collapse.png / day39_zoom_ke5_yield.png / day39_zoom_ke5_amplitude.png / day39_zoom_ke5_summary.csv.\n")
+print(zoom_summary)
+
+################################################################################
+# Section 7: yield/relative-amplitude scan, the most fishing-sensitive model
+# built so far -- theta=0.3+interaction_resource=1.3 (Section 2's own finding:
+# the only variant whose total biomass declines monotonically across the
+# whole [1,100] range rather than plateauing). Section 2 already scanned it
+# at knife_edge=10 and 5; this fills the one gap, knife_edge=9.
+################################################################################
+
+sensitive_ke9 <- make_anchovy_fishing_params_theta(theta_low, interaction_resource_boost, knife_edge_size = 9)
+
+sensitive_probe_df <- cannibalism_fishing_probe(sensitive_ke9, last_n_resboost, last_npp_resboost,
+                                                fish_level_seq_theta) %>%
+  mutate(model = "theta=0.3, interaction_resource=1.3")
+write.csv(sensitive_probe_df, file.path("interesting_plots", "day39_sensitive_ke9_scan.csv"), row.names = FALSE)
+
+sensitive_yield_plot <- ggplot(sensitive_probe_df, aes(x = fish_level, y = mean_yield)) +
+  geom_line() +
+  geom_point(size = 2) +
+  labs(x = "Fishing effort (Constant schedule, knife_edge=9)", y = "Mean yield",
+       title = "Most fishing-sensitive model (theta=0.3, interaction_resource=1.3): yield vs. effort",
+       subtitle = "knife_edge=9 -- the one gear setting Section 2 didn't already cover for this model") +
+  theme_minimal()
+sensitive_yield_plot
+save_plot(sensitive_yield_plot, "day39_sensitive_ke9_yield.png", width = 9, height = 6)
+
+sensitive_amplitude_plot <- ggplot(sensitive_probe_df, aes(x = fish_level, y = rel_amplitude)) +
+  geom_line() +
+  geom_point(size = 2) +
+  labs(x = "Fishing effort (Constant schedule, knife_edge=9)", y = "Relative amplitude of biomass",
+       title = "Most fishing-sensitive model (theta=0.3, interaction_resource=1.3): relative amplitude vs. effort",
+       subtitle = "knife_edge=9") +
+  theme_minimal()
+sensitive_amplitude_plot
+save_plot(sensitive_amplitude_plot, "day39_sensitive_ke9_amplitude.png", width = 9, height = 6)
+
+cat("Section 7 (theta=0.3+interaction_resource=1.3, knife_edge=9): see day39_sensitive_ke9_yield.png / day39_sensitive_ke9_amplitude.png / day39_sensitive_ke9_scan.csv.\n")
+print(sensitive_probe_df)
+
+################################################################################
+# Section 8: summary
 ################################################################################
 
 cat("\n===== Day 39 summary =====\n")
 cat("Day 38's Figure 2e plankton-anchovy cannibalism model, with its dependence on cannibalism (the species interaction matrix, theta_11) turned down and its dependence on the resource (interaction_resource) turned up.\n")
 cat(sprintf(
-  "Section 1 (theta=%.2g cannibalism cut, gear unchanged at knife_edge=10): day39_theta_low_growth_mort.csv / day39_theta_low_effort_probe.png / day39_theta_low_effort_yield.png.\n",
+  "Section 1 (theta=%.2g cannibalism cut, gear unchanged at knife_edge=10): day39_theta_low_growth_mort.csv / day39_theta_low_effort_probe.png / day39_theta_low_effort_yield.png / day39_theta_low_effort_amplitude.png.\n",
   theta_low
 ))
 cat(sprintf(
-  "Section 2 (theta=%.2g + interaction_resource=%.2g -- shown NOT to fix Section 1's growth deficit at w>=w_mat, see Section 2's own header): day39_theta_resboost_growth.csv / day39_theta_resboost_effort_probe.png / day39_theta_resboost_effort_yield.png.\n",
+  "Section 2 (theta=%.2g + interaction_resource=%.2g -- shown NOT to fix Section 1's growth deficit at w>=w_mat, see Section 2's own header): day39_theta_resboost_growth.csv / day39_theta_resboost_effort_probe.png / day39_theta_resboost_effort_yield.png / day39_theta_resboost_effort_amplitude.png / (knife_edge=5 versions also saved as *_ke5.png).\n",
   theta_low, interaction_resource_boost
 ))
 cat(sprintf(
@@ -924,10 +1039,21 @@ cat(sprintf(
   length(theta_grid_seq), length(resource_grid_seq), nrow(grid_candidates)
 ))
 cat(sprintf(
-  "Section 4 (layered schedules -- Constant floor=%.2g with boosts at peaks/troughs, knife_edge=10/9/5 on Section 2's theta=0.3/interaction_resource=1.3 model, NOT the grid's own best candidate -- see Section 4's header for why): day39_theta_ke_layered_collapse.png / day39_theta_ke_layered_yield.png / day39_theta_ke_boost_realised.png / day39_theta_ke_layered_summary.csv.\n",
+  "Section 4 (layered schedules -- Constant floor=%.2g with boosts at peaks/troughs, knife_edge=10/9/5 on Section 2's theta=0.3/interaction_resource=1.3 model, NOT the grid's own best candidate -- see Section 4's header for why): day39_theta_ke_layered_collapse.png / day39_theta_ke_layered_yield.png / day39_theta_ke_layered_amplitude.png / day39_theta_ke_boost_realised.png / day39_theta_ke_layered_summary.csv.\n",
   baseline_effort_s4
 ))
 cat(sprintf(
-  "NOTE: the effort values Section 4 needed to see any collapse at all (floor=%.2g, boosts up to %.2g) are nowhere near realistic fishing efforts (F is typically O(0.1-1)/yr for real fisheries) -- this is inherited from Day 38 Section 7's own finding that knife_edge=5 doesn't visibly stress until effort~30 and doesn't collapse until ~100. Still unresolved, not fixed today -- see the blog post.\n",
+  "Section 5 (the same layered schedules, on the ORIGINAL paper model theta=1/interaction_resource=1): day39_original_ke_layered_collapse.png / day39_original_ke_layered_yield.png / day39_original_ke_layered_amplitude.png / day39_original_ke_boost_realised.png / day39_original_ke_layered_summary.csv -- plus a direct side-by-side against Section 4's model, day39_schedule_model_comparison.png / .csv.\n"
+))
+cat(sprintf(
+  "NOTE: the effort values Sections 4/5 needed to see any collapse at all (floor=%.2g, boosts up to %.2g) are nowhere near realistic fishing efforts (F is typically O(0.1-1)/yr for real fisheries) -- this is inherited from Day 38 Section 7's own finding that knife_edge=5 doesn't visibly stress until effort~30 and doesn't collapse until ~100. Section 6 zooms into a lower, more realistic range instead.\n",
   baseline_effort_s4, max(boost_fish_level_seq_s4)
+))
+cat(sprintf(
+  "Section 6 (theta=%.2g alone, knife_edge=%.0f, effort in [0,%.0f] -- the most promising combination): day39_zoom_ke5_collapse.png / day39_zoom_ke5_yield.png / day39_zoom_ke5_amplitude.png / day39_zoom_ke5_summary.csv.\n",
+  theta_low, zoom_ke, max(zoom_boost_seq)
+))
+cat(sprintf(
+  "Section 7 (theta=%.2g+interaction_resource=%.2g -- the most fishing-sensitive model, knife_edge=9): day39_sensitive_ke9_yield.png / day39_sensitive_ke9_amplitude.png / day39_sensitive_ke9_scan.csv.\n",
+  theta_low, interaction_resource_boost
 ))

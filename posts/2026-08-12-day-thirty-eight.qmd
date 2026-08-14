@@ -2,7 +2,6 @@
 title: "Day 38: Rebuilding the Threshold Rule, and a Model That Wouldn't Collapse"
 author: "Samia"
 date: "2026-08-12"
-draft: true
 format:
   html:
     toc: true
@@ -27,7 +26,7 @@ Same pattern Day 36 established: before spending time on grid scans, one represe
 
 The first pass, at `threshold_frac=0.5` (the cycle's own median), showed `Threshold (peaks)` firing twice per cycle, once on the real peak, once on a smaller secondary crossing, cutting into the peak more than the rule was meant to. Raising `threshold_frac` to 0.6 fixed it: one clean firing window per cycle, right at the true peak, barely touching the peak's own height.
 
-![ This was a sanity check at threshold_frac=0.6 - one clean firing window per cycle for Threshold (peaks).](../interesting_plots/day38_sanity_check.png)
+![This was a sanity check at threshold_frac=0.6 - one clean firing window per cycle for Threshold (peaks).](../interesting_plots/day38_sanity_check.png)
 
 ------------------------------------------------------------------------
 

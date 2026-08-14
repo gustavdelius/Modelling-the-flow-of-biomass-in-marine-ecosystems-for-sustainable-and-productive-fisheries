@@ -2,7 +2,6 @@
 title: "Day 36: A Closed-Loop Fishing Rule Replaces the Window"
 author: "Samia"
 date: "2026-08-10"
-draft: true
 format:
   html:
     toc: true

@@ -1,2 +1,723 @@
 <!DOCTYPE html>
-<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"></html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.9.38">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="author" content="Samia">
+<meta name="dcterms.date" content="2026-08-12">
+<meta name="description" content="Ports Day 36’s threshold-triggered fishing rule onto Day 37’s cannibalism-only plankton-anchovy model - the one that actually oscillates - and finds a Constant-fishing yield curve that refuses to collapse no matter how hard it’s pushed. Chasing that down turns up a real, literature-grounded cultivation effect (fishing an adult cannibal relieves predation on juveniles faster than it removes biomass), and fixing it means changing the gear, not the resource. The day ends with the headline result Day 36 was always chasing: on a model that can collapse, albeit at extremely high efforts.">
+
+<title>Day 38: Rebuilding the Threshold Rule, and a Model That Wouldn’t Collapse – Modelling-the-flow-of-biomass</title>
+<style>
+/* Default styles provided by pandoc.
+** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+*/
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+</style>
+
+
+<script src="../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../">
+<script src="../site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="../site_libs/quarto-html/popper.min.js"></script>
+<script src="../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-15634bcf2e68342d4ad2dfa704d543f6.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../site_libs/bootstrap/bootstrap-9a9447a135e5b1c05e5522b7712596fa.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "navbar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "end",
+  "type": "overlay",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+
+
+<link rel="stylesheet" href="../styles.css">
+</head>
+
+<body class="nav-fixed quarto-light">
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+    <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container mx-auto">
+    <a class="navbar-brand" href="../index.html">
+    <span class="navbar-title">Modelling-the-flow-of-biomass</span>
+    </a>
+  </div>
+            <div id="quarto-search" class="" title="Search"></div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" role="menu" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll me-auto">
+  <li class="nav-item">
+    <a class="nav-link" href="../index.html"> 
+<span class="menu-text">Home</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../about.html"> 
+<span class="menu-text">About</span></a>
+  </li>  
+</ul>
+          </div> <!-- /navcollapse -->
+            <div class="quarto-navbar-tools">
+</div>
+      </div> <!-- /container-fluid -->
+    </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
+<!-- sidebar -->
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">On this page</h2>
+   
+  <ul>
+  <li><a href="#rebuilding-on-a-model-that-actually-cycles" id="toc-rebuilding-on-a-model-that-actually-cycles" class="nav-link active" data-scroll-target="#rebuilding-on-a-model-that-actually-cycles">Rebuilding on a Model That Actually Cycles</a></li>
+  <li><a href="#sanity-check-getting-the-threshold-right" id="toc-sanity-check-getting-the-threshold-right" class="nav-link" data-scroll-target="#sanity-check-getting-the-threshold-right">Sanity Check: Getting the Threshold Right</a></li>
+  <li><a href="#the-effort-scan-and-a-suspiciously-flat-constant-fishing-curve" id="toc-the-effort-scan-and-a-suspiciously-flat-constant-fishing-curve" class="nav-link" data-scroll-target="#the-effort-scan-and-a-suspiciously-flat-constant-fishing-curve">The Effort Scan, and a Suspiciously Flat Constant-Fishing Curve</a></li>
+  <li><a href="#diagnosing-the-flat-curve-a-cultivation-effect-not-a-bug" id="toc-diagnosing-the-flat-curve-a-cultivation-effect-not-a-bug" class="nav-link" data-scroll-target="#diagnosing-the-flat-curve-a-cultivation-effect-not-a-bug">Diagnosing the Flat Curve: A Cultivation Effect, Not a Bug</a></li>
+  <li><a href="#trying-to-make-the-resource-the-bottleneck" id="toc-trying-to-make-the-resource-the-bottleneck" class="nav-link" data-scroll-target="#trying-to-make-the-resource-the-bottleneck">Trying to Make the Resource the Bottleneck</a></li>
+  <li><a href="#the-key-the-gears-own-blind-spot" id="toc-the-key-the-gears-own-blind-spot" class="nav-link" data-scroll-target="#the-key-the-gears-own-blind-spot">The Key: The Gear’s Own Blind Spot</a></li>
+  <li><a href="#the-headline-result-rebuilding-the-rule-comparison-on-a-model-that-can-actually-collapse" id="toc-the-headline-result-rebuilding-the-rule-comparison-on-a-model-that-can-actually-collapse" class="nav-link" data-scroll-target="#the-headline-result-rebuilding-the-rule-comparison-on-a-model-that-can-actually-collapse">The Headline Result: Rebuilding the Rule Comparison on a Model That Can Actually Collapse</a></li>
+  <li><a href="#two-issues-with-this-result-that-need-addressing-not-just-noting" id="toc-two-issues-with-this-result-that-need-addressing-not-just-noting" class="nav-link" data-scroll-target="#two-issues-with-this-result-that-need-addressing-not-just-noting">Two Issues With This Result That Need Addressing, Not Just Noting</a></li>
+  <li><a href="#whats-next" id="toc-whats-next" class="nav-link" data-scroll-target="#whats-next">What’s Next</a></li>
+  </ul>
+</nav>
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title">Day 38: Rebuilding the Threshold Rule, and a Model That Wouldn’t Collapse</h1>
+  <div class="quarto-categories">
+    <div class="quarto-category">research</div>
+    <div class="quarto-category">mizer</div>
+    <div class="quarto-category">anchovy</div>
+    <div class="quarto-category">fishing</div>
+    <div class="quarto-category">cultivation-effect</div>
+    <div class="quarto-category">blog</div>
+  </div>
+  </div>
+
+<div>
+  <div class="description">
+    Ports Day 36’s threshold-triggered fishing rule onto Day 37’s cannibalism-only plankton-anchovy model - the one that actually oscillates - and finds a Constant-fishing yield curve that refuses to collapse no matter how hard it’s pushed. Chasing that down turns up a real, literature-grounded cultivation effect (fishing an adult cannibal relieves predation on juveniles faster than it removes biomass), and fixing it means changing the gear, not the resource. The day ends with the headline result Day 36 was always chasing: on a model that can collapse, albeit at extremely high efforts.
+  </div>
+</div>
+
+
+<div class="quarto-title-meta">
+
+    <div>
+    <div class="quarto-title-meta-heading">Author</div>
+    <div class="quarto-title-meta-contents">
+             <p>Samia </p>
+          </div>
+  </div>
+    
+    <div>
+    <div class="quarto-title-meta-heading">Published</div>
+    <div class="quarto-title-meta-contents">
+      <p class="date">August 12, 2026</p>
+    </div>
+  </div>
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<section id="rebuilding-on-a-model-that-actually-cycles" class="level2">
+<h2 class="anchored" data-anchor-id="rebuilding-on-a-model-that-actually-cycles">Rebuilding on a Model That Actually Cycles</h2>
+<p>Day 37 closed with two live problems: the Anchovy model this project used from Day 18 onward had an <code>erepro</code> five orders of magnitude outside <code>[0,1]</code>, and its simplest replacement (Day 4’s pure resource-decrease model) turned out never to oscillate at all. The fix was porting the actual published plankton-anchovy model (Canales, Delius &amp; Law 2020) and finding that cannibalism <em>alone</em> (not the “full, realistic” configuration with larval mortality added back in) is what sustains a genuine limit cycle.</p>
+<p>Today’s task was mechanical on its face: take Day 36’s threshold-triggered-fishing machinery (<code>thresholdFMort()</code>, <code>attach_threshold_rule()</code>, the effort/threshold scans) and rebuild it on that model instead. <code>finding_jams/38_experiments.R</code> does exactly that - the rate-function machinery itself is generic in <code>params</code>/<code>sim</code> and ports over unchanged. What actually happened today was less mechanical: the rebuilt model refused to do the one thing a fishing-rule study needs it to do, which took most of the day to run down.</p>
+<hr>
+</section>
+<section id="sanity-check-getting-the-threshold-right" class="level2">
+<h2 class="anchored" data-anchor-id="sanity-check-getting-the-threshold-right">Sanity Check: Getting the Threshold Right</h2>
+<p>Same pattern Day 36 established: before spending time on grid scans, one representative <code>fish_level</code>/<code>threshold_frac</code>, all three schedules, selected biomass plotted against the calibration threshold with fishing “on” periods shaded.</p>
+<p>The first pass, at <code>threshold_frac=0.5</code> (the cycle’s own median), showed <code>Threshold (peaks)</code> firing twice per cycle, once on the real peak, once on a smaller secondary crossing, cutting into the peak more than the rule was meant to. Raising <code>threshold_frac</code> to 0.6 fixed it: one clean firing window per cycle, right at the true peak, barely touching the peak’s own height.</p>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="../interesting_plots/day38_sanity_check.png" class="img-fluid figure-img"></p>
+<figcaption>This was a sanity check at threshold_frac=0.6 - one clean firing window per cycle for Threshold (peaks).</figcaption>
+</figure>
+</div>
+<hr>
+</section>
+<section id="the-effort-scan-and-a-suspiciously-flat-constant-fishing-curve" class="level2">
+<h2 class="anchored" data-anchor-id="the-effort-scan-and-a-suspiciously-flat-constant-fishing-curve">The Effort Scan, and a Suspiciously Flat Constant-Fishing Curve</h2>
+<p>The first real scan (<code>fish_level=[1,3,5,7,9]</code>, mirroring Day 36’s own range) didn’t show much as this model needed far more effort to register anything.This lead to a dedicated Constant-only scan: a coarse pass over <code>fish_level=[0,30]</code> by 2, then a fine pass zoomed on the coarse peak.</p>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="../interesting_plots/day38_constant_collapse.png" class="img-fluid figure-img"></p>
+<figcaption>Where does Constant-fishing yield start decreasing? It doesn’t, not within this range.</figcaption>
+</figure>
+</div>
+<p>Mean yield rises from 0 and then just… sits there, wobbling around 0.05-0.06 from <code>fish_level≈10</code> all the way to <code>30</code>, never turning over. That’s not what heavy sustained fishing is supposed to do to a population.</p>
+<hr>
+</section>
+<section id="diagnosing-the-flat-curve-a-cultivation-effect-not-a-bug" class="level2">
+<h2 class="anchored" data-anchor-id="diagnosing-the-flat-curve-a-cultivation-effect-not-a-bug">Diagnosing the Flat Curve: A Cultivation Effect, Not a Bug</h2>
+<p>Rather than trust the plot blind or assume it was wrong, three separate checks:</p>
+<p><strong>Gear check.</strong> Does <code>F(w)</code> actually knife-edge at <code>w_mat</code> and scale linearly with effort, as intended?</p>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="../interesting_plots/day38_gear_check.png" class="img-fluid figure-img"></p>
+<figcaption>Clean knife-edge at w_mat=10, F scaling exactly with effort (1/10/30).</figcaption>
+</figure>
+</div>
+<p><strong>Population structure</strong>, at <code>fish_level=0,10,20,30,1000</code> (the last one a deliberate stress test) - total vs.&nbsp;<em>selected</em> (<code>w≥w_mat</code>, fishable) vs.&nbsp;<em>juvenile</em> (<code>w&lt;w_mat</code>, never fished) biomass:</p>
+<div class="quarto-layout-panel" data-layout-ncol="2">
+<div class="quarto-layout-row">
+<div class="quarto-layout-cell" style="flex-basis: 50.0%;justify-content: flex-start;">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="../interesting_plots/day38_extinction_check_series.png" class="img-fluid figure-img"></p>
+<figcaption>Total biomass keeps cycling with healthy amplitude at every fish_level, including 1000.</figcaption>
+</figure>
+</div>
+</div>
+<div class="quarto-layout-cell" style="flex-basis: 50.0%;justify-content: flex-start;">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="../interesting_plots/day38_extinction_check_spectrum.png" class="img-fluid figure-img"></p>
+<figcaption>Below w_mat, the spectrum is identical across every fish_level tested – fishing effort has no visible effect on it at all.</figcaption>
+</figure>
+</div>
+</div>
+</div>
+</div>
+<p><code>mean_selected</code> collapses as expected - over 200x down from unfished to the <code>fish_level=1000</code> stress test (0.0178 → 0.0000836). But <code>mean_juvenile</code>, which is over 95% of total biomass throughout, never follows it down. It’s actually <em>higher</em> at <code>fish_level=10</code> (0.485) than unfished (0.374), and still 78% of the unfished level even at the stress test. <strong>The gear is knife-edge at <code>w_mat</code> and structurally can never touch anything smaller, and cannibalism (Day 37’s whole finding) is what normally suppresses the juvenile compartment. Fishing out the cannibalistic adults doesn’t just remove biomass; it removes the juveniles’ main predator.</strong> A real, published phenomenon in cannibalistic size-spectrum models (de Roos &amp; Persson 2002, <em>PNAS</em>; the “cultivation effect” literature going back further than that), not an artefact of this port.</p>
+<p><strong>Transient-length check</strong>, in case 24 years just wasn’t long enough to see a real decline: <code>fish_level=30</code> run out to 100 years instead. Mean biomass over the last 12 years: 0.379 (Section 3b’s own 24yr window) vs.&nbsp;0.415 (100yr run) so its consistent, not a truncated transient.</p>
+<p>All three checks agree: the flat yield curve is real model behaviour, not a bug.</p>
+<hr>
+</section>
+<section id="trying-to-make-the-resource-the-bottleneck" class="level2">
+<h2 class="anchored" data-anchor-id="trying-to-make-the-resource-the-bottleneck">Trying to Make the Resource the Bottleneck</h2>
+<p>First attempt: the plankton resource is topped up every year by a constant external immigration term (<code>i0=100</code>) regardless of grazing pressure, so juveniles are never actually resource-limited once cannibalism eases. Removing it (<code>i0=0</code>) was the most surgical change available.</p>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="../interesting_plots/day38_no_immigration_series.png" class="img-fluid figure-img"></p>
+<figcaption>i0=0 alone: juvenile biomass still not falling cleanly with effort.</figcaption>
+</figure>
+</div>
+<p>A weak, non-monotonic probe. <code>mean_juvenile</code> dips at <code>fish_level=20</code> then partly recovers at <code>50</code>. The subsidy wasn’t the load-bearing piece. Next lever: the resource’s own regrowth <em>rate</em>, not just the top-up - the same <code>resource_decrease</code> trick Day 4/18 used on a <code>resource_semichemostat</code> resource, applied here to <code>r0</code> (<code>rr_pp = r0 * w_full^(rho-1)</code>). Reusing Day 4/18’s own convention, <code>resource_decrease=0.001</code>:</p>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="../interesting_plots/day38_slow_resource_series.png" class="img-fluid figure-img"></p>
+<figcaption>resource_decrease=0.001: dead at every fish_level, including unfished.</figcaption>
+</figure>
+</div>
+<p>Too severe - <code>min_total=1e-12</code> even unfished. The standard settle+kick recipe knocks the population down by 10^7 right after the 10-year settle; with the resource regrowing 1000x slower, there’s no recovering from that combined with the kick, fished or not. A calibration sweep followed, <code>resource_decrease</code> from 1 down to 0.005, unfished only:</p>
+<hr>
+</section>
+<section id="the-key-the-gears-own-blind-spot" class="level2">
+<h2 class="anchored" data-anchor-id="the-key-the-gears-own-blind-spot">The Key: The Gear’s Own Blind Spot</h2>
+<p>The resource-scarcity approach was fighting the wrong mechanism. Section 3c’s own diagnosis was structural, not resource-driven: the gear is knife-edge at <code>w_mat=10</code> and <em>never</em> touches anything smaller. Lowering <code>knife_edge_size</code> below <code>w_mat</code>, on the <strong>original</strong> model (<code>i0=100</code>, <code>r0=10</code> – full subsidy restored), removes that blind spot directly instead of trying to starve the whole system.</p>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="../interesting_plots/day38_knife_edge_collapse.png" class="img-fluid figure-img"></p>
+<figcaption>Does lowering the knife-edge size make the population collapse-capable? At knife_edge_size=5 and below, yes.</figcaption>
+</figure>
+</div>
+<p>At the original <code>knife_edge_size=10</code>, the population barely notices fishing even at <code>effort=100</code> – no genuine collapse risk. Drop it to <code>5</code>, and there’s a real, graduated dose-response for the first time: healthy at <code>effort=10</code>, visibly stressed at <code>30</code> (~5x down), genuinely collapsed by <code>100</code> (9+ orders of magnitude down – actual extinction, not suppression). Go lower still (<code>1</code>, <code>0.1</code>, <code>0.03</code>) and it collapses almost immediately even at modest effort it’s too fragile to leave any working range.</p>
+<p><code>knife_edge_size=5</code> was the one candidate with everything needed: real collapse risk at high sustained effort, and a genuine safe operating range at moderate effort.</p>
+<hr>
+</section>
+<section id="the-headline-result-rebuilding-the-rule-comparison-on-a-model-that-can-actually-collapse" class="level2">
+<h2 class="anchored" data-anchor-id="the-headline-result-rebuilding-the-rule-comparison-on-a-model-that-can-actually-collapse">The Headline Result: Rebuilding the Rule Comparison on a Model That Can Actually Collapse</h2>
+<p>Threshold-rule machinery rebuilt on <code>knife_edge_size=5</code> - sanity check at <code>fish_level=50</code>, deliberately in the “at risk” zone, then an effort scan across <code>fish_level=[10,30,50,70,100]</code>.</p>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="../interesting_plots/day38_ke5_sanity_check.png" class="img-fluid figure-img"></p>
+<figcaption>knife_edge_size=5, fish_level=50: Constant and Threshold (troughs) both damp to a flat equilibrium; Threshold (peaks) is the only one still cycling.</figcaption>
+</figure>
+</div>
+<p>At <code>fish_level=50</code>, none of the three schedules have collapsed yet, but Constant and Threshold (troughs) both ring down hard right after the fork and settle into a <strong>flat, damped equilibrium</strong>, while Threshold (peaks) is the only one still showing a genuine sustained cycle, clean repeating peaks and troughs, never damping out. Threshold (troughs) behaves almost identically to Constant throughout. Its realised effort tracks the nominal <code>fish_level</code> almost exactly (mean_effort=49.97 at nominal 50), so it’s functionally the same schedule with a different name.</p>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="../interesting_plots/day38_ke5_effort_yield.png" class="img-fluid figure-img"></p>
+<figcaption>Yield by schedule across the collapse zone - Constant peaks then crashes; Threshold (peaks) never does.</figcaption>
+</figure>
+</div>
+<p>Constant traces a textbook overfishing curve: yield <em>peaks</em> at <code>fish_level=30</code> (0.265, higher than at 10), then craters by <code>70</code> (0.00056, a 500x drop) and is functionally extinct by <code>100</code> (2.7e-9). Threshold (peaks) does something structurally different: its <code>mean_effort</code> <strong>saturates around 3-4 regardless of nominal fish_level</strong> (1.47 at nominal 10, only 3.90 even at nominal 100) because the burst itself gets <em>shorter</em> as the nominal intensity rises (<code>effective_window</code> shrinks from 0.8 years to 0.2 as nominal effort climbs). It isn’t fishing less because it was told to; it’s fishing less because a more intense burst depletes the peak back below threshold faster. <code>mean_yield</code> stays positive and roughly flat (0.044-0.077) across the whole tested range and never collapses, even at nominal <code>fish_level=100</code>.</p>
+<p>That’s the result Day 36’s whole apparatus was built to find: on a model that can genuinely collapse, <strong>threshold-triggered fishing timed to peaks is structurally protected from the collapse that both Constant and badly-timed (troughs) fishing suffer at the same nominal effort</strong>. This is not because it happens to fish less, but because it can’t help but fish less once the peak it’s chasing gets thinner.</p>
+<hr>
+</section>
+<section id="two-issues-with-this-result-that-need-addressing-not-just-noting" class="level2">
+<h2 class="anchored" data-anchor-id="two-issues-with-this-result-that-need-addressing-not-just-noting">Two Issues With This Result That Need Addressing, Not Just Noting</h2>
+<p>Sitting with today’s headline result longer turns up two problems with it, both worth being explicit about rather than filing away as minor caveats.</p>
+<p><strong>The schedule comparison itself is flawed.</strong> “Constant” and “Threshold (peaks)” above are not a comparison of <em>when</em> to fish at a fixed average intensity - they’re two regimes with completely different floors. Constant fishes the full nominal <code>fish_level</code> all the time. Threshold (peaks/troughs) fishes <em>nothing at all</em> (<code>background_level=0</code>) except during its own firing window. So when Threshold (peaks) comes out ahead, part of that gap is genuinely about timing but part of it is just “fishing less overall,” dressed up as a schedule question. A fair test of whether timing matters has to hold the floor constant: run a baseline fishery all the time, and ask whether <em>topping it up</em> at peaks beats topping it up at troughs, or not topping it up at all.</p>
+<p><strong>The effort levels involved are not remotely realistic.</strong> Getting <code>knife_edge_size=5</code> to show any dose-response at all needed <code>fish_level</code> from 10 up to 100 and the stress test in Section 3c pushed to <code>fish_level=1000</code>. Real fishing mortality <code>F</code> for actual exploited stocks is typically <code>O(0.1-1)</code>/year; effort in the tens-to-hundreds here isn’t “heavy fishing,” it’s several orders of magnitude past anything a real fishery could sustain or would be permitted to apply. That doesn’t make the qualitative mechanism (cultivation effect, gear-driven refuge, self-limiting peak-timed effort) fake but it does mean none of today’s specific numbers (which <code>fish_level</code> stresses vs.&nbsp;collapses the population, where yield peaks) can be read as calibrated to a real fishery. Worth understanding <em>why</em> this model needs such extreme effort before trusting any number that comes out of it at a more modest, realistic scale.</p>
+<p>Both are being addressed directly: the schedule comparison is being rebuilt so every regime shares the same Constant floor and only the <em>boost</em> is targeted at peaks or troughs, and the unrealistic-effort question is being tracked rather than quietly assumed away. See item 1 below.</p>
+<hr>
+</section>
+<section id="whats-next" class="level2">
+<h2 class="anchored" data-anchor-id="whats-next">What’s Next</h2>
+<ol type="1">
+<li><strong>Rework the schedule comparison itself.</strong> As flagged above, “Constant” and “Threshold (peaks)” are two independent, mutually exclusive fishing regimes with different floors, not a fair timing comparison. The fix: every schedule shares the same Constant floor (<code>background_level</code>), and “Threshold (peaks)”/“Threshold (troughs)” only layer an <em>extra</em> boost on top of it near cycle peaks/troughs so the question becomes whether topping up an existing fishery during good (or bad) years beats fishing that same floor flat, not whether an intermittent fishery beats a continuous one from a standing start. Also carries forward the unresolved effort-realism problem: the floor and boost needed to see anything at all are still in the same unrealistic tens-to-hundreds range as today’s own numbers.</li>
+<li><strong>Test whether reducing cannibalism increases instability.</strong> Cannibalism is what’s driving the cycle in the first place (Day 37) and what’s protecting the juvenile refuge from collapse (today). Turning it down, rather than removing it outright as Day 37 already did, is the natural next probe: does a weaker cannibalism signal make the population <em>more</em> prone to instability, consistent with it acting as a stabilising feedback, or does it just shrink the cycle’s amplitude without changing collapse risk?</li>
+</ol>
+
+
+</section>
+
+</main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp('/' + window.location.host + '/');
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+</div> <!-- /content -->
+
+
+
+
+</body></html>

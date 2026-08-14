@@ -1607,3 +1607,4 @@ species_params(sim_fork)$erepro
 (getRDI(sim_fork,time_range = c(10,20)))
 getRDI(getParams(sim_fork))
 summary(validSim(sim_fork))
+
