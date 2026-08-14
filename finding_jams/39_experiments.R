@@ -98,12 +98,84 @@ plankton_state$time   <- 0
 plankton_state$factor <- 1
 plankton_state$random <- FALSE   # random plankton forcing kept off, as Day 37/38
 
+# Exact step for
+#   dn/dt = immigration + (rate - mortality) * n - rate / capacity * n^2.
+# This is the logistic resource equation with constant immigration. As in
+# mizer::resource_logistic(), rates are held fixed during each time step.
+exact_logistic_immigration_step <- function(n, rate, capacity, immigration,
+                                            mortality, dt) {
+  result <- n
+  active <- is.finite(n) & is.finite(rate) & is.finite(capacity) &
+    is.finite(immigration) & is.finite(mortality) &
+    rate > 0 & capacity > 0 & immigration >= 0
+  if (dt == 0 || !any(active)) return(result)
+
+  n0 <- n[active]
+  r  <- rate[active]
+  k  <- capacity[active]
+  i  <- immigration[active]
+  mu <- mortality[active]
+  a  <- r - mu
+  b  <- r / k
+  next_n <- numeric(length(n0))
+
+  # With immigration the quadratic has one positive and one negative root.
+  # The alternative root formulae avoid cancellation when abs(a) is large.
+  has_immigration <- i > 0
+  if (any(has_immigration)) {
+    idx <- which(has_immigration)
+    ai  <- a[idx]
+    bi  <- b[idx]
+    ii  <- i[idx]
+    d   <- sqrt(ai^2 + 4 * bi * ii)
+    n_plus <- ifelse(ai >= 0, (ai + d) / (2 * bi), 2 * ii / (d - ai))
+    n_minus <- ifelse(ai <= 0, (ai - d) / (2 * bi), -2 * ii / (ai + d))
+    ratio <- ((n0[idx] - n_plus) / (n0[idx] - n_minus)) * exp(-d * dt)
+    next_n[idx] <- (n_plus - ratio * n_minus) / (1 - ratio)
+  }
+
+  # The zero-immigration limit is handled separately, including rate == mortality.
+  no_immigration <- !has_immigration
+  if (any(no_immigration)) {
+    idx <- which(no_immigration)
+    az  <- a[idx]
+    bz  <- b[idx]
+    nz  <- n0[idx]
+    value <- numeric(length(idx))
+    zero_rate <- az == 0
+    value[zero_rate] <- nz[zero_rate] /
+      (1 + bz[zero_rate] * nz[zero_rate] * dt)
+
+    positive <- az > 0 & nz > 0
+    phi <- -expm1(-az[positive] * dt) / az[positive]
+    value[positive] <- nz[positive] /
+      (exp(-az[positive] * dt) +
+         bz[positive] * nz[positive] * phi)
+
+    negative <- az < 0
+    exp_adt <- exp(az[negative] * dt)
+    phi <- expm1(az[negative] * dt) / az[negative]
+    value[negative] <- nz[negative] * exp_adt /
+      (1 + bz[negative] * nz[negative] * phi)
+    next_n[idx] <- value
+  }
+
+  # Round-off can only create tiny negative values; the analytic solution is
+  # non-negative for non-negative initial abundance and immigration.
+  result[active] <- pmax(next_n, 0)
+  result
+}
+
 plankton_logistic <- function(params, n, n_pp, n_other, rates, dt = 0.1, ...) {
   plankton_state$time <- plankton_state$time + dt
-  f <- params@rr_pp * n_pp * (1 - n_pp / params@cc_pp / plankton_state$factor) +
-    anchovy_immigration - rates$resource_mort * n_pp
-  f[is.na(f)] <- 0
-  return(n_pp + dt * f)
+  exact_logistic_immigration_step(
+    n = n_pp,
+    rate = params@rr_pp,
+    capacity = params@cc_pp * plankton_state$factor,
+    immigration = anchovy_immigration,
+    mortality = rates$resource_mort,
+    dt = dt
+  )
 }
 
 # Not mizer's own box_pred_kernel(): the paper's kernel is normalised to unit
