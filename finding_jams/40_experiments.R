@@ -69,12 +69,90 @@ plankton_state$time   <- 0
 plankton_state$factor <- 1
 plankton_state$random <- FALSE   # random plankton forcing kept off, as Day 37-39
 
+# Exact step for
+#   dn/dt = immigration + (rate - mortality) * n - rate / capacity * n^2.
+# This is the logistic resource equation with constant immigration. As in
+# mizer::resource_logistic(), rates are held fixed during each time step.
+# Replaces the old explicit-Euler step (n_pp + dt*f) -- pulled in from
+# upstream/GitHub, not written for this project. Exact for any dt (the Euler
+# version was only an approximation, tightest at small dt), so this is a
+# correctness improvement at the SAME dt=0.001 used throughout this file --
+# not a speed change on its own. See 40_changed_mort_experiments.R's own
+# What's Next for whether dt itself can now be safely raised.
+exact_logistic_immigration_step <- function(n, rate, capacity, immigration,
+                                            mortality, dt) {
+  result <- n
+  active <- is.finite(n) & is.finite(rate) & is.finite(capacity) &
+    is.finite(immigration) & is.finite(mortality) &
+    rate > 0 & capacity > 0 & immigration >= 0
+  if (dt == 0 || !any(active)) return(result)
+
+  n0 <- n[active]
+  r  <- rate[active]
+  k  <- capacity[active]
+  i  <- immigration[active]
+  mu <- mortality[active]
+  a  <- r - mu
+  b  <- r / k
+  next_n <- numeric(length(n0))
+
+  # With immigration the quadratic has one positive and one negative root.
+  # The alternative root formulae avoid cancellation when abs(a) is large.
+  has_immigration <- i > 0
+  if (any(has_immigration)) {
+    idx <- which(has_immigration)
+    ai  <- a[idx]
+    bi  <- b[idx]
+    ii  <- i[idx]
+    d   <- sqrt(ai^2 + 4 * bi * ii)
+    n_plus <- ifelse(ai >= 0, (ai + d) / (2 * bi), 2 * ii / (d - ai))
+    n_minus <- ifelse(ai <= 0, (ai - d) / (2 * bi), -2 * ii / (ai + d))
+    ratio <- ((n0[idx] - n_plus) / (n0[idx] - n_minus)) * exp(-d * dt)
+    next_n[idx] <- (n_plus - ratio * n_minus) / (1 - ratio)
+  }
+
+  # The zero-immigration limit is handled separately, including rate == mortality.
+  no_immigration <- !has_immigration
+  if (any(no_immigration)) {
+    idx <- which(no_immigration)
+    az  <- a[idx]
+    bz  <- b[idx]
+    nz  <- n0[idx]
+    value <- numeric(length(idx))
+    zero_rate <- az == 0
+    value[zero_rate] <- nz[zero_rate] /
+      (1 + bz[zero_rate] * nz[zero_rate] * dt)
+
+    positive <- az > 0 & nz > 0
+    phi <- -expm1(-az[positive] * dt) / az[positive]
+    value[positive] <- nz[positive] /
+      (exp(-az[positive] * dt) +
+         bz[positive] * nz[positive] * phi)
+
+    negative <- az < 0
+    exp_adt <- exp(az[negative] * dt)
+    phi <- expm1(az[negative] * dt) / az[negative]
+    value[negative] <- nz[negative] * exp_adt /
+      (1 + bz[negative] * nz[negative] * phi)
+    next_n[idx] <- value
+  }
+
+  # Round-off can only create tiny negative values; the analytic solution is
+  # non-negative for non-negative initial abundance and immigration.
+  result[active] <- pmax(next_n, 0)
+  result
+}
+
 plankton_logistic <- function(params, n, n_pp, n_other, rates, dt = 0.1, ...) {
   plankton_state$time <- plankton_state$time + dt
-  f <- params@rr_pp * n_pp * (1 - n_pp / params@cc_pp / plankton_state$factor) +
-    anchovy_immigration - rates$resource_mort * n_pp
-  f[is.na(f)] <- 0
-  return(n_pp + dt * f)
+  exact_logistic_immigration_step(
+    n = n_pp,
+    rate = params@rr_pp,
+    capacity = params@cc_pp * plankton_state$factor,
+    immigration = anchovy_immigration,
+    mortality = rates$resource_mort,
+    dt = dt
+  )
 }
 
 norm_box_pred_kernel <- function(ppmr, ppmr_min, ppmr_max) {
@@ -962,4 +1040,195 @@ cat(sprintf(
   total_trigger_rows$rel_amplitude[total_trigger_rows$schedule == "Threshold (troughs, total)"],
   theta_plain_msy_df$mean_total[theta_plain_msy_df$schedule == "Threshold (peaks)" & theta_plain_msy_df$boost_level == 9],
   theta_plain_msy_df$rel_amplitude[theta_plain_msy_df$schedule == "Threshold (peaks)" & theta_plain_msy_df$boost_level == 9]
+))
+
+################################################################################
+# Section 5: what's-next item 1 -- sweep knife_edge_size itself. Everything
+# in Sections 1-4 used knife_edge=10, matched to Section 1's own yield peak.
+# Does a smaller knife-edge (catching more of the juvenile boom that cutting
+# cannibalism creates) make this model genuinely fishing-collapse-prone the
+# way Day 39 found for the ORIGINAL model, or does theta=0.3 remove that
+# failure mode at every gear setting?
+#
+# Constant schedule only (thresholdFMort() untouched, per the earlier
+# decision not to pursue the total-biomass trigger further). Gear cutoff only
+# matters once effort>0, so the unfished fork state (last_n_theta_low,
+# last_npp_theta_low) is reused unchanged across every knife_edge_size --
+# no re-forking needed.
+################################################################################
+
+# Unfished total biomass reference (effort=0) -- gear-independent, computed
+# once rather than once per knife_edge value.
+p_ref <- make_anchovy_fishing_params_theta(theta_low, 1, knife_edge_size = 10)
+p_ref@initial_n[]    <- last_n_theta_low
+p_ref@initial_n_pp[] <- last_npp_theta_low
+sim_unfished <- project(p_ref, t_max = scan_summary_window, dt = p2$dt, t_save = 0.2,
+                        t_start = t_fork, progress_bar = FALSE, effort = 0)
+tv_uf   <- as.numeric(dimnames(sim_unfished@n)[[1]])
+keep_uf <- tv_uf > t_fork + scan_summary_window / 2
+total_unfished_ref <- mean(unname(getBiomass(sim_unfished)[, "Anchovy"])[keep_uf])
+
+knife_edge_seq_sweep <- c(3, 5, 7, 10, 15, 20)   # spans well below/above w_mat=10
+fish_level_seq_ke    <- c(1, 2, 3, 5, 9, 20, 50, 100)
+
+knife_edge_sweep_df <- bind_rows(lapply(knife_edge_seq_sweep, function(ke) {
+  p_ke <- make_anchovy_fishing_params_theta(theta_low, 1, knife_edge_size = ke)
+  cannibalism_fishing_probe(p_ke, last_n_theta_low, last_npp_theta_low, fish_level_seq_ke) %>%
+    mutate(knife_edge_size = ke)
+}))
+write.csv(knife_edge_sweep_df, file.path("interesting_plots", "day40_knife_edge_sweep.csv"), row.names = FALSE)
+cat(sprintf(
+  "Section 5 (knife_edge sweep, theta=0.3, unfished total biomass reference=%.4f): see day40_knife_edge_sweep.csv.\n",
+  total_unfished_ref
+))
+print(knife_edge_sweep_df)
+
+ke_biomass_plot <- ggplot(knife_edge_sweep_df, aes(x = fish_level, y = pmax(mean_total, 1e-10),
+                                                    color = factor(knife_edge_size))) +
+  geom_line() +
+  geom_point(size = 2) +
+  scale_x_log10() +
+  scale_y_log10() +
+  labs(x = "Fishing effort (Constant, log scale)", y = "Mean total biomass (log scale)",
+       color = "knife_edge_size",
+       title = "Knife-edge sweep: smaller gear cutoffs genuinely collapse the population",
+       subtitle = "theta=0.3, interaction_resource=1 -- knife_edge=3/5 crash toward extinction by fish_level=50-100; knife_edge=10 (the aim model) never does") +
+  theme_minimal()
+ke_biomass_plot
+save_plot(ke_biomass_plot, "day40_knife_edge_sweep_biomass.png", width = 9, height = 6)
+
+ke_yield_plot <- ggplot(knife_edge_sweep_df, aes(x = fish_level, y = mean_yield, color = factor(knife_edge_size))) +
+  geom_line() +
+  geom_point(size = 2) +
+  scale_x_log10() +
+  labs(x = "Fishing effort (Constant, log scale)", y = "Mean yield",
+       color = "knife_edge_size",
+       title = "Knife-edge sweep: yield vs. effort",
+       subtitle = "theta=0.3, interaction_resource=1 -- knife_edge=3/5's late uptick coincides with population collapse, not a real yield gain (see caveat)") +
+  theme_minimal()
+ke_yield_plot
+save_plot(ke_yield_plot, "day40_knife_edge_sweep_yield.png", width = 9, height = 6)
+
+ke_collapse_summary <- knife_edge_sweep_df %>%
+  group_by(knife_edge_size) %>%
+  summarise(fraction_of_unfished_at_100 = mean_total[fish_level == 100] / total_unfished_ref,
+           collapses_by_fish_level_100 = fraction_of_unfished_at_100 < 0.01, .groups = "drop")
+cat("Fraction of unfished total biomass remaining at fish_level=100, by knife_edge_size:\n")
+print(ke_collapse_summary)
+
+cat(sprintf(
+  "Confirms the What's Next hypothesis: knife_edge=3 and 5 (below w_mat=%.0f) genuinely collapse this model -- biomass falls to %.1f%% and %.3f%% of the unfished reference (%.4f) by fish_level=100, both essentially extinct. knife_edge=7 is intermediate (declining but not yet extinct at fish_level=100). knife_edge=10, the aim model from Sections 1-4, never collapses anywhere in [1,100]. knife_edge=15/20 (above w_mat) barely respond to fishing at all -- the gear catches so few individuals that effort is nearly irrelevant to both biomass and yield. Cutting cannibalism (theta=0.3) does NOT remove the collapse failure mode Day 39 found in the original model; it just moves it to a different, smaller region of gear-selectivity space that Sections 1-4's own knife_edge=10 choice happened to sit outside of.\n",
+  p2$w_mat, 100 * ke_collapse_summary$fraction_of_unfished_at_100[ke_collapse_summary$knife_edge_size == 3],
+  100 * ke_collapse_summary$fraction_of_unfished_at_100[ke_collapse_summary$knife_edge_size == 5],
+  total_unfished_ref
+))
+
+cat("Caveat: the late yield UPTICK for knife_edge=3 (fish_level=20) and knife_edge=5 (fish_level=50) right before their own full collapse is not a real exploitable yield gain -- it coincides with the population being fished down hard inside the averaging window, not a new equilibrium. Read the biomass plot before the yield plot at these gear/effort combinations. Also worth flagging: none of Sections 1-5 use second_order_w=TRUE / method='tr_bdf2' (MIZER-AGENTS.md's own recommendation for studies of oscillation/collapse dynamics) -- consistent with every prior day's own convention, but the near-extinction values reported here (down to ~1e-18) have not been checked against the second-order scheme for numerical-diffusion artefacts.\n")
+
+################################################################################
+# Section 6: threshold_frac x boost heatmap -- every schedule so far
+# (Sections 2-5) calibrated threshold_ke ONCE, at the Constant cycle's own
+# median (probs=0.5). Day 38 found threshold_frac=0.6 fixed a double-firing
+# issue that 0.5 had on a different model, but nothing in this project has
+# swept threshold placement itself as its own grid dimension against boost --
+# does where the threshold sits change how the schedule responds to boost
+# strength, on top of the usual boost-alone sweep?
+#
+# Reuses Section 3's own MSY floor and gear (ke_compare, baseline_effort_msy).
+# threshold_frac only changes WHERE on the same Constant cycle the quantile
+# is taken, not the cycle itself, so only ONE Constant simulation is needed
+# for the whole grid -- cheaper than Section 5's knife_edge sweep, which
+# needed independent gear (and hence independent dynamics) per point.
+################################################################################
+
+threshold_frac_seq <- c(0.3, 0.4, 0.5, 0.6, 0.7)
+boost_seq_heatmap  <- c(5, 15, 30)
+
+p_heatmap <- make_anchovy_fishing_params_theta(theta_low, 1, knife_edge_size = ke_compare)
+p_heatmap@initial_n[]    <- last_n_theta_low
+p_heatmap@initial_n_pp[] <- last_npp_theta_low
+
+sim_const_heatmap <- project(p_heatmap, t_max = scan_post_fork_years, dt = p2$dt, t_save = 0.2,
+                             t_start = t_fork, progress_bar = FALSE, effort = baseline_effort_msy)
+bp_const_heatmap       <- compute_selected_biomass_series(sim_const_heatmap, p_heatmap, scan_t_cut)
+sharpness_heatmap      <- 0.02 * (max(bp_const_heatmap) - min(bp_const_heatmap))
+const_metrics_heatmap  <- scan_metrics_layered(sim_const_heatmap)
+
+run_threshold_boost_case <- function(threshold_frac, boost, mode) {
+  threshold_val <- unname(quantile(bp_const_heatmap, probs = threshold_frac))
+  schedule_name <- if (mode == "above") "Threshold (peaks)" else "Threshold (troughs)"
+  p_rule <- attach_threshold_rule(p_heatmap, threshold = threshold_val, fish_level = boost,
+                                  background_level = baseline_effort_msy, mode = mode,
+                                  sharpness = sharpness_heatmap)
+  p_rule@initial_n[]    <- last_n_theta_low
+  p_rule@initial_n_pp[] <- last_npp_theta_low
+  sim <- project(p_rule, t_max = scan_post_fork_years, dt = p2$dt, t_save = 0.2,
+                 t_start = t_fork, progress_bar = FALSE, effort = 1)
+  diag <- threshold_diagnostics(sim, threshold_val, boost, baseline_effort_msy, mode,
+                                sharpness_heatmap, scan_t_cut)
+  cbind(scan_metrics_layered(sim), threshold_frac = threshold_frac, boost_level = boost,
+       schedule = schedule_name, mean_effort = diag$mean_effort, threshold_value = threshold_val)
+}
+
+threshold_boost_df <- bind_rows(lapply(threshold_frac_seq, function(tf) {
+  bind_rows(lapply(boost_seq_heatmap, function(b) {
+    bind_rows(lapply(c("above", "below"), function(m) run_threshold_boost_case(tf, b, m)))
+  }))
+}))
+write.csv(threshold_boost_df, file.path("interesting_plots", "day40_threshold_boost_heatmap.csv"), row.names = FALSE)
+cat(sprintf(
+  "Section 6 (threshold_frac x boost grid, plain theta=0.3, knife_edge=%d, floor=MSY=%.2g): see day40_threshold_boost_heatmap.csv. Constant's own mean_total=%.4f, mean_yield=%.4f.\n",
+  ke_compare, baseline_effort_msy, const_metrics_heatmap$mean_total, const_metrics_heatmap$mean_yield
+))
+print(threshold_boost_df)
+
+threshold_heatmap_amplitude <- ggplot(threshold_boost_df,
+                                      aes(x = factor(boost_level), y = factor(threshold_frac), fill = rel_amplitude)) +
+  geom_tile() +
+  geom_text(aes(label = sprintf("%.2f", rel_amplitude)), size = 3, color = "white") +
+  scale_fill_viridis_c(option = "magma") +
+  facet_wrap(~schedule) +
+  labs(x = "Boost level (on-period fish_level)", y = "threshold_frac (quantile of the Constant cycle)",
+       fill = "rel_amplitude",
+       title = "Does threshold placement interact with boost strength? (relative amplitude)",
+       subtitle = sprintf("Plain theta=0.3, knife_edge=%d, floor=MSY effort=%.2g", ke_compare, baseline_effort_msy)) +
+  theme_minimal()
+save_plot(threshold_heatmap_amplitude, "day40_threshold_heatmap_amplitude.png", width = 10, height = 6)
+
+threshold_heatmap_total <- ggplot(threshold_boost_df,
+                                  aes(x = factor(boost_level), y = factor(threshold_frac), fill = mean_total)) +
+  geom_tile() +
+  geom_text(aes(label = sprintf("%.3f", mean_total)), size = 3, color = "white") +
+  scale_fill_viridis_c() +
+  facet_wrap(~schedule) +
+  labs(x = "Boost level (on-period fish_level)", y = "threshold_frac (quantile of the Constant cycle)",
+       fill = "mean_total",
+       title = "Does threshold placement interact with boost strength? (mean total biomass)",
+       subtitle = sprintf("Plain theta=0.3, knife_edge=%d, floor=MSY effort=%.2g -- Constant's own mean_total=%.4f",
+                          ke_compare, baseline_effort_msy, const_metrics_heatmap$mean_total)) +
+  theme_minimal()
+save_plot(threshold_heatmap_total, "day40_threshold_heatmap_total.png", width = 10, height = 6)
+
+threshold_heatmap_yield <- ggplot(threshold_boost_df,
+                                  aes(x = factor(boost_level), y = factor(threshold_frac), fill = mean_yield)) +
+  geom_tile() +
+  geom_text(aes(label = sprintf("%.3f", mean_yield)), size = 3, color = "white") +
+  scale_fill_viridis_c(option = "cividis") +
+  facet_wrap(~schedule) +
+  labs(x = "Boost level (on-period fish_level)", y = "threshold_frac (quantile of the Constant cycle)",
+       fill = "mean_yield",
+       title = "Does threshold placement interact with boost strength? (mean yield)",
+       subtitle = sprintf("Plain theta=0.3, knife_edge=%d, floor=MSY effort=%.2g -- Constant's own mean_yield=%.4f",
+                          ke_compare, baseline_effort_msy, const_metrics_heatmap$mean_yield)) +
+  theme_minimal()
+save_plot(threshold_heatmap_yield, "day40_threshold_heatmap_yield.png", width = 10, height = 6)
+
+cat(sprintf(
+  "Section 6 summary: rel_amplitude ranges %.2f-%.2f across the threshold_frac x boost grid -- %s\n",
+  min(threshold_boost_df$rel_amplitude), max(threshold_boost_df$rel_amplitude),
+  if (max(threshold_boost_df$rel_amplitude) > 1.9) {
+    "some cell(s) approach the ~2.0 near-extinction ceiling."
+  } else {
+    "nowhere near the ~2.0 near-extinction ceiling Day 39 found in the original model."
+  }
 ))
