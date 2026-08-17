@@ -130,6 +130,8 @@ ul.task-list li input[type="checkbox"] {
   <li><a href="#sanity-check-swept-across-every-boost-level" id="toc-sanity-check-swept-across-every-boost-level" class="nav-link" data-scroll-target="#sanity-check-swept-across-every-boost-level">Sanity Check, Swept Across Every Boost Level</a></li>
   <li><a href="#a-caveat-worth-flagging" id="toc-a-caveat-worth-flagging" class="nav-link" data-scroll-target="#a-caveat-worth-flagging">A Caveat Worth Flagging</a></li>
   </ul></li>
+  <li><a href="#section-6-the-ground-shifts-sections-1-3-were-built-on-the-wrong-mortality" id="toc-section-6-the-ground-shifts-sections-1-3-were-built-on-the-wrong-mortality" class="nav-link" data-scroll-target="#section-6-the-ground-shifts-sections-1-3-were-built-on-the-wrong-mortality">Section 6: The Ground Shifts – Sections 1-3 Were Built on the Wrong Mortality</a></li>
+  <li><a href="#section-7-the-threshold-x-boost-heatmap" id="toc-section-7-the-threshold-x-boost-heatmap" class="nav-link" data-scroll-target="#section-7-the-threshold-x-boost-heatmap">Section 7: The Threshold x Boost Heatmap</a></li>
   <li><a href="#whats-next" id="toc-whats-next" class="nav-link" data-scroll-target="#whats-next">What’s Next</a></li>
   </ul>
 </nav>
@@ -285,6 +287,78 @@ ul.task-list li input[type="checkbox"] {
 <hr>
 </section>
 </section>
+<section id="section-6-the-ground-shifts-sections-1-3-were-built-on-the-wrong-mortality" class="level2">
+<h2 class="anchored" data-anchor-id="section-6-the-ground-shifts-sections-1-3-were-built-on-the-wrong-mortality">Section 6: The Ground Shifts – Sections 1-3 Were Built on the Wrong Mortality</h2>
+<p>Everything above ran through <code>make_anchovy_fishing_params_theta()</code>, which calls <code>setAnchovyMort()</code> to write the paper’s own senescence/background mortality curve, then calls <code>species_params(params) &lt;- sp</code> afterward to set <code>interaction_resource</code>. That second call runs <code>setParams()</code> internally, which – unless mortality was set through <code>ext_mort&lt;-()</code> rather than a direct <code>@mu_b</code> write – silently recomputes background mortality from mizer’s own <code>z0</code> defaults, discarding whatever <code>setAnchovyMort()</code> had just written.</p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>w (g)</th>
+<th>mu_b, OLD (buggy)</th>
+<th>mu_b, NEW (fixed)</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>0.0003</td>
+<td>0.148</td>
+<td>1.000</td>
+</tr>
+<tr class="even">
+<td>0.10</td>
+<td>0.148</td>
+<td>0.232</td>
+</tr>
+<tr class="odd">
+<td>1.02</td>
+<td>0.148</td>
+<td>0.320</td>
+</tr>
+<tr class="even">
+<td>10.1</td>
+<td>0.148</td>
+<td>3.168</td>
+</tr>
+<tr class="odd">
+<td>65.7</td>
+<td>0.148</td>
+<td>20.679</td>
+</tr>
+</tbody>
+</table>
+<p>Every model in Sections 1-3 – baseline and every <code>theta</code> variant alike – had a <strong>flat 0.148 background mortality at every size</strong>, not the paper’s own U-shaped curve (high for larvae, a minimum around <code>w=0.5g</code>, rising steeply again toward <code>w_inf</code>). Confirmed directly, not inferred: <code>finding_jams/40_changed_mort_experiments.R</code> builds both versions from identical parameters and reads <code>ext_mort()</code>/<code>@mu_b</code> straight off them.</p>
+<p>Before trusting what that changes, the fix’s own cycle period needed checking rather than assumed – an early, under-sampled look at the corrected model’s unfished trajectory (peaks read off only every 4th year) suggested a wildly different ~16-year cycle, which would have meant every timing constant this project uses (<code>t_fork=20</code>, <code>scan_summary_window=12</code>) was wrong too. Re-checked at proper resolution, that was a sampling aliasing artefact, not a real effect: peak spacing over a 60-year unfished run comes out at 5.0-6.0 years, consistent with the original ~5-6yr figure. <code>t_fork=20</code>/<code>scan_summary_window=12</code> survive the fix unchanged.</p>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="../interesting_plots/day40_changed_mort_yield.png" class="img-fluid figure-img"></p>
+<figcaption>Under corrected mortality, theta=0.3’s yield curve is no longer cleanly single-peaked.</figcaption>
+</figure>
+</div>
+<p>What doesn’t survive is Section 1’s own headline shape. A first-pass, 8-point redo (<code>fish_level</code> = 1,2,3,5,9,20,50,100) at <code>knife_edge=10</code> finds the <code>theta=1</code> baseline almost unchanged from Day 39’s own buggy-mortality numbers (<code>mean_yield=0.0985</code> vs.&nbsp;<code>0.09846</code> at <code>fish_level=100</code> – cannibalism-driven predation mortality dominates there, so the background-mortality error barely mattered for that case). <code>theta=0.3</code> is a different story: <code>mean_total</code> drops from the buggy version’s own <code>0.56</code>-<code>0.65</code> range to <code>0.36</code>-<code>0.43</code>, and the clean peak-at-<code>fish_level=2</code>-then-decline shape Section 1 above reports does not hold. The corrected yield curve rises to a local peak near <code>fish_level=9</code>, dips at 20, then rises <em>again</em> by 50-100 – ending higher than the local peak. Not a clean sustainable-yield shape.</p>
+<p>This is only a coarse, first-pass grid – not a finished replacement for Section 1’s own fine sweep – and it doesn’t retroactively invalidate Sections 1-3’s own internal logic (the schedule comparisons, the compositional-shift finding) so much as it puts a question mark over whether <code>theta=0.3</code>/<code>interaction_resource=1</code> was ever the right point to be studying in the first place. That question – redoing Day 39 Section 3’s own <code>theta x interaction_resource</code> grid under the corrected mortality, to see whether a different combination would have served this project’s aim better – is queued as an overnight batch job (see What’s Next) rather than answered here.</p>
+<p>One smaller piece of housekeeping alongside the mortality fix: an exact analytic solution for the logistic-plus-immigration resource step (replacing the old explicit-Euler <code>plankton_logistic()</code>) has been adopted in both <code>40_experiments.R</code> and <code>40_changed_mort_experiments.R</code> – a correctness improvement at the same <code>dt</code>, not yet tested as a route to a larger, faster <code>dt</code>.</p>
+<hr>
+</section>
+<section id="section-7-the-threshold-x-boost-heatmap" class="level2">
+<h2 class="anchored" data-anchor-id="section-7-the-threshold-x-boost-heatmap">Section 7: The Threshold x Boost Heatmap</h2>
+<p>Every threshold schedule in Sections 2-3 calibrated <code>threshold_ke</code> once, at the Constant cycle’s own median (<code>probs=0.5</code>), and only ever swept boost against that fixed choice. Does <em>where</em> the threshold sits change how the schedule responds to boost strength, on top of the boost-alone story already told? <code>threshold_frac</code> in <code>c(0.3, 0.4, 0.5, 0.6, 0.7)</code> against <code>boost</code> in <code>c(5, 15, 30)</code>, plain <code>theta=0.3</code> model, <code>knife_edge=10</code>, floor at this model’s own MSY effort – the same setup as Section 3, with threshold placement now a genuine second axis instead of a fixed constant.</p>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="../interesting_plots/day40_threshold_heatmap_amplitude.png" class="img-fluid figure-img"></p>
+<figcaption>Peaks barely cares where the threshold sits; troughs cares a great deal, especially at high boost.</figcaption>
+</figure>
+</div>
+<p>The two schedules could not be more different in how they respond to this second axis. “Peaks” amplitude is almost flat across <code>threshold_frac</code> at every boost (<code>0.98</code>-<code>0.99</code> at boost=5, <code>1.20</code>-<code>1.25</code> at boost=15, <code>1.22</code>-<code>1.29</code> at boost=30) – consistent with Section 3’s own finding that peaks’ cycle shape barely changes with boost at all, threshold placement doesn’t move that story either. “Troughs” is the opposite: at boost=5 it’s flat and low (<code>0.65</code>-<code>0.66</code>) regardless of <code>threshold_frac</code>, but at boost=30 it climbs steeply and monotonically with <code>threshold_frac</code>, from <code>1.00</code> at <code>0.3</code> up to <code>1.34</code> at <code>0.7</code>. A higher <code>threshold_frac</code> means “below threshold” is true for more of the cycle, so at high boost the schedule is effectively on for longer – a real interaction between the two axes that a boost-only sweep, run at the conventional <code>threshold_frac=0.5</code>, would never surface.</p>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="../interesting_plots/day40_threshold_heatmap_yield.png" class="img-fluid figure-img"></p>
+<figcaption>The single best yield in the whole grid isn’t at the conventional threshold_frac=0.5 – it’s troughs at threshold_frac=0.4, boost=30.</figcaption>
+</figure>
+</div>
+<p>The yield heatmap turns that interaction into something actionable. For “peaks”, yield actually <em>falls</em> slightly as <code>threshold_frac</code> rises (<code>0.119</code>-<code>0.123</code> at <code>0.3</code> down to <code>0.116</code>-<code>0.117</code> at <code>0.7</code>) – a higher threshold narrows the firing window to right at the very top of the cycle, catching less. For “troughs” at boost=30, yield is emphatically not monotonic in <code>threshold_frac</code>: <code>0.122</code> at <code>0.3</code>, then a jump to <code>0.136</code> at <code>0.4</code> – the single best cell anywhere in this grid, beating Constant’s own <code>0.1126</code> by about 21% – before <em>dropping back</em> to <code>0.133</code>-<code>0.134</code> at <code>0.5</code>-<code>0.7</code>. The conventional <code>threshold_frac=0.5</code> choice used everywhere else in this project is not the optimum here; it sits just past it. And that same cell (troughs, <code>threshold_frac=0.4</code>, boost=30) has a <em>lower</em> relative amplitude (<code>1.08</code>) than every other troughs cell at boost=30 (<code>1.27</code>-<code>1.34</code>) – better yield and less risk than the default threshold, at the same boost. A boost-only sweep fixed at <code>threshold_frac=0.5</code> (exactly what Sections 2-3 did) would have reported <code>0.133</code> as the best troughs-at-boost=30 result and never found the <code>0.136</code> sitting one column over.</p>
+<p>Mean total biomass tells a smaller piece of the same story: “peaks” sits above Constant’s own <code>0.6051</code> everywhere in the grid (<code>0.624</code>-<code>0.642</code>), “troughs” sits at or below it everywhere except boost=30 (<code>0.596</code>-<code>0.600</code>) – both consistent with Section 3’s own boost-only findings, with <code>threshold_frac</code> moving the numbers only slightly rather than flipping the story.</p>
+<hr>
+</section>
 <section id="whats-next" class="level2">
 <h2 class="anchored" data-anchor-id="whats-next">What’s Next</h2>
 <p>Nothing tested today actually broke this model – every schedule, every boost, every floor tried still left total biomass cycling normally. That’s itself the open question: what, short of the extreme high-effort regime Day 39 used on the <em>original</em> model, would actually collapse the plain <code>theta=0.3</code> model under fishing? A few concrete angles on that, beyond the general follow-ups below:</p>
@@ -295,6 +369,11 @@ ul.task-list li input[type="checkbox"] {
 <li><strong>Trigger the schedule off total biomass instead of selected biomass.</strong> Every threshold rule tested so far – today included – triggers <code>thresholdFMort()</code> off <em>selected</em> biomass (<code>f_ref</code>-weighted, effectively the harvestable-size compartment), and “peaks”/“troughs” mean peaks and troughs of that quantity, not of the population as a whole. Section 3’s own boost-swept sanity check found selected and total biomass can diverge sharply under fishing – the troughs=30 case crashed the selected compartment while total biomass kept cycling normally on the back of a juvenile boom. A rule triggered on <em>total</em> biomass instead would be blind to that same compositional shift and would time its boosted fishing off a completely different signal – worth building as a genuinely different schedule, not just a parameter change, to see whether it’s more or less able to collapse this model than the selected-biomass version.</li>
 <li><strong>Chase the troughs=5 yield optimum from Section 2.</strong> It beat everything else in that sweep, including every point in Section 3’s higher-floor version – worth a finer boost grid around it to see whether it’s a genuine local maximum or an artefact of the particular boost values tested.</li>
 <li><strong>Reconcile the sampling-window mismatch.</strong> Section 1’s <code>cannibalism_fishing_probe()</code> and Section 3’s <code>run_layered_ke_case()</code> use different post-fork run lengths and different summary windows – worth standardising on one convention so numbers across sections are directly comparable, rather than flagging the mismatch after the fact each time it surfaces.</li>
+<li><strong>Land the corrected-mortality interaction grid.</strong> <code>40_changed_mort_experiments.R</code>’s own “Overnight” section has the <code>theta x interaction_resource</code> grid queued (same grid as Day 39 Section 3, redone under the fix) but a first live-session attempt ran over an hour without finishing and was cancelled – it needs an actual overnight/batch run before Section 6’s own open question (was <code>theta=0.3</code>/<code>interaction_resource=1</code> ever the right point to study?) has an answer.</li>
+<li><strong>Chase the troughs, threshold_frac=0.4, boost=30 optimum from Section 7.</strong> The single best yield in that whole grid, and it sits one column away from the conventional <code>threshold_frac=0.5</code> – worth a finer grid around <code>threshold_frac in [0.35, 0.45]</code> and boost near 30 to see whether it’s a genuine local maximum or an artefact of the particular grid points tested (the same question Section 2’s own troughs=5 optimum, item 5 above, still has open).</li>
+<li><strong>Widen both of Section 7’s axes.</strong> <code>threshold_frac</code> only ran <code>0.3</code>-<code>0.7</code> and boost only <code>5,15,30</code>. Troughs’ amplitude was still climbing with <code>threshold_frac</code> at the top of that range (<code>1.34</code> at <code>0.7</code>, boost=30, no sign of levelling off), and Section 3’s own boost_seq (<code>3,5,7,9,15,20,30</code>) has finer and wider coverage the heatmap doesn’t yet share – both edges of the grid look like they were cut off before the interaction finished revealing itself, not because the effect stopped.</li>
+<li><strong>Test whether <code>dt</code> can be raised.</strong> The newly-adopted exact analytic resource stepper (replacing the old explicit-Euler <code>plankton_logistic()</code>, now in both <code>40_experiments.R</code> and <code>40_changed_mort_experiments.R</code>) is exact at any step size, so it no longer forces <code>dt</code> small on the resource side specifically. Whether the consumer side (still the default first-order upwind scheme) can also tolerate a larger <code>dt</code> is untested – if it can, every sweep in this project gets proportionally cheaper, including item 7 above.</li>
+<li><strong>Rerun Section 7’s heatmap under the corrected mortality.</strong> Section 7’s whole grid was built on <code>40_experiments.R</code>’s own flawed <code>setAnchovyMort()</code> (Section 6’s own finding) – the same threshold_frac x boost sweep, redone with the fixed, <code>ext_mort&lt;-()</code>-protected mortality function from <code>40_changed_mort_experiments.R</code>, is needed before trusting that the <code>threshold_frac=0.4</code>/boost=30 optimum (item 8) is a real feature of this model and not another artefact of the wrong background mortality.</li>
 </ol>
 
 

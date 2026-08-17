@@ -4,7 +4,8 @@
       "mcp__r-mizer__btw_tool_run_r",
       "WebSearch",
       "WebFetch(domain:sizespectrum.org)",
-      "mcp__r-mizer__btw_tool_docs_help_page"
+      "mcp__r-mizer__btw_tool_docs_help_page",
+      "mcp__r-mizer__btw_tool_env_describe_environment"
     ]
   },
   "enabledMcpjsonServers": [
