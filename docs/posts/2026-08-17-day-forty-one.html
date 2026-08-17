@@ -26,6 +26,41 @@ ul.task-list li input[type="checkbox"] {
   margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
   vertical-align: middle;
 }
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
 </style>
 
 
@@ -74,6 +109,35 @@ ul.task-list li input[type="checkbox"] {
   }
 }</script>
 
+  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
+  <script defer="" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+
+<script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN" && texText && texText.data) {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
+</script>
 
 <link rel="stylesheet" href="../styles.css">
 </head>
@@ -125,6 +189,14 @@ ul.task-list li input[type="checkbox"] {
   <li><a href="#section-3-the-overnight-fine-sweep-knife-edge-is-the-real-lever" id="toc-section-3-the-overnight-fine-sweep-knife-edge-is-the-real-lever" class="nav-link" data-scroll-target="#section-3-the-overnight-fine-sweep-knife-edge-is-the-real-lever">Section 3: The Overnight Fine Sweep – Knife Edge Is the Real Lever</a></li>
   <li><a href="#section-4-does-the-extinction-regime-have-a-real-msy-no." id="toc-section-4-does-the-extinction-regime-have-a-real-msy-no." class="nav-link" data-scroll-target="#section-4-does-the-extinction-regime-have-a-real-msy-no.">Section 4: Does the Extinction Regime Have a Real MSY? No.</a></li>
   <li><a href="#whats-next" id="toc-whats-next" class="nav-link" data-scroll-target="#whats-next">What’s Next</a></li>
+  <li><a href="#appendix-building-the-model-from-scratch" id="toc-appendix-building-the-model-from-scratch" class="nav-link" data-scroll-target="#appendix-building-the-model-from-scratch">Appendix: Building the Model From Scratch</a>
+  <ul class="collapse">
+  <li><a href="#a.1-the-parameters" id="toc-a.1-the-parameters" class="nav-link" data-scroll-target="#a.1-the-parameters">A.1 The Parameters</a></li>
+  <li><a href="#a.2-two-small-functions-mizer-needs" id="toc-a.2-two-small-functions-mizer-needs" class="nav-link" data-scroll-target="#a.2-two-small-functions-mizer-needs">A.2 Two Small Functions mizer Needs</a></li>
+  <li><a href="#a.3-building-the-model" id="toc-a.3-building-the-model" class="nav-link" data-scroll-target="#a.3-building-the-model">A.3 Building the Model</a></li>
+  <li><a href="#a.4-does-it-oscillate" id="toc-a.4-does-it-oscillate" class="nav-link" data-scroll-target="#a.4-does-it-oscillate">A.4 Does It Oscillate?</a></li>
+  <li><a href="#a.5-its-yield-curve" id="toc-a.5-its-yield-curve" class="nav-link" data-scroll-target="#a.5-its-yield-curve">A.5 Its Yield Curve</a></li>
+  </ul></li>
   </ul>
 </nav>
     </div>
@@ -353,8 +425,274 @@ ul.task-list li input[type="checkbox"] {
 <li><strong>The Overnight interaction grid’s own theta x interaction_resource story</strong> (Day 40 Section 0’s <code>interaction_grid_df</code>) still hasn’t had its own growth-recovery/fishing-sensitivity trade-off read all the way through against this post’s own findings – worth reconciling once a target regime is in hand, so the choice is justified on both axes at once rather than picked from the extinction search alone.</li>
 <li><strong>Day 40 Section 7’s threshold_frac x boost heatmap</strong> has still not been rerun under the fixed mortality – lower priority than finding the right regime to run it on in the first place, but still queued.</li>
 </ol>
+<hr>
+</section>
+<section id="appendix-building-the-model-from-scratch" class="level2">
+<h2 class="anchored" data-anchor-id="appendix-building-the-model-from-scratch">Appendix: Building the Model From Scratch</h2>
+<p>Everything above was produced through layers of helper functions accumulated over many days (<code>anchovy_params()</code>, <code>cannibalism_fishing_probe()</code>, <code>run_full_sweep_suite()</code>, and so on, all in <code>finding_jams/40_changed_mort_experiments.R</code>). None of that is visible in the results above, which makes the model itself hard to talk someone through. This appendix builds the same model – <code>theta=0.3</code>, <code>interaction_resource=1</code>, <code>knife_edge=10</code>, the aim model behind every section above – once, directly, with nothing hidden behind a helper function. Every piece is exactly what the rest of this project uses, not a simplified stand-in for it: the paper’s own parameters, the exact analytic resource stepper adopted on Day 40, the same settle-and-rescale procedure used to reach the oscillating state everywhere above.</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(mizer)</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(ggplot2)</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(dplyr)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+</div>
+<section id="a.1-the-parameters" class="level3">
+<h3 class="anchored" data-anchor-id="a.1-the-parameters">A.1 The Parameters</h3>
+<p>These come from the paper this project is based on – physiological rates (growth, reproduction), the predation kernel’s shape, and the background resource’s own dynamics. Nothing here is mizer-specific; it’s just numbers.</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>p <span class="ot">&lt;-</span> <span class="fu">list</span>(</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>  <span class="at">dt =</span> <span class="fl">0.001</span>, <span class="at">dx =</span> <span class="fl">0.1</span>, <span class="at">w_min =</span> <span class="fl">0.0003</span>, <span class="at">w_inf =</span> <span class="fl">66.5</span>,</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">ppmr_min =</span> <span class="dv">100</span>, <span class="at">ppmr_max =</span> <span class="dv">30000</span>, <span class="at">gamma =</span> <span class="dv">750</span>, <span class="at">alpha =</span> <span class="fl">0.85</span>, <span class="at">K =</span> <span class="fl">0.1</span>,</span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">mu_l =</span> <span class="dv">0</span>, <span class="at">w_l =</span> <span class="fl">0.03</span>, <span class="at">rho_l =</span> <span class="dv">5</span>,</span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">mu_0 =</span> <span class="dv">1</span>, <span class="at">rho_b =</span> <span class="sc">-</span><span class="fl">0.25</span>,</span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">w_s =</span> <span class="fl">0.5</span>, <span class="at">rho_s =</span> <span class="dv">1</span>,</span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>  <span class="at">w_mat =</span> <span class="dv">10</span>, <span class="at">rho_m =</span> <span class="dv">15</span>, <span class="at">rho_inf =</span> <span class="fl">0.2</span>, <span class="at">epsilon_R =</span> <span class="fl">0.1</span>,</span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>  <span class="at">w_pp_cutoff =</span> <span class="fl">0.1</span>, <span class="at">r0 =</span> <span class="dv">10</span>, <span class="at">a0 =</span> <span class="dv">100</span>, <span class="at">i0 =</span> <span class="dv">100</span>, <span class="at">rho =</span> <span class="fl">0.85</span>, <span class="at">lambda =</span> <span class="dv">2</span></span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a>theta                 <span class="ot">&lt;-</span> <span class="fl">0.3</span>   <span class="co"># fraction of baseline cannibalism strength kept</span></span>
+<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a>interaction_resource  <span class="ot">&lt;-</span> <span class="dv">1</span>     <span class="co"># this species' access to the background resource</span></span>
+<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a>knife_edge_size       <span class="ot">&lt;-</span> <span class="dv">10</span>    <span class="co"># fishing gear cutoff, in grams</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+</div>
+</section>
+<section id="a.2-two-small-functions-mizer-needs" class="level3">
+<h3 class="anchored" data-anchor-id="a.2-two-small-functions-mizer-needs">A.2 Two Small Functions mizer Needs</h3>
+<p>mizer looks up a predator’s diet shape and the resource’s own dynamics by name, so both need a matching function defined before <code>newMultispeciesParams()</code> is called.</p>
+<p><strong>The predation kernel</strong> says which prey sizes a predator will eat: anything within <code>[ppmr_min, ppmr_max]</code> of its own mass, in a flat “box” – no size in that range is preferred over any other.</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>norm_box_pred_kernel <span class="ot">&lt;-</span> <span class="cf">function</span>(ppmr, ppmr_min, ppmr_max) {</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>  phi <span class="ot">&lt;-</span> <span class="fu">rep</span>(<span class="dv">1</span>, <span class="fu">length</span>(ppmr))</span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>  phi[ppmr <span class="sc">&gt;</span> ppmr_max <span class="sc">|</span> ppmr <span class="sc">&lt;</span> ppmr_min] <span class="ot">&lt;-</span> <span class="dv">0</span></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>  phi[<span class="dv">1</span>] <span class="ot">&lt;-</span> <span class="dv">0</span></span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>  phi <span class="sc">/</span> (<span class="fu">sum</span>(phi) <span class="sc">*</span> (<span class="fu">log</span>(ppmr[<span class="dv">2</span>]) <span class="sc">-</span> <span class="fu">log</span>(ppmr[<span class="dv">1</span>])))</span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+</div>
+<p><strong>The resource’s own dynamics</strong> follow the logistic-plus-immigration equation <span class="math inline">\(\dot n = \text{immigration} + (r - \mu)n - (r/K)n^2\)</span>: ordinary logistic growth toward a carrying capacity <span class="math inline">\(K\)</span>, grazed down by predation mortality <span class="math inline">\(\mu\)</span> from the fish population, plus a constant trickle of immigration (production entering from outside the modelled size range, keeping the very smallest size classes topped up). mizer’s own default resource stepper takes a single explicit-Euler step of this equation each <code>dt</code>; Day 40 of this project replaced that with the exact analytic solution of the same equation instead, adopted here unchanged because it’s exact at any step size rather than an approximation that only holds for small <code>dt</code>.</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>exact_logistic_immigration_step <span class="ot">&lt;-</span> <span class="cf">function</span>(n, rate, capacity, immigration,</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>                                            mortality, dt) {</span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>  result <span class="ot">&lt;-</span> n</span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>  active <span class="ot">&lt;-</span> <span class="fu">is.finite</span>(n) <span class="sc">&amp;</span> <span class="fu">is.finite</span>(rate) <span class="sc">&amp;</span> <span class="fu">is.finite</span>(capacity) <span class="sc">&amp;</span></span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>    <span class="fu">is.finite</span>(immigration) <span class="sc">&amp;</span> <span class="fu">is.finite</span>(mortality) <span class="sc">&amp;</span></span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>    rate <span class="sc">&gt;</span> <span class="dv">0</span> <span class="sc">&amp;</span> capacity <span class="sc">&gt;</span> <span class="dv">0</span> <span class="sc">&amp;</span> immigration <span class="sc">&gt;=</span> <span class="dv">0</span></span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>  <span class="cf">if</span> (dt <span class="sc">==</span> <span class="dv">0</span> <span class="sc">||</span> <span class="sc">!</span><span class="fu">any</span>(active)) <span class="fu">return</span>(result)</span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a>  n0 <span class="ot">&lt;-</span> n[active]; r <span class="ot">&lt;-</span> rate[active]; k <span class="ot">&lt;-</span> capacity[active]</span>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a>  i  <span class="ot">&lt;-</span> immigration[active]; mu <span class="ot">&lt;-</span> mortality[active]</span>
+<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a>  a  <span class="ot">&lt;-</span> r <span class="sc">-</span> mu; b <span class="ot">&lt;-</span> r <span class="sc">/</span> k</span>
+<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a>  next_n <span class="ot">&lt;-</span> <span class="fu">numeric</span>(<span class="fu">length</span>(n0))</span>
+<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-14"><a href="#cb4-14" aria-hidden="true" tabindex="-1"></a>  <span class="co"># With immigration the quadratic has one positive and one negative root;</span></span>
+<span id="cb4-15"><a href="#cb4-15" aria-hidden="true" tabindex="-1"></a>  <span class="co"># the alternative root formulae avoid cancellation when abs(a) is large.</span></span>
+<span id="cb4-16"><a href="#cb4-16" aria-hidden="true" tabindex="-1"></a>  has_immigration <span class="ot">&lt;-</span> i <span class="sc">&gt;</span> <span class="dv">0</span></span>
+<span id="cb4-17"><a href="#cb4-17" aria-hidden="true" tabindex="-1"></a>  <span class="cf">if</span> (<span class="fu">any</span>(has_immigration)) {</span>
+<span id="cb4-18"><a href="#cb4-18" aria-hidden="true" tabindex="-1"></a>    idx <span class="ot">&lt;-</span> <span class="fu">which</span>(has_immigration)</span>
+<span id="cb4-19"><a href="#cb4-19" aria-hidden="true" tabindex="-1"></a>    ai <span class="ot">&lt;-</span> a[idx]; bi <span class="ot">&lt;-</span> b[idx]; ii <span class="ot">&lt;-</span> i[idx]</span>
+<span id="cb4-20"><a href="#cb4-20" aria-hidden="true" tabindex="-1"></a>    d  <span class="ot">&lt;-</span> <span class="fu">sqrt</span>(ai<span class="sc">^</span><span class="dv">2</span> <span class="sc">+</span> <span class="dv">4</span> <span class="sc">*</span> bi <span class="sc">*</span> ii)</span>
+<span id="cb4-21"><a href="#cb4-21" aria-hidden="true" tabindex="-1"></a>    n_plus  <span class="ot">&lt;-</span> <span class="fu">ifelse</span>(ai <span class="sc">&gt;=</span> <span class="dv">0</span>, (ai <span class="sc">+</span> d) <span class="sc">/</span> (<span class="dv">2</span> <span class="sc">*</span> bi), <span class="dv">2</span> <span class="sc">*</span> ii <span class="sc">/</span> (d <span class="sc">-</span> ai))</span>
+<span id="cb4-22"><a href="#cb4-22" aria-hidden="true" tabindex="-1"></a>    n_minus <span class="ot">&lt;-</span> <span class="fu">ifelse</span>(ai <span class="sc">&lt;=</span> <span class="dv">0</span>, (ai <span class="sc">-</span> d) <span class="sc">/</span> (<span class="dv">2</span> <span class="sc">*</span> bi), <span class="sc">-</span><span class="dv">2</span> <span class="sc">*</span> ii <span class="sc">/</span> (ai <span class="sc">+</span> d))</span>
+<span id="cb4-23"><a href="#cb4-23" aria-hidden="true" tabindex="-1"></a>    ratio <span class="ot">&lt;-</span> ((n0[idx] <span class="sc">-</span> n_plus) <span class="sc">/</span> (n0[idx] <span class="sc">-</span> n_minus)) <span class="sc">*</span> <span class="fu">exp</span>(<span class="sc">-</span>d <span class="sc">*</span> dt)</span>
+<span id="cb4-24"><a href="#cb4-24" aria-hidden="true" tabindex="-1"></a>    next_n[idx] <span class="ot">&lt;-</span> (n_plus <span class="sc">-</span> ratio <span class="sc">*</span> n_minus) <span class="sc">/</span> (<span class="dv">1</span> <span class="sc">-</span> ratio)</span>
+<span id="cb4-25"><a href="#cb4-25" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb4-26"><a href="#cb4-26" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-27"><a href="#cb4-27" aria-hidden="true" tabindex="-1"></a>  <span class="co"># The zero-immigration limit is handled separately, including rate == mortality.</span></span>
+<span id="cb4-28"><a href="#cb4-28" aria-hidden="true" tabindex="-1"></a>  no_immigration <span class="ot">&lt;-</span> <span class="sc">!</span>has_immigration</span>
+<span id="cb4-29"><a href="#cb4-29" aria-hidden="true" tabindex="-1"></a>  <span class="cf">if</span> (<span class="fu">any</span>(no_immigration)) {</span>
+<span id="cb4-30"><a href="#cb4-30" aria-hidden="true" tabindex="-1"></a>    idx <span class="ot">&lt;-</span> <span class="fu">which</span>(no_immigration)</span>
+<span id="cb4-31"><a href="#cb4-31" aria-hidden="true" tabindex="-1"></a>    az <span class="ot">&lt;-</span> a[idx]; bz <span class="ot">&lt;-</span> b[idx]; nz <span class="ot">&lt;-</span> n0[idx]</span>
+<span id="cb4-32"><a href="#cb4-32" aria-hidden="true" tabindex="-1"></a>    value <span class="ot">&lt;-</span> <span class="fu">numeric</span>(<span class="fu">length</span>(idx))</span>
+<span id="cb4-33"><a href="#cb4-33" aria-hidden="true" tabindex="-1"></a>    zero_rate <span class="ot">&lt;-</span> az <span class="sc">==</span> <span class="dv">0</span></span>
+<span id="cb4-34"><a href="#cb4-34" aria-hidden="true" tabindex="-1"></a>    value[zero_rate] <span class="ot">&lt;-</span> nz[zero_rate] <span class="sc">/</span> (<span class="dv">1</span> <span class="sc">+</span> bz[zero_rate] <span class="sc">*</span> nz[zero_rate] <span class="sc">*</span> dt)</span>
+<span id="cb4-35"><a href="#cb4-35" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-36"><a href="#cb4-36" aria-hidden="true" tabindex="-1"></a>    positive <span class="ot">&lt;-</span> az <span class="sc">&gt;</span> <span class="dv">0</span> <span class="sc">&amp;</span> nz <span class="sc">&gt;</span> <span class="dv">0</span></span>
+<span id="cb4-37"><a href="#cb4-37" aria-hidden="true" tabindex="-1"></a>    phi <span class="ot">&lt;-</span> <span class="sc">-</span><span class="fu">expm1</span>(<span class="sc">-</span>az[positive] <span class="sc">*</span> dt) <span class="sc">/</span> az[positive]</span>
+<span id="cb4-38"><a href="#cb4-38" aria-hidden="true" tabindex="-1"></a>    value[positive] <span class="ot">&lt;-</span> nz[positive] <span class="sc">/</span> (<span class="fu">exp</span>(<span class="sc">-</span>az[positive] <span class="sc">*</span> dt) <span class="sc">+</span> bz[positive] <span class="sc">*</span> nz[positive] <span class="sc">*</span> phi)</span>
+<span id="cb4-39"><a href="#cb4-39" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-40"><a href="#cb4-40" aria-hidden="true" tabindex="-1"></a>    negative <span class="ot">&lt;-</span> az <span class="sc">&lt;</span> <span class="dv">0</span></span>
+<span id="cb4-41"><a href="#cb4-41" aria-hidden="true" tabindex="-1"></a>    exp_adt <span class="ot">&lt;-</span> <span class="fu">exp</span>(az[negative] <span class="sc">*</span> dt)</span>
+<span id="cb4-42"><a href="#cb4-42" aria-hidden="true" tabindex="-1"></a>    phi <span class="ot">&lt;-</span> <span class="fu">expm1</span>(az[negative] <span class="sc">*</span> dt) <span class="sc">/</span> az[negative]</span>
+<span id="cb4-43"><a href="#cb4-43" aria-hidden="true" tabindex="-1"></a>    value[negative] <span class="ot">&lt;-</span> nz[negative] <span class="sc">*</span> exp_adt <span class="sc">/</span> (<span class="dv">1</span> <span class="sc">+</span> bz[negative] <span class="sc">*</span> nz[negative] <span class="sc">*</span> phi)</span>
+<span id="cb4-44"><a href="#cb4-44" aria-hidden="true" tabindex="-1"></a>    next_n[idx] <span class="ot">&lt;-</span> value</span>
+<span id="cb4-45"><a href="#cb4-45" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb4-46"><a href="#cb4-46" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-47"><a href="#cb4-47" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Round-off can only create tiny negative values; the analytic solution is</span></span>
+<span id="cb4-48"><a href="#cb4-48" aria-hidden="true" tabindex="-1"></a>  <span class="co"># non-negative for non-negative initial abundance and immigration.</span></span>
+<span id="cb4-49"><a href="#cb4-49" aria-hidden="true" tabindex="-1"></a>  result[active] <span class="ot">&lt;-</span> <span class="fu">pmax</span>(next_n, <span class="dv">0</span>)</span>
+<span id="cb4-50"><a href="#cb4-50" aria-hidden="true" tabindex="-1"></a>  result</span>
+<span id="cb4-51"><a href="#cb4-51" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb4-52"><a href="#cb4-52" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-53"><a href="#cb4-53" aria-hidden="true" tabindex="-1"></a>plankton_logistic <span class="ot">&lt;-</span> <span class="cf">function</span>(params, n, n_pp, n_other, rates, <span class="at">dt =</span> <span class="fl">0.1</span>, ...) {</span>
+<span id="cb4-54"><a href="#cb4-54" aria-hidden="true" tabindex="-1"></a>  <span class="fu">exact_logistic_immigration_step</span>(</span>
+<span id="cb4-55"><a href="#cb4-55" aria-hidden="true" tabindex="-1"></a>    <span class="at">n =</span> n_pp, <span class="at">rate =</span> params<span class="sc">@</span>rr_pp, <span class="at">capacity =</span> params<span class="sc">@</span>cc_pp,</span>
+<span id="cb4-56"><a href="#cb4-56" aria-hidden="true" tabindex="-1"></a>    <span class="at">immigration =</span> immigration, <span class="at">mortality =</span> rates<span class="sc">$</span>resource_mort, <span class="at">dt =</span> dt</span>
+<span id="cb4-57"><a href="#cb4-57" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb4-58"><a href="#cb4-58" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+</div>
+</section>
+<section id="a.3-building-the-model" class="level3">
+<h3 class="anchored" data-anchor-id="a.3-building-the-model">A.3 Building the Model</h3>
+<p>One species, described by the parameters above, dropped into <code>newMultispeciesParams()</code>.</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>kappa <span class="ot">&lt;-</span> p<span class="sc">$</span>a0 <span class="sc">*</span> <span class="fu">exp</span>(<span class="sc">-</span><span class="fl">6.9</span> <span class="sc">*</span> (p<span class="sc">$</span>lambda <span class="sc">-</span> <span class="dv">1</span>))</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>species_params_df <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(</span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">species =</span> <span class="st">"Anchovy"</span>, <span class="at">w_min =</span> p<span class="sc">$</span>w_min, <span class="at">w_mat =</span> p<span class="sc">$</span>w_mat, <span class="at">m =</span> p<span class="sc">$</span>rho_inf <span class="sc">+</span> <span class="dv">2</span><span class="sc">/</span><span class="dv">3</span>,</span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">w_inf =</span> p<span class="sc">$</span>w_inf, <span class="at">erepro =</span> p<span class="sc">$</span>epsilon_R, <span class="at">alpha =</span> p<span class="sc">$</span>K, <span class="at">ks =</span> <span class="dv">0</span>, <span class="at">gamma =</span> p<span class="sc">$</span>gamma,</span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">q =</span> p<span class="sc">$</span>alpha, <span class="at">ppmr_min =</span> p<span class="sc">$</span>ppmr_min, <span class="at">ppmr_max =</span> p<span class="sc">$</span>ppmr_max,</span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>  <span class="at">pred_kernel_type =</span> <span class="st">"norm_box"</span>, <span class="at">h =</span> <span class="cn">Inf</span>, <span class="at">R_max =</span> <span class="cn">Inf</span>, <span class="at">linecolour =</span> <span class="st">"brown"</span>,</span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>  <span class="at">stringsAsFactors =</span> <span class="cn">FALSE</span></span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a>params <span class="ot">&lt;-</span> <span class="fu">newMultispeciesParams</span>(</span>
+<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a>  species_params_df, <span class="at">no_w =</span> <span class="fu">round</span>(<span class="fu">log</span>(p<span class="sc">$</span>w_inf <span class="sc">/</span> p<span class="sc">$</span>w_min) <span class="sc">/</span> p<span class="sc">$</span>dx),</span>
+<span id="cb5-13"><a href="#cb5-13" aria-hidden="true" tabindex="-1"></a>  <span class="at">lambda =</span> p<span class="sc">$</span>lambda, <span class="at">kappa =</span> kappa, <span class="at">w_pp_cutoff =</span> p<span class="sc">$</span>w_pp_cutoff,</span>
+<span id="cb5-14"><a href="#cb5-14" aria-hidden="true" tabindex="-1"></a>  <span class="at">resource_dynamics =</span> <span class="st">"plankton_logistic"</span></span>
+<span id="cb5-15"><a href="#cb5-15" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stderr">
+<pre><code>Using z0 = z0pre * w_inf ^ z0exp for missing z0 values.</code></pre>
+</div>
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="fu">resource_rate</span>(params) <span class="ot">&lt;-</span> p<span class="sc">$</span>r0 <span class="sc">*</span> <span class="fu">w_full</span>(params)<span class="sc">^</span>(p<span class="sc">$</span>rho <span class="sc">-</span> <span class="dv">1</span>)</span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>immigration            <span class="ot">&lt;-</span> p<span class="sc">$</span>i0 <span class="sc">*</span> <span class="fu">w_full</span>(params)<span class="sc">^</span>(<span class="sc">-</span>p<span class="sc">$</span>lambda) <span class="sc">*</span> <span class="fu">exp</span>(<span class="sc">-</span><span class="fl">6.9</span> <span class="sc">*</span> (p<span class="sc">$</span>lambda <span class="sc">-</span> <span class="dv">1</span>))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+</div>
+<p><strong>Cannibalism and resource access.</strong> <code>interaction_matrix</code> controls how much of a species’ own predation pressure lands on itself; setting it to <code>theta</code> rather than 1 is literally what “cutting cannibalism to 30%” means in this model.</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb8"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="fu">interaction_matrix</span>(params) <span class="ot">&lt;-</span> theta</span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a><span class="fu">species_params</span>(params)<span class="sc">$</span>interaction_resource <span class="ot">&lt;-</span> interaction_resource</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+</div>
+<p><strong>Fishing gear.</strong> A knife-edge selectivity: nothing below <code>knife_edge_size</code> grams is caught, everything above it is, at a fixed catchability.</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb9"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>gp                 <span class="ot">&lt;-</span> <span class="fu">gear_params</span>(params)</span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>gp<span class="sc">$</span>sel_func        <span class="ot">&lt;-</span> <span class="st">"knife_edge"</span></span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a>gp<span class="sc">$</span>knife_edge_size <span class="ot">&lt;-</span> knife_edge_size</span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a>gp<span class="sc">$</span>catchability    <span class="ot">&lt;-</span> <span class="dv">1</span></span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a><span class="fu">gear_params</span>(params) <span class="ot">&lt;-</span> gp</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+</div>
+<p><strong>Background mortality.</strong> This is the one place this model deliberately departs from mizer’s own default: instead of a flat mortality rate at every size, the paper specifies a U-shaped curve – high for larvae, a minimum around half a gram, rising again toward the adult size. <code>ext_mort&lt;-()</code> is used rather than writing to <code>@mu_b</code> directly so this survives any later parameter change that would otherwise silently recompute it from mizer’s own defaults (the bug Day 40 of this project found and fixed).</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb10"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>w    <span class="ot">&lt;-</span> <span class="fu">w</span>(params)</span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>mu_b <span class="ot">&lt;-</span> <span class="fu">rep</span>(<span class="dv">0</span>, <span class="fu">length</span>(w))</span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a>mu_b[w <span class="sc">&lt;=</span> p<span class="sc">$</span>w_s] <span class="ot">&lt;-</span> (p<span class="sc">$</span>mu_0 <span class="sc">*</span> (w <span class="sc">/</span> p<span class="sc">$</span>w_min)<span class="sc">^</span>p<span class="sc">$</span>rho_b)[w <span class="sc">&lt;</span> p<span class="sc">$</span>w_s]</span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a>mu_s <span class="ot">&lt;-</span> <span class="fu">min</span>(mu_b[w <span class="sc">&lt;=</span> p<span class="sc">$</span>w_s])</span>
+<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a>mu_b[w <span class="sc">&gt;=</span> p<span class="sc">$</span>w_s] <span class="ot">&lt;-</span> (mu_s <span class="sc">*</span> (w <span class="sc">/</span> p<span class="sc">$</span>w_s)<span class="sc">^</span>p<span class="sc">$</span>rho_s)[w <span class="sc">&gt;=</span> p<span class="sc">$</span>w_s]</span>
+<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a>mu_b <span class="ot">&lt;-</span> mu_b <span class="sc">+</span> p<span class="sc">$</span>mu_l <span class="sc">/</span> (<span class="dv">1</span> <span class="sc">+</span> (w <span class="sc">/</span> p<span class="sc">$</span>w_l)<span class="sc">^</span>p<span class="sc">$</span>rho_l)</span>
+<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-8"><a href="#cb10-8" aria-hidden="true" tabindex="-1"></a>mort    <span class="ot">&lt;-</span> <span class="fu">ext_mort</span>(params)</span>
+<span id="cb10-9"><a href="#cb10-9" aria-hidden="true" tabindex="-1"></a>mort[]  <span class="ot">&lt;-</span> mu_b</span>
+<span id="cb10-10"><a href="#cb10-10" aria-hidden="true" tabindex="-1"></a><span class="fu">ext_mort</span>(params) <span class="ot">&lt;-</span> mort</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+</div>
+<p>The model is now fully specified. Everything below just runs it.</p>
+</section>
+<section id="a.4-does-it-oscillate" class="level3">
+<h3 class="anchored" data-anchor-id="a.4-does-it-oscillate">A.4 Does It Oscillate?</h3>
+<p>Starting the population from an arbitrary tiny spectrum and running it forward produces a large, non-physical transient before it finds its way onto the model’s real attractor – so the reliable way to reach the oscillating state is two stages: settle for 10 years first, then rescale down by <code>1e7</code> (the settling transient overshoots by many orders of magnitude) before continuing. This is the exact procedure used throughout this project.</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb11"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Stage 1: settle from an arbitrary starting spectrum.</span></span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a>n0 <span class="ot">&lt;-</span> <span class="fu">initialN</span>(params); n0[] <span class="ot">&lt;-</span> <span class="fl">0.001</span> <span class="sc">*</span> <span class="fu">w</span>(params)<span class="sc">^</span>(<span class="sc">-</span><span class="fl">1.8</span>)</span>
+<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a><span class="fu">initialN</span>(params) <span class="ot">&lt;-</span> n0</span>
+<span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a><span class="fu">initialNResource</span>(params) <span class="ot">&lt;-</span> <span class="fu">resource_capacity</span>(params)</span>
+<span id="cb11-5"><a href="#cb11-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-6"><a href="#cb11-6" aria-hidden="true" tabindex="-1"></a>settled <span class="ot">&lt;-</span> <span class="fu">project</span>(params, <span class="at">t_max =</span> <span class="dv">10</span>, <span class="at">dt =</span> p<span class="sc">$</span>dt, <span class="at">progress_bar =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb11-7"><a href="#cb11-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-8"><a href="#cb11-8" aria-hidden="true" tabindex="-1"></a><span class="co"># Stage 2: rescale and continue with no fishing.</span></span>
+<span id="cb11-9"><a href="#cb11-9" aria-hidden="true" tabindex="-1"></a>n0 <span class="ot">&lt;-</span> <span class="fu">initialN</span>(params); n0[] <span class="ot">&lt;-</span> <span class="fu">finalN</span>(settled) <span class="sc">/</span> <span class="fl">1e7</span></span>
+<span id="cb11-10"><a href="#cb11-10" aria-hidden="true" tabindex="-1"></a><span class="fu">initialN</span>(params) <span class="ot">&lt;-</span> n0</span>
+<span id="cb11-11"><a href="#cb11-11" aria-hidden="true" tabindex="-1"></a>npp0 <span class="ot">&lt;-</span> <span class="fu">initialNResource</span>(params); npp0[] <span class="ot">&lt;-</span> <span class="fu">finalNResource</span>(settled)</span>
+<span id="cb11-12"><a href="#cb11-12" aria-hidden="true" tabindex="-1"></a><span class="fu">initialNResource</span>(params) <span class="ot">&lt;-</span> npp0</span>
+<span id="cb11-13"><a href="#cb11-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-14"><a href="#cb11-14" aria-hidden="true" tabindex="-1"></a>sim_unfished <span class="ot">&lt;-</span> <span class="fu">project</span>(params, <span class="at">t_max =</span> <span class="dv">20</span>, <span class="at">t_start =</span> <span class="dv">10</span>, <span class="at">dt =</span> p<span class="sc">$</span>dt, <span class="at">t_save =</span> <span class="fl">0.2</span>,</span>
+<span id="cb11-15"><a href="#cb11-15" aria-hidden="true" tabindex="-1"></a>                        <span class="at">progress_bar =</span> <span class="cn">FALSE</span>, <span class="at">effort =</span> <span class="dv">0</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+</div>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb12"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(<span class="fu">getBiomass</span>(sim_unfished))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="2026-08-17-day-forty-one_files/figure-html/appendix-plot-oscillation-1.png" class="img-fluid figure-img" width="672"></p>
+<figcaption>Unfished biomass settles into a regular ~5-6 year limit cycle.</figcaption>
+</figure>
+</div>
+</div>
+</div>
+<p>It does: after the initial transient, biomass rises and falls on a regular cycle of roughly five to six years, indefinitely, with no fishing at all.</p>
+</section>
+<section id="a.5-its-yield-curve" class="level3">
+<h3 class="anchored" data-anchor-id="a.5-its-yield-curve">A.5 Its Yield Curve</h3>
+<p>Seed a new run from wherever the unfished trajectory ended up – a real point on the cycle, not an arbitrary starting spectrum – then project forward 12 years at each of a range of constant fishing efforts, and average the yield over the second half of that window (the first 6 years after an effort change are transient).</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb13"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a>n0 <span class="ot">&lt;-</span> <span class="fu">initialN</span>(params); n0[] <span class="ot">&lt;-</span> <span class="fu">finalN</span>(sim_unfished)</span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a><span class="fu">initialN</span>(params) <span class="ot">&lt;-</span> n0</span>
+<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a>npp0 <span class="ot">&lt;-</span> <span class="fu">initialNResource</span>(params); npp0[] <span class="ot">&lt;-</span> <span class="fu">finalNResource</span>(sim_unfished)</span>
+<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a><span class="fu">initialNResource</span>(params) <span class="ot">&lt;-</span> npp0</span>
+<span id="cb13-5"><a href="#cb13-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-6"><a href="#cb13-6" aria-hidden="true" tabindex="-1"></a>effort_seq <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="dv">1</span>, <span class="dv">2</span>, <span class="dv">3</span>, <span class="dv">5</span>, <span class="dv">9</span>, <span class="dv">20</span>, <span class="dv">50</span>, <span class="dv">100</span>)</span>
+<span id="cb13-7"><a href="#cb13-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-8"><a href="#cb13-8" aria-hidden="true" tabindex="-1"></a>mean_yield <span class="ot">&lt;-</span> <span class="fu">sapply</span>(effort_seq, <span class="cf">function</span>(effort) {</span>
+<span id="cb13-9"><a href="#cb13-9" aria-hidden="true" tabindex="-1"></a>  sim <span class="ot">&lt;-</span> <span class="fu">project</span>(params, <span class="at">t_max =</span> <span class="dv">12</span>, <span class="at">t_start =</span> <span class="dv">30</span>, <span class="at">dt =</span> p<span class="sc">$</span>dt, <span class="at">t_save =</span> <span class="fl">0.2</span>,</span>
+<span id="cb13-10"><a href="#cb13-10" aria-hidden="true" tabindex="-1"></a>                 <span class="at">progress_bar =</span> <span class="cn">FALSE</span>, <span class="at">effort =</span> effort)</span>
+<span id="cb13-11"><a href="#cb13-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mean</span>(<span class="fu">getYield</span>(sim)[<span class="fu">getTimes</span>(sim) <span class="sc">&gt;</span> <span class="dv">36</span>, ])</span>
+<span id="cb13-12"><a href="#cb13-12" aria-hidden="true" tabindex="-1"></a>})</span>
+<span id="cb13-13"><a href="#cb13-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-14"><a href="#cb13-14" aria-hidden="true" tabindex="-1"></a>yield_df <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(<span class="at">effort =</span> effort_seq, <span class="at">yield =</span> mean_yield)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+</div>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb14"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(yield_df, <span class="fu">aes</span>(effort, yield)) <span class="sc">+</span></span>
+<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>() <span class="sc">+</span></span>
+<span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_point</span>(<span class="at">size =</span> <span class="dv">2</span>) <span class="sc">+</span></span>
+<span id="cb14-4"><a href="#cb14-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_x_log10</span>() <span class="sc">+</span></span>
+<span id="cb14-5"><a href="#cb14-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"Fishing effort (Constant, log scale)"</span>, <span class="at">y =</span> <span class="st">"Mean yield"</span>,</span>
+<span id="cb14-6"><a href="#cb14-6" aria-hidden="true" tabindex="-1"></a>       <span class="at">title =</span> <span class="st">"Yield curve: theta=0.3, interaction_resource=1, knife_edge=10"</span>) <span class="sc">+</span></span>
+<span id="cb14-7"><a href="#cb14-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_minimal</span>()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="2026-08-17-day-forty-one_files/figure-html/appendix-plot-yield-1.png" class="img-fluid figure-img" width="672"></p>
+<figcaption>Yield vs.&nbsp;constant fishing effort for the oscillating anchovy model.</figcaption>
+</figure>
+</div>
+</div>
+</div>
+<p>Worth saying plainly rather than glossing over: this particular curve is <strong>not</strong> a clean single peak, for exactly the reasons Sections 1-4 above go through in detail – a local peak around effort 9-12, a genuine dip through 15-20, then a second, larger rise all the way out to 100, driven by the compositional shift rather than a healthy fishery. The model built above is exactly what produces that shape; having it written out this plainly, with nothing hidden behind a helper function, is what makes that mechanism explainable rather than just assertable.</p>
 
 
+</section>
 </section>
 
 </main> <!-- /main -->
