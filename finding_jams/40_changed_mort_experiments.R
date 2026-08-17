@@ -1594,6 +1594,841 @@ cat(sprintf(
   nrow(msy_scan_df), nrow(promising_msy_candidates)
 ))
 
+# Screening logic: a genuine MSY needs (a) an interior yield peak -- not still
+# rising at fish_level=100 -- with (b) total biomass actually stabilising
+# after the peak rather than continuing to crash (Section 13's own "late
+# uptick" artefact), AND (c) rel_amplitude staying well clear of the ~2.0
+# collapse-flicker ceiling Section 13 found for the flagship extinction
+# regime -- a stabilising MEAN can still hide a population flickering to
+# near-zero at every trough, which rel_amplitude alone catches and
+# frac_drop_last3 alone would miss.
+msy_screen <- msy_scan_df %>%
+  group_by(theta, interaction_resource, knife_edge_size) %>%
+  arrange(fish_level, .by_group = TRUE) %>%
+  summarise(
+    peak_fish_level = fish_level[which.max(mean_yield)],
+    peak_yield      = max(mean_yield),
+    is_interior     = peak_fish_level < max(fish_level),
+    declines_after  = tail(mean_yield, 1) < peak_yield * 0.95,
+    frac_drop_last3 = (nth(mean_total, -3) - dplyr::last(mean_total)) / nth(mean_total, -3),
+    max_amplitude   = max(rel_amplitude),
+    .groups = "drop"
+  ) %>%
+  filter(is_interior, declines_after)
+
+msy_clean_candidates <- msy_screen %>%
+  filter(frac_drop_last3 < 0.2, max_amplitude < 1.0) %>%
+  arrange(max_amplitude)
+write.csv(msy_screen, file.path(plot_dir, "day40_msy_screen_summary.csv"), row.names = FALSE)
+cat(sprintf(
+  "Section 14 screen: %d of %d candidates have a genuine interior peak; %d pass the full screen (biomass stabilising AND amplitude < 1.0, clear of the collapse-flicker ceiling). See day40_msy_screen_summary.csv.\n",
+  nrow(msy_screen), nrow(promising_msy_candidates), nrow(msy_clean_candidates)
+))
+print(msy_clean_candidates)
+
+cat(paste(
+  "Section 14 verdict (confirmed live, 2026-08-18): FOUND IT -- theta=0.3, interaction_resource=3",
+  "at knife_edge=3 or knife_edge=5 is a genuine sustainable-yield regime, the first one this project",
+  "has found. 17 of the 56 screened combinations show a numerical interior yield peak, but 15 of",
+  "those are the same late-uptick-into-flickering-collapse artefact Section 13 found for the",
+  "flagship extinction regime -- rel_amplitude climbs to 1.68-2.00 (the same near-2.0 ceiling Day 39",
+  "flagged as a near-extinction signature) even where the MEAN biomass looks like it has stabilised,",
+  "which frac_drop_last3 alone would have missed. Only theta=0.3/ir=3/knife_edge=3 (peak yield=0.0820",
+  "at fish_level=9, max rel_amplitude=0.529) and theta=0.3/ir=3/knife_edge=5 (peak yield=0.0804 at",
+  "fish_level=15, max rel_amplitude=0.461) pass both tests: a real interior peak, mean_total settling",
+  "into a reduced-but-stable range afterward (0.786->0.410 and 0.792->0.435 respectively, both",
+  "essentially flat by fish_level=50-100), and amplitude staying well clear of the collapse-flicker",
+  "ceiling across the entire tested range. interaction_resource=3 was in the ORIGINAL Overnight grid",
+  "(theta_grid_seq x resource_grid_seq) from the very start of this file but was never itself pulled",
+  "out for a full effort/knife_edge sweep -- every other section in this project focused on ir=1,",
+  "1.3, 2, or 5 instead. This is a coarse 10-point effort grid, not a fine one -- worth a proper",
+  "21-point pass (Section 13b's own convention) plus a genuine oscillation check (Section 13a's own",
+  "convention: full time series across several effort levels, not just summary rel_amplitude) before",
+  "treating this as fully confirmed, but it is the first candidate in this whole project that looks",
+  "right on both counts at once.\n"
+))
+
+################################################################################
+# Section 15: size spectrum and biomass-flux plots, knife_edge=10 (this
+# project's own default gear) throughout, for four (theta, interaction_resource)
+# combinations -- the default, each single-parameter change on its own, and
+# both together (Section 14's own newly-found MSY regime):
+#   - default:        theta=1,   ir=1
+#   - reduced theta:   theta=0.3, ir=1
+#   - increased ir:    theta=1,   ir=3
+#   - both:            theta=0.3, ir=3
+#
+# Each is snapshotted at the end of the standard unfished fork (t_fork=20) --
+# the same state every other section in this file treats as its own starting
+# point -- rather than at an arbitrary or fished time. Since this model
+# oscillates rather than sitting at a true fixed point, this snapshot is a
+# point on the cycle, not an equilibrium; it is the consistent reference point
+# used throughout this project, not a claim that the spectrum/flux shown here
+# is unchanging.
+#
+# plotSpectra() and getFlux() are both built-in, exported mizer functions
+# (checked against the currently installed mizer, not recalled from memory --
+# see MIZER-AGENTS.md's own warning about stale API recollection). Preferred
+# over any hand-rolled ggplot per this project's own convention, and over the
+# older mizerExperimental::getFlux()+plotHover() pattern used in this
+# project's early finding_jams files, which predates the version of mizer
+# installed here and produces an interactive plotly widget rather than a
+# static plot -- not suitable for a batch Rscript run producing PNG files.
+# getFlux()'s own `power` argument is confirmed verbatim from the installed
+# mizer's own help page (not recalled from memory): "The default power = 0
+# gives the flux of individuals (numbers/year), whereas power = 1 gives the
+# flux of biomass (grams/year)." power=1 is therefore what this project cares
+# about -- matching its own "flow of biomass" framing -- and is NOT the same
+# as the power=2 used for a display-only weighting in this project's early,
+# now-superseded finding_jams files (those called mizerExperimental's own
+# plotHover(getFlux(sim, power=2)), a different function on a different
+# argument convention, not a biomass-flux precedent to follow here). The
+# y-axis is relabelled explicitly below rather than trusting mizer's own
+# generic default label to say so.
+#
+# Its return value is an ArraySpeciesBySize object, the same wrapper class
+# getTrophicLevel() returns; plot() on it gives a curve-per-species plot
+# directly, with no custom plotting code needed.
+#
+# Preamble below redefines every prerequisite this section needs -- library
+# calls, p2, setAnchovyMort(), the resource stepper, anchovy_params(),
+# set_state()/seed_from(), make_anchovy_fork_sim(), t_fork -- verbatim from
+# earlier in this file, so Section 15 can be run standalone in a fresh R
+# session (e.g. after restarting R) without sourcing everything above it
+# first. This matches this file's own stated convention ("Self-contained
+# convention since Day 20: helpers redefined here") rather than introducing
+# a new one. Safe to run even after the full file has already been sourced --
+# these are pure redefinitions, not appends.
+################################################################################
+
+library(mizer)
+library(dplyr)
+library(ggplot2)
+
+plot_dir <- "interesting_plots"
+dir.create(plot_dir, showWarnings = FALSE)
+
+save_plot <- function(plot, filename, width = 9, height = 6, dpi = 150) {
+  max_name <- 40
+  if (nchar(filename) > max_name) {
+    ext      <- tools::file_ext(filename)
+    base     <- tools::file_path_sans_ext(filename)
+    filename <- paste0(substr(base, 1, max_name - nchar(ext) - 1), ".", ext)
+    warning(sprintf("save_plot(): filename too long, truncated to '%s'", filename))
+  }
+  print(plot)
+  ggplot2::ggsave(file.path(plot_dir, filename), plot = plot, width = width, height = height, dpi = dpi)
+}
+
+p2 <- list(
+  dt = 0.001, dx = 0.1, w_min = 0.0003, w_inf = 66.5,
+  ppmr_min = 100, ppmr_max = 30000, gamma = 750, alpha = 0.85, K = 0.1,
+  mu_l = 0, w_l = 0.03, rho_l = 5,
+  mu_0 = 1, rho_b = -0.25,
+  w_s = 0.5, rho_s = 1,
+  w_mat = 10, rho_m = 15, rho_inf = 0.2, epsilon_R = 0.1,
+  w_pp_cutoff = 0.1, r0 = 10, a0 = 100, i0 = 100, rho = 0.85, lambda = 2
+)
+
+setAnchovyMort <- function(params, p) {
+  w <- w(params)
+  mu_b <- rep(0, length(w))
+  mu_b[w <= p$w_s] <- (p$mu_0 * (w / p$w_min)^p$rho_b)[w < p$w_s]
+  mu_s <- if (p$mu_0 > 0) min(mu_b[w <= p$w_s]) else p$mu_s
+  mu_b[w >= p$w_s] <- (mu_s * (w / p$w_s)^p$rho_s)[w >= p$w_s]
+  mu_b <- mu_b + p$mu_l / (1 + (w / p$w_l)^p$rho_l)
+
+  mort <- ext_mort(params)
+  mort[] <- mu_b
+  ext_mort(params) <- mort
+  params
+}
+
+plankton_state <- new.env(parent = emptyenv())
+plankton_state$time   <- 0
+plankton_state$factor <- 1
+
+exact_logistic_immigration_step <- function(n, rate, capacity, immigration,
+                                            mortality, dt) {
+  result <- n
+  active <- is.finite(n) & is.finite(rate) & is.finite(capacity) &
+    is.finite(immigration) & is.finite(mortality) &
+    rate > 0 & capacity > 0 & immigration >= 0
+  if (dt == 0 || !any(active)) return(result)
+
+  n0 <- n[active]
+  r  <- rate[active]
+  k  <- capacity[active]
+  i  <- immigration[active]
+  mu <- mortality[active]
+  a  <- r - mu
+  b  <- r / k
+  next_n <- numeric(length(n0))
+
+  has_immigration <- i > 0
+  if (any(has_immigration)) {
+    idx <- which(has_immigration)
+    ai  <- a[idx]
+    bi  <- b[idx]
+    ii  <- i[idx]
+    d   <- sqrt(ai^2 + 4 * bi * ii)
+    n_plus <- ifelse(ai >= 0, (ai + d) / (2 * bi), 2 * ii / (d - ai))
+    n_minus <- ifelse(ai <= 0, (ai - d) / (2 * bi), -2 * ii / (ai + d))
+    ratio <- ((n0[idx] - n_plus) / (n0[idx] - n_minus)) * exp(-d * dt)
+    next_n[idx] <- (n_plus - ratio * n_minus) / (1 - ratio)
+  }
+
+  no_immigration <- !has_immigration
+  if (any(no_immigration)) {
+    idx <- which(no_immigration)
+    az  <- a[idx]
+    bz  <- b[idx]
+    nz  <- n0[idx]
+    value <- numeric(length(idx))
+    zero_rate <- az == 0
+    value[zero_rate] <- nz[zero_rate] /
+      (1 + bz[zero_rate] * nz[zero_rate] * dt)
+
+    positive <- az > 0 & nz > 0
+    phi <- -expm1(-az[positive] * dt) / az[positive]
+    value[positive] <- nz[positive] /
+      (exp(-az[positive] * dt) +
+         bz[positive] * nz[positive] * phi)
+
+    negative <- az < 0
+    exp_adt <- exp(az[negative] * dt)
+    phi <- expm1(az[negative] * dt) / az[negative]
+    value[negative] <- nz[negative] * exp_adt /
+      (1 + bz[negative] * nz[negative] * phi)
+    next_n[idx] <- value
+  }
+
+  result[active] <- pmax(next_n, 0)
+  result
+}
+
+plankton_logistic <- function(params, n, n_pp, n_other, rates, dt = 0.1, ...) {
+  plankton_state$time <- plankton_state$time + dt
+  exact_logistic_immigration_step(
+    n = n_pp,
+    rate = params@rr_pp,
+    capacity = params@cc_pp * plankton_state$factor,
+    immigration = anchovy_immigration,
+    mortality = rates$resource_mort,
+    dt = dt
+  )
+}
+
+norm_box_pred_kernel <- function(ppmr, ppmr_min, ppmr_max) {
+  phi <- rep(1, length(ppmr))
+  phi[ppmr > ppmr_max] <- 0
+  phi[ppmr < ppmr_min] <- 0
+  phi[1] <- 0
+  logppmr <- log(ppmr)
+  dl <- logppmr[2] - logppmr[1]
+  N <- sum(phi) * dl
+  phi / N
+}
+
+anchovy_params <- function(interaction_val = 1, interaction_resource_val = 1,
+                           knife_edge_size = p2$w_mat, p = p2) {
+  kappa <- p$a0 * exp(-6.9 * (p$lambda - 1))
+
+  species_params_df <- data.frame(
+    species = "Anchovy", w_min = p$w_min, w_mat = p$w_mat, m = p$rho_inf + 2/3,
+    w_inf = p$w_inf, erepro = p$epsilon_R, alpha = p$K, ks = 0, gamma = p$gamma,
+    q = p$alpha, ppmr_min = p$ppmr_min, ppmr_max = p$ppmr_max,
+    pred_kernel_type = "norm_box", h = Inf, R_max = Inf, linecolour = "brown",
+    stringsAsFactors = FALSE
+  )
+
+  params <- newMultispeciesParams(
+    species_params_df, no_w = round(log(p$w_inf / p$w_min) / p$dx),
+    lambda = p$lambda, kappa = kappa, w_pp_cutoff = p$w_pp_cutoff,
+    resource_dynamics = "plankton_logistic"
+  )
+  resource_rate(params) <- p$r0 * w_full(params)^(p$rho - 1)
+
+  interaction_matrix(params) <- interaction_val
+  species_params(params)$interaction_resource <- interaction_resource_val
+
+  gp                 <- gear_params(params)
+  gp$sel_func        <- "knife_edge"
+  gp$knife_edge_size <- knife_edge_size
+  gp$catchability    <- 1
+  gear_params(params) <- gp
+
+  setAnchovyMort(params, p)
+}
+
+p_scan <- anchovy_params()
+anchovy_immigration <- p2$i0 * w_full(p_scan)^(-p2$lambda) * exp(-6.9 * (p2$lambda - 1))
+
+set_state <- function(params, n, n_pp) {
+  n0 <- initialN(params); n0[] <- n; initialN(params) <- n0
+  npp0 <- initialNResource(params); npp0[] <- n_pp; initialNResource(params) <- npp0
+  params
+}
+seed_from <- function(params, sim) set_state(params, finalN(sim), finalNResource(sim))
+
+make_anchovy_fork_sim <- function(params, t_fork) {
+  params <- set_state(params, 0.001 * w(params)^(-1.8), resource_capacity(params))
+  settled <- project(params, t_max = 10, dt = p2$dt, progress_bar = FALSE)
+  params <- set_state(params, finalN(settled) / 1e7, finalNResource(settled))
+  project(params, t_max = t_fork - 10, t_start = 10, dt = p2$dt, t_save = 0.2,
+         progress_bar = FALSE, effort = 0)
+}
+
+t_fork <- 20
+
+spectrum_flux_scenarios <- list(
+  list(label = "default (theta=1, interaction_resource=1)",          slug = "default",           theta = 1,   ir = 1),
+  list(label = "reduced theta (theta=0.3, interaction_resource=1)",  slug = "theta_low",         theta = 0.3, ir = 1),
+  list(label = "increased ir (theta=1, interaction_resource=3)",     slug = "ir_high",           theta = 1,   ir = 3),
+  list(label = "both (theta=0.3, interaction_resource=3)",           slug = "theta_low_ir_high", theta = 0.3, ir = 3)
+)
+
+for (sc in spectrum_flux_scenarios) {
+  params_sc <- anchovy_params(sc$theta, sc$ir, knife_edge_size = 10)
+  fork_sc   <- make_anchovy_fork_sim(params_sc, t_fork)
+  snapshot  <- seed_from(params_sc, fork_sc)
+
+  spectrum_plot <- plotSpectra(snapshot) +
+    ggplot2::labs(title = sprintf("Size spectrum: %s", sc$label),
+                 subtitle = "knife_edge=10, FIXED mortality, unfished fork state (t_fork=20)")
+  save_plot(spectrum_plot, sprintf("day41_spectrum_%s.png", sc$slug), width = 8, height = 6)
+
+  # power=1: biomass flux (g/year), confirmed against getFlux()'s own help
+  # page above -- power=0 (the default) would be the numbers flux instead.
+  # ggplot2:: qualified throughout this section since it's sometimes run on
+  # its own without the library(ggplot2) call at the top of this file.
+  flux_plot <- plot(getFlux(snapshot, power = 1)) +
+    ggplot2::labs(title = sprintf("Biomass flux: %s", sc$label),
+                 subtitle = "knife_edge=10, FIXED mortality, unfished fork state (t_fork=20)",
+                 y = "Biomass flux (g/year)")
+  save_plot(flux_plot, sprintf("day41_flux_%s.png", sc$slug), width = 8, height = 6)
+
+  cat(sprintf(
+    "Section 15: %s -- spectrum saved to day41_spectrum_%s.png, biomass flux saved to day41_flux_%s.png.\n",
+    sc$label, sc$slug, sc$slug
+  ))
+}
+
+################################################################################
+# Section 16: does the second-order scheme change Section 15's own finding?
+# Quick check at theta=0.3, interaction_resource=3, knife_edge=10 (Section
+# 14's own newly-found MSY regime, and Section 15's own headline "jam
+# resolved" case) -- MIZER-AGENTS.md's documented fix for the default
+# scheme's numerical diffusion is `second_order_w(params) <- TRUE` paired
+# with `method="tr_bdf2"` in project(); this section checks whether switching
+# to it changes the size spectrum / biomass flux shape Section 15 found.
+#
+# steady()/steadyNewton() does NOT work for this model -- ruled out rather
+# than attempted here. The analyse-stability skill's own scope note is exact:
+# "Assumes the standard semichemostat resource dynamics." This file's own
+# resource dynamics is the custom plankton_logistic()/exact_logistic_
+# immigration_step() pair (Section 0 above, adopted Day 40), not mizer's own
+# semichemostat -- steadyNewton()'s internal machinery does not know how to
+# solve for this custom resource equation's own equilibrium, so it is not a
+# usable reference point here regardless of numerical scheme.
+#
+# Also deliberately NOT using this file's own ad-hoc settle-and-rescale fork
+# (make_anchovy_fork_sim(), Section 15's own convention) FROM SCRATCH for the
+# second-order side: this file's own earlier dt-raising test (top of file)
+# already found that exact fork procedure -- a 10yr settle from an arbitrary
+# 0.001*w^-1.8 spectrum, then /1e7 rescale -- collapses to numerical
+# extinction (~1e-33) under second_order_w+tr_bdf2, most likely because those
+# two constants were empirically tuned for the default first-order scheme
+# specifically and the arbitrary starting spectrum is a large, artificial
+# perturbation the stiffer scheme handles badly.
+#
+# Instead: run the FIRST-ORDER fork as usual (known-good, Section 15's own
+# convention) to reach a physically sensible point on the real cycle at
+# t_fork=20, then seed a SECOND-ORDER copy of the same params from that same
+# state and continue for a short additional projection under tr_bdf2 --
+# not restarting from an arbitrary spectrum, just switching which scheme
+# takes over from an already-sensible starting point. Far less likely to hit
+# the same pathology, and quick: a few more years, not another 10yr settle.
+#
+# NOT run here, per this session's own instruction -- written for the user's
+# own session. If this ALSO collapses or behaves degenerately, that is a
+# real finding in its own right (the scheme itself may be incompatible with
+# this custom resource dynamics, not just this file's own fork constants) --
+# report it rather than continuing to patch the seeding procedure further.
+################################################################################
+
+theta_check <- 0.3
+ir_check    <- 3
+ke_check    <- 10
+
+params_first_order <- anchovy_params(theta_check, ir_check, knife_edge_size = ke_check)
+fork_check          <- make_anchovy_fork_sim(params_first_order, t_fork)
+snapshot_first_order <- seed_from(params_first_order, fork_check)
+
+params_second_order <- params_first_order
+second_order_w(params_second_order) <- TRUE
+params_second_order <- seed_from(params_second_order, fork_check)
+
+spectrum_first_order <- plotSpectra(snapshot_first_order) +
+  ggplot2::labs(title = "First-order upwind (default)",
+               subtitle = "theta=0.3, interaction_resource=3, knife_edge=10 -- unfished fork state (t_fork=20)")
+save_plot(spectrum_first_order, "day41_scheme_spectrum_1st.png", width = 8, height = 6)
+
+# power=1: biomass flux (g/year), same convention as Section 15's own flux
+# plots -- confirmed against getFlux()'s own help page there.
+flux_first_order <- plot(getFlux(snapshot_first_order, power = 1)) +
+  ggplot2::labs(title = "First-order upwind (default): biomass flux",
+               subtitle = "theta=0.3, interaction_resource=3, knife_edge=10 -- unfished fork state (t_fork=20)",
+               y = "Biomass flux (g/year)")
+save_plot(flux_first_order, "day41_scheme_flux_1st.png", width = 8, height = 6)
+
+################################################################################
+# The first pass (+4yr under tr_bdf2) found the bimodal flux collapsing back
+# into a single sharp peak, and the resource losing its grazed kink -- but
+# 4yr is LESS than one full cycle (~5-6yr), so that could equally be a
+# genuine scheme-driven difference or just an incomplete transient as the
+# system readjusts to the new scheme's own rate calculations. Extending to
+# ~3.6 cycles (checkpoints at +4, +12, +20yr, each CONTINUING the previous
+# MizerSim rather than restarting -- project() on a MizerSim object inherits
+# its own dt/method automatically) distinguishes the two: if the bimodal
+# structure re-emerges once the transient has genuinely settled, that
+# supports Section 6's own mechanism; if it stays single-peaked across
+# multiple full cycles, Section 6's mechanism needs rethinking rather than
+# defending.
+################################################################################
+
+checkpoint_years <- c(4, 12, 20)   # cumulative years past t_fork=20, under tr_bdf2
+sim_checkpoint    <- NULL
+years_so_far      <- 0
+
+for (yr in checkpoint_years) {
+  step_years <- yr - years_so_far
+  if (is.null(sim_checkpoint)) {
+    sim_checkpoint <- project(params_second_order, t_max = step_years, dt = p2$dt, t_save = 0.2,
+                              progress_bar = FALSE, effort = 0, method = "tr_bdf2")
+  } else {
+    sim_checkpoint <- project(sim_checkpoint, t_max = step_years, progress_bar = FALSE)
+  }
+  years_so_far <- yr
+
+  snapshot_checkpoint <- seed_from(params_second_order, sim_checkpoint)
+
+  spectrum_checkpoint <- plotSpectra(snapshot_checkpoint) +
+    ggplot2::labs(title = sprintf("Second-order (tr_bdf2): +%dyr past fork", yr),
+                 subtitle = "theta=0.3, interaction_resource=3, knife_edge=10")
+  save_plot(spectrum_checkpoint, sprintf("day41_scheme_spectrum_2nd_%dyr.png", yr), width = 8, height = 6)
+
+  flux_checkpoint <- plot(getFlux(snapshot_checkpoint, power = 1)) +
+    ggplot2::labs(title = sprintf("Second-order (tr_bdf2): biomass flux, +%dyr past fork", yr),
+                 subtitle = "theta=0.3, interaction_resource=3, knife_edge=10",
+                 y = "Biomass flux (g/year)")
+  save_plot(flux_checkpoint, sprintf("day41_scheme_flux_2nd_%dyr.png", yr), width = 8, height = 6)
+
+  cat(sprintf(
+    "Section 16: second-order checkpoint +%dyr saved (day41_scheme_{spectrum,flux}_2nd_%dyr.png).\n",
+    yr, yr
+  ))
+}
+
+cat(
+  "Section 16: first-order snapshot (t_fork=20) vs second-order checkpoints at +4/+12/+20yr, all seeded from the same first-order fork state -- see day41_scheme_{spectrum,flux}_1st.png and day41_scheme_{spectrum,flux}_2nd_{4,12,20}yr.png. If the bimodal flux shape re-emerges by +12 or +20yr, Section 6's own mechanism survives the scheme check; if it stays single-peaked throughout, that finding needs to be revisited.\n"
+)
+
+################################################################################
+# Section 17: theta=0 -- no cannibalism at all, not just cut to 30% -- paired
+# with interaction_resource=1, knife_edge=10 (this project's own original
+# default ir, not the theta=0.3/ir=3 regime this whole file has otherwise
+# been focused on since Section 14). Cannibalism (self-interaction, set via
+# interaction_matrix()) is this project's own documented source of the
+# destabilising feedback that produces the oscillation in the first place --
+# report-background-mizer.qmd's own note, after Datta, Delius and Law (2011):
+# narrow diet breadth/self-predation is destabilising for this class of
+# equation. theta=0 removes that feedback outright rather than reducing it.
+#
+# Two questions: (17a) does this actually stop the population from
+# oscillating at all, and (17b) if so, does increasing Constant fishing
+# effort still drive a now-non-oscillating population to extinction, or does
+# the collapse behaviour found throughout Sections 3/5/12-14 specifically
+# need the cycling dynamics in the mix?
+################################################################################
+
+theta_zero    <- 0
+ir_zero_check <- 1
+ke_zero_check <- 10
+
+params_no_cannibalism <- anchovy_params(theta_zero, ir_zero_check, knife_edge_size = ke_zero_check)
+fork_no_cannibalism   <- make_anchovy_fork_sim(params_no_cannibalism, t_fork)
+
+## -- 17a: does it actually stop oscillating? Same peak-detection convention
+## as Section 0c's own cycle-period check, extended well past t_fork to catch
+## any residual cycling rather than trusting a short window.
+sim_long_no_cannibalism <- project(fork_no_cannibalism, t_max = 60, t_start = t_fork, dt = p2$dt,
+                                   t_save = 0.5, progress_bar = FALSE, effort = 0)
+bp_no_cannibalism <- selected_biomass(sim_long_no_cannibalism, t_cut = -Inf)
+tv_no_cannibalism <- getTimes(sim_long_no_cannibalism)
+n_nc       <- length(bp_no_cannibalism)
+is_peak_nc <- c(FALSE, bp_no_cannibalism[2:(n_nc - 1)] > bp_no_cannibalism[1:(n_nc - 2)] &
+                       bp_no_cannibalism[2:(n_nc - 1)] > bp_no_cannibalism[3:n_nc], FALSE)
+peak_times_nc <- tv_no_cannibalism[is_peak_nc & tv_no_cannibalism > t_fork]
+
+cat(sprintf(
+  "Section 17a: theta=0, interaction_resource=1, knife_edge=10, unfished, t=[%.0f,%.0f]: %d local peaks detected (%s). %s\n",
+  t_fork, max(tv_no_cannibalism), length(peak_times_nc),
+  if (length(peak_times_nc) > 1) sprintf("mean spacing=%.2fyr", mean(diff(peak_times_nc))) else "too few to call a cycle",
+  if (length(peak_times_nc) <= 1) "Consistent with theta=0 removing the oscillation entirely."
+  else "Still oscillating even with theta=0 -- worth checking why before trusting 17b as a clean no-oscillation test."
+))
+
+cat(paste(
+  "Section 17a verdict (confirmed live, 2026-08-18): ZERO peaks detected across the full",
+  "t=[20,80] window -- not just small-amplitude cycling, genuinely none. The trajectory is",
+  "monotonically increasing the whole way (selected biomass 0.0144 at t=20.5 -> 0.0185 at t=80,",
+  "+28%, minimum at the start and maximum at the end), which is exactly why no local peak exists",
+  "to detect: the population never turns over even once. This means it had not actually finished",
+  "settling within 80 years total -- it is on a slow, smooth climb toward wherever its true",
+  "equilibrium sits, just with no cyclic component at all, rather than having already reached a",
+  "flat steady state within the same t_fork=20 window every theta=0.3 variant in this project",
+  "settles inside. Removing cannibalism does not just remove the oscillation, it changes the",
+  "relaxation timescale itself, and this needs a longer fork (or steady()/projectToSteady(), which",
+  "does apply here since a genuine fixed point -- not a limit cycle -- is plausible for theta=0)",
+  "before 17b's own Constant-effort sweep is seeded from a truly converged state rather than a",
+  "still-drifting one. The qualitative finding stands regardless: 17b's own rel_amplitude stays at",
+  "0.005-0.05 across every fishing effort tested, two orders of magnitude below the 0.6-2.0 typical",
+  "of every theta=0.3 variant elsewhere in this file, and fraction_of_unfished never drops below",
+  "~0.73 even at fish_level=100 -- dramatically more fishing-resistant than any oscillating variant",
+  "tested, consistent with the cycling dynamics themselves being what the compositional-shift",
+  "collapse-and-boom mechanism (Sections 3/5/12-14) actually depends on.\n"
+))
+
+## -- 17b: Constant-effort sweep -- does increasing fishing effort drive this
+## (now non-oscillating, if 17a confirms it) population to extinction?
+fish_level_seq_no_cannibalism <- c(1, 2, 3, 5, 9, 15, 20, 30, 50, 70, 100)
+no_cannibalism_grid_df <- cannibalism_fishing_probe(params_no_cannibalism, fork_no_cannibalism,
+                                                    fish_level_seq_no_cannibalism)
+
+total_unfished_ref_nc <- {
+  sim_uf <- project(seed_from(params_no_cannibalism, fork_no_cannibalism), t_max = scan_summary_window,
+                    dt = p2$dt, t_save = 0.2, t_start = t_fork, progress_bar = FALSE, effort = 0)
+  mean(after_cut(getBiomass(sim_uf), sim_uf, t_fork + scan_summary_window / 2))
+}
+no_cannibalism_grid_df$fraction_of_unfished <- no_cannibalism_grid_df$mean_total / total_unfished_ref_nc
+
+write.csv(no_cannibalism_grid_df, file.path(plot_dir, "day41_no_cannibalism_effort_grid.csv"), row.names = FALSE)
+cat(sprintf(
+  "Section 17b: theta=0, interaction_resource=1, knife_edge=10, unfished total biomass reference=%.4f. See day41_no_cannibalism_effort_grid.csv.\n",
+  total_unfished_ref_nc
+))
+print(no_cannibalism_grid_df %>% select(fish_level, mean_total, mean_yield, rel_amplitude, fraction_of_unfished))
+
+# ggplot2:: qualified in case this section is run on its own after an R
+# restart, without library(ggplot2) having been (re-)run first -- same
+# defensive convention Section 15 adopted.
+no_cannibalism_yield_plot <- ggplot2::ggplot(no_cannibalism_grid_df, ggplot2::aes(x = fish_level, y = mean_yield)) +
+  ggplot2::geom_line(color = "#c0392b") +
+  ggplot2::geom_point(size = 2, color = "#c0392b") +
+  ggplot2::scale_x_log10() +
+  ggplot2::labs(x = "Fishing effort (Constant, log scale)", y = "Mean yield",
+               title = "theta=0 (no cannibalism), interaction_resource=1, knife_edge=10",
+               subtitle = "Does removing cannibalism -- and any oscillation with it -- change whether fishing drives this population toward extinction?") +
+  ggplot2::theme_minimal()
+save_plot(no_cannibalism_yield_plot, "day41_no_cannibalism_yield.png", width = 9, height = 6)
+
+no_cannibalism_biomass_plot <- ggplot2::ggplot(no_cannibalism_grid_df,
+                                               ggplot2::aes(x = fish_level, y = pmax(fraction_of_unfished, 1e-20))) +
+  ggplot2::geom_line(color = "#16a085") +
+  ggplot2::geom_point(size = 2, color = "#16a085") +
+  ggplot2::scale_x_log10() +
+  ggplot2::scale_y_log10() +
+  ggplot2::geom_hline(yintercept = 0.01, linetype = "dotted") +
+  ggplot2::labs(x = "Fishing effort (Constant, log scale)", y = "Fraction of unfished biomass (log scale)",
+               title = "theta=0 (no cannibalism): does fishing drive this population extinct?",
+               subtitle = "Dotted line = 1% of unfished, this project's own collapse threshold (Section 12)") +
+  ggplot2::theme_minimal()
+save_plot(no_cannibalism_biomass_plot, "day41_no_cannibalism_biomass.png", width = 9, height = 6)
+
+cat(sprintf(
+  "Section 17b: fraction of unfished biomass remaining at fish_level=100: %.4g (%s this project's own <1%% collapse threshold).\n",
+  no_cannibalism_grid_df$fraction_of_unfished[no_cannibalism_grid_df$fish_level == 100],
+  if (no_cannibalism_grid_df$fraction_of_unfished[no_cannibalism_grid_df$fish_level == 100] < 0.01) "BELOW" else "above"
+))
+
+################################################################################
+# Section 17c: 17a found the theta=0 unfished trajectory still slowly rising
+# after 60yr past t_fork=20, not yet converged -- so 17b's own sweep was
+# seeded from a still-drifting state, not a genuine equilibrium. This section
+# redoes it properly: projectToSteady() (not steady(), which does not work
+# here for the same reason it fails for the oscillating models -- it assumes
+# standard semichemostat resource dynamics, and this project's own custom
+# plankton_logistic() is not that) applied directly to a FRESH
+# anchovy_params(0, 1, knife_edge_size=10) build, bypassing this project's
+# own fork procedure entirely -- that procedure (10yr settle from an
+# arbitrary tiny spectrum, /1e7 rescale) was tuned for the theta=0.3 models'
+# own fast oscillatory attractor and turns out to be a genuinely bad starting
+# point here: projectToSteady() from mizer's own default initial spectrum
+# converges to a real fixed point (type="steady", not "cycle") in just 28.8
+# years, far faster than the fork-seeded run had managed in 80.
+#
+# Each fishing effort gets its own projectToSteady() call, chained from the
+# same converged unfished params (not from each other) -- getBiomass()/
+# getYield() then read the exact steady-state values directly off the
+# returned MizerParams, no time-window averaging needed at all.
+################################################################################
+
+params_nc_converged <- projectToSteady(params_no_cannibalism, t_per = 0.2, t_max = 150,
+                                       dt = p2$dt, progress_bar = FALSE)
+cat("Section 17c: theta=0 unfished convergence via projectToSteady() (bypassing this file's own fork procedure):\n")
+print(attr(params_nc_converged, "convergence"))
+
+fish_level_seq_nc <- c(1, 2, 3, 5, 9, 15, 20, 30, 50, 70, 100)
+total_unfished_nc_converged <- unname(getBiomass(params_nc_converged))
+
+nc_converged_results <- lapply(fish_level_seq_nc, function(fl) {
+  p_run <- projectToSteady(params_nc_converged, t_per = 0.2, t_max = 150, dt = p2$dt,
+                           effort = fl, progress_bar = FALSE)
+  conv <- attr(p_run, "convergence")
+  data.frame(fish_level = fl, mean_total = unname(getBiomass(p_run)),
+            mean_yield = unname(getYield(p_run)), conv_type = conv$type,
+            conv_years = conv$years)
+})
+nc_converged_df <- dplyr::bind_rows(nc_converged_results)
+nc_converged_df$fraction_of_unfished <- nc_converged_df$mean_total / total_unfished_nc_converged
+write.csv(nc_converged_df, file.path(plot_dir, "day41_no_cannibalism_converged_grid.csv"), row.names = FALSE)
+cat("Section 17c: properly-converged theta=0 effort sweep -- see day41_no_cannibalism_converged_grid.csv.\n")
+print(nc_converged_df)
+
+cat(paste(
+  "Section 17c verdict (confirmed live, 2026-08-18): every one of the 11 effort levels tested",
+  "converges cleanly to type='steady' (a genuine fixed point) -- fishing does not induce any",
+  "oscillation in this theta=0 regime at any effort tested, confirming 17a/17b's own qualitative",
+  "finding under the corrected, fully-converged procedure. The QUANTITATIVE picture changes a",
+  "great deal, though: fraction_of_unfished at fish_level=100 is 0.368, not 17b's own uncorrected",
+  "0.730 -- roughly half. The curve is also NOT monotonic: it declines from 0.986 (fish_level=1)",
+  "to a local minimum of 0.866 (fish_level=9), genuinely RISES back to 0.898-0.905 (fish_level=",
+  "15-20), then crashes sharply to 0.515 between fish_level=20 and 30, continuing down to 0.368 by",
+  "100. conv_years spikes exactly at that crash (22.2yr at fish_level=20 -> 47.8yr at 30) -- the",
+  "textbook critical-slowing-down signature of approaching a genuine bifurcation in the underlying",
+  "equilibrium, not a numerical artefact. mean_yield tells the same story: a real interior peak of",
+  "0.0514 at fish_level=9, a dip to a minimum of 0.0223 at fish_level=30 (exactly the crash point),",
+  "then a slight rise back to 0.0272 by fish_level=100 -- a genuine peak-dip-rise yield curve, the",
+  "same qualitative shape this project has treated throughout as a signature of the oscillating,",
+  "compositional-shift dynamics (Sections 1/3 of this file, Day 40's own headline finding) --",
+  "except here with ZERO oscillation anywhere in the range. That shape is not unique to the",
+  "cycling regime; it can also come from a pure equilibrium fold/bifurcation between two stable",
+  "branches. The qualitative extinction-resistance finding still holds even after correction --",
+  "0.368 remains far short of this project's own 1% collapse threshold -- but the specific numbers",
+  "in 17b above should be read as illustrative rather than precise, and the bifurcation itself is a",
+  "new, previously undocumented finding worth its own follow-up (bracketing fish_level=20-30 more",
+  "finely to locate it precisely, and checking whether it is a genuine fold or something else via",
+  "getStability()/steadyNewton() on either side of it).\n"
+))
+
+################################################################################
+# Section 17d: is the fish_level=27->28 jump actually a bifurcation, or just a
+# steep-but-continuous decline? "Convergence took longer nearby" (17c) is
+# suggestive but not proof by itself -- a genuine fold requires showing that
+# the SAME effort value has two different stable states depending on which
+# direction it is approached from (hysteresis), not just that one path
+# happens to be steep. Two tests: (a) a fine bracket of the transition zone
+# from the SAME (unfished) branch 17c already used, to see whether the jump
+# is a real discontinuity or the fine grid just smooths it out; (b) starting
+# from the OTHER side (converged at effort=30, past the jump) and stepping
+# DOWN through the same effort values, to check whether that path lands on a
+# different branch than the upward path did at the same effort.
+################################################################################
+
+## -- 17d(a): fine bracket, same (unfished) branch as 17c --
+fish_level_fine <- c(21, 22, 23, 24, 25, 26, 27, 28, 29)
+
+fine_up_results <- lapply(fish_level_fine, function(fl) {
+  p_run <- projectToSteady(params_nc_converged, t_per = 0.2, t_max = 150, dt = p2$dt,
+                           effort = fl, progress_bar = FALSE)
+  conv <- attr(p_run, "convergence")
+  data.frame(fish_level = fl, mean_total = unname(getBiomass(p_run)),
+            mean_yield = unname(getYield(p_run)), conv_type = conv$type,
+            conv_years = conv$years)
+})
+fine_up_df <- dplyr::bind_rows(fine_up_results)
+fine_up_df$fraction_of_unfished <- fine_up_df$mean_total / total_unfished_nc_converged
+write.csv(fine_up_df, file.path(plot_dir, "day41_no_cannibalism_fine_bracket.csv"), row.names = FALSE)
+cat("Section 17d(a): fine bracket of the fish_level=20-30 transition (same unfished branch as 17c) -- see day41_no_cannibalism_fine_bracket.csv.\n")
+print(fine_up_df)
+
+## -- 17d(b): hysteresis check -- converge at effort=30 (past the jump),
+## then step DOWN through the same effort values the upward path already
+## covered, to see whether the SAME effort lands on a different branch.
+p_high         <- projectToSteady(params_nc_converged, t_per = 0.2, t_max = 150, dt = p2$dt,
+                                  effort = 30, progress_bar = FALSE)
+p_down_to_25   <- projectToSteady(p_high, t_per = 0.2, t_max = 150, dt = p2$dt,
+                                  effort = 25, progress_bar = FALSE)
+p_down_to_20   <- projectToSteady(p_down_to_25, t_per = 0.2, t_max = 150, dt = p2$dt,
+                                  effort = 20, progress_bar = FALSE)
+
+hysteresis_df <- data.frame(
+  fish_level = c(30, 25, 20),
+  fraction_from_above = c(
+    unname(getBiomass(p_high))       / total_unfished_nc_converged,
+    unname(getBiomass(p_down_to_25)) / total_unfished_nc_converged,
+    unname(getBiomass(p_down_to_20)) / total_unfished_nc_converged
+  ),
+  years_from_above = c(attr(p_high, "convergence")$years,
+                      attr(p_down_to_25, "convergence")$years,
+                      attr(p_down_to_20, "convergence")$years),
+  fraction_from_below = c(
+    nc_converged_df$fraction_of_unfished[nc_converged_df$fish_level == 30],
+    fine_up_df$fraction_of_unfished[fine_up_df$fish_level == 25],
+    nc_converged_df$fraction_of_unfished[nc_converged_df$fish_level == 20]
+  ),
+  years_from_below = c(nc_converged_df$conv_years[nc_converged_df$fish_level == 30],
+                      fine_up_df$conv_years[fine_up_df$fish_level == 25],
+                      nc_converged_df$conv_years[nc_converged_df$fish_level == 20])
+)
+write.csv(hysteresis_df, file.path(plot_dir, "day41_no_cannibalism_hysteresis.csv"), row.names = FALSE)
+cat("Section 17d(b): same effort, approached from above (past the jump) vs. from below (unfished branch) -- see day41_no_cannibalism_hysteresis.csv.\n")
+print(hysteresis_df)
+
+cat(paste(
+  "Section 17d verdict (confirmed live, 2026-08-18): this IS a genuine bifurcation, not just a",
+  "steep decline -- confirmed by hysteresis, the direct test, not inferred from convergence time",
+  "alone. The fine bracket (17d(a)) shows a real discontinuity: fraction_of_unfished declines",
+  "smoothly from 0.894 (fish_level=21) to 0.820 (fish_level=27), then jumps to 0.578 between",
+  "fish_level=27 and 28 -- a 0.24 drop in one unit of effort, not a continuation of the preceding",
+  "~0.012-per-unit trend. conv_years jumps at the identical point (29.6yr at 27 -> 45.4yr at 28).",
+  "17d(b) then tested the decisive question directly: at fish_level=25, approaching from the",
+  "unfished branch gives fraction=0.862 (converging in 26.6yr); approaching the SAME effort from",
+  "above (converged at effort=30, stepped down) gives fraction=0.507, converging in just 0.8yr --",
+  "two different stable equilibria coexisting at the identical effort value. The same holds at",
+  "fish_level=20: 0.898 from below vs. 0.502 from above, the latter converging in 1yr. This is",
+  "textbook bistability -- two coexisting stable branches with a fold between them, not a single",
+  "steep-but-continuous curve -- and the fast convergence on whichever branch is NOT being crossed",
+  "into (0.8-1yr) versus the slow convergence on the branch closer to its own fold (22-48yr) is the",
+  "expected signature on both sides. The lower edge of the bistable region (how far below",
+  "fish_level=20 the 'low' branch remains reachable from above) is not yet mapped -- confirmed",
+  "bistable across [20,27] at least, not yet known outside that window.\n"
+))
+
+################################################################################
+# Section 18: Overnight sweep -- is Section 17d's own bistability (theta=0,
+# interaction_resource=1, knife_edge=10) a global feature of this model, or a
+# theta=0 curiosity? Every collapse/MSY finding in this project so far
+# (Sections 1-14) has only ever swept Constant effort in ONE direction
+# (upward, from the unfished branch) -- this tests both directions across a
+# grid of (theta, interaction_resource, knife_edge), flagging any point where
+# they disagree as a candidate bistable point, generalising the exact test
+# Section 17d applied once by hand to theta=0/ir=1/ke=10 alone.
+#
+# Grid (a screen, not an exhaustive characterisation): theta in
+# {0, 0.3, 0.7, 1} (0 as the known reference, 0.3 as this project's own aim
+# value, 0.7/1 bracketing); interaction_resource in {1, 2, 3, 5}; knife_edge
+# in {5, 10, 15} (excluding 3, which this project's own earlier sweeps found
+# collapses almost everywhere regardless of theta/ir -- a knife_edge that
+# extinguishes the population outright is not informative for a BISTABILITY
+# screen specifically, which needs two surviving branches to compare). 4 x 4
+# x 3 = 48 combinations x 5 effort levels x 2 directions, plus 2 extra
+# projectToSteady() calls per combination (the shared unfished reference and
+# the downward chain's own high-effort starting point) = 480 projectToSteady()
+# calls total.
+#
+# Each direction is a CHAINED sweep -- every effort seeded from the PREVIOUS
+# one in the same direction, not re-seeded from a fixed base each time --
+# exactly Section 17d's own convention (both cheaper, since each step is a
+# smaller perturbation than jumping straight from unfished, and more
+# physically realistic: a fishery ramping effort up or down gradually, not
+# teleporting to each new effort from scratch).
+#
+# NOT run here -- written for the user's own session/Rscript batch run, the
+# same convention as Section 12's own overnight grid. Individual points can
+# take anywhere from under a year to projectToSteady()'s own t_max=150 cap to
+# converge -- Section 17d found convergence times spiking from ~20yr to ~48yr
+# right at its own fold -- so total runtime is genuinely unpredictable in
+# advance. Results are appended to the CSV after every combination finishes
+# (48 checkpoints), so a partial/interrupted run still leaves usable data;
+# delete day41_bistability_sweep.csv before re-running from scratch. Thin the
+# grid below and restart if this is still running after a full night.
+################################################################################
+
+theta_seq_bistab   <- c(0, 0.3, 0.7, 1)
+ir_seq_bistab      <- c(1, 2, 3, 5)
+ke_seq_bistab      <- c(5, 10, 15)
+effort_seq_bistab  <- c(10, 20, 30, 50, 100)
+
+bistab_path <- file.path(plot_dir, "day41_bistability_sweep.csv")
+
+# Runs a CHAINED projectToSteady() sweep across effort_seq, in whatever order
+# it is given -- each effort seeded from the PREVIOUS one's own converged
+# state. `direction` is a label only ("up"/"down"), recorded in the output,
+# not used to change any computation. If a species goes extinct partway
+# through a chain, mean_total is recorded as NA for that and all subsequent
+# points in the same chain rather than erroring -- once extinct in a chain,
+# every higher (or, going down, lower) effort in the same direction stays
+# extinct too, which is itself informative, not a failure to work around.
+run_chained_sweep <- function(params, effort_seq, direction) {
+  current <- params
+  bind_rows(lapply(effort_seq, function(fl) {
+    current <<- projectToSteady(current, t_per = 0.2, t_max = 150, dt = p2$dt,
+                                effort = fl, progress_bar = FALSE)
+    conv <- attr(current, "convergence")
+    data.frame(fish_level = fl, direction = direction,
+              mean_total = if (conv$type %in% c("steady", "cycle")) unname(getBiomass(current)) else NA_real_,
+              conv_type = conv$type, conv_years = conv$years)
+  }))
+}
+
+for (theta_val in theta_seq_bistab) {
+  for (ir_val in ir_seq_bistab) {
+    for (ke_val in ke_seq_bistab) {
+      params_bistab <- anchovy_params(theta_val, ir_val, knife_edge_size = ke_val)
+
+      # Unfished reference, converged once, shared by both directions.
+      params_unfished_bistab <- projectToSteady(params_bistab, t_per = 0.2, t_max = 150,
+                                                dt = p2$dt, effort = 0, progress_bar = FALSE)
+      total_unfished_bistab <- unname(getBiomass(params_unfished_bistab))
+
+      up_df <- run_chained_sweep(params_unfished_bistab, effort_seq_bistab, "up")
+
+      # Downward chain starts fresh at the highest effort (a single large
+      # jump directly from the unfished state, matching Section 17d's own
+      # convention for p_high), then steps down through the rest of
+      # effort_seq_bistab in reverse, each seeded from the previous.
+      params_high_bistab <- projectToSteady(params_unfished_bistab, t_per = 0.2, t_max = 150,
+                                            dt = p2$dt, effort = max(effort_seq_bistab),
+                                            progress_bar = FALSE)
+      down_df <- run_chained_sweep(params_high_bistab, rev(effort_seq_bistab), "down")
+
+      cell_df <- bind_rows(up_df, down_df) %>%
+        mutate(theta = theta_val, interaction_resource = ir_val, knife_edge_size = ke_val,
+              fraction_of_unfished = mean_total / total_unfished_bistab)
+
+      write.table(cell_df, bistab_path, sep = ",", row.names = FALSE,
+                 col.names = !file.exists(bistab_path), append = file.exists(bistab_path))
+      cat(sprintf("theta=%.2f, ir=%.2f, ke=%d done.\n", theta_val, ir_val, ke_val))
+    }
+  }
+}
+
+bistab_df <- read.csv(bistab_path)
+cat(sprintf(
+  "Section 18: bistability sweep complete -- %d rows across %d combinations. See day41_bistability_sweep.csv.\n",
+  nrow(bistab_df), length(theta_seq_bistab) * length(ir_seq_bistab) * length(ke_seq_bistab)
+))
+
+# Flag candidate bistable points: same (theta, ir, ke, fish_level), up vs down
+# fraction_of_unfished differing by more than 5% relative -- Section 17d's own
+# gaps were far larger than this (0.862 vs 0.507, 0.898 vs 0.502), so this
+# threshold is conservative rather than tuned to catch marginal cases.
+bistab_wide <- bistab_df %>%
+  select(theta, interaction_resource, knife_edge_size, fish_level, direction, fraction_of_unfished) %>%
+  tidyr::pivot_wider(names_from = direction, values_from = fraction_of_unfished, names_prefix = "frac_")
+bistab_wide$rel_diff <- abs(bistab_wide$frac_up - bistab_wide$frac_down) /
+  pmax(bistab_wide$frac_up, bistab_wide$frac_down, 1e-12, na.rm = FALSE)
+
+bistab_candidates <- bistab_wide %>% filter(!is.na(rel_diff), rel_diff > 0.05) %>% arrange(desc(rel_diff))
+write.csv(bistab_candidates, file.path(plot_dir, "day41_bistability_candidates.csv"), row.names = FALSE)
+cat(sprintf(
+  "Section 18: %d candidate bistable (theta, interaction_resource, knife_edge, fish_level) points found (>5%% relative gap between up/down). See day41_bistability_candidates.csv.\n",
+  nrow(bistab_candidates)
+))
+print(bistab_candidates)
+
 ################################################################################
 # What's Next
 ################################################################################

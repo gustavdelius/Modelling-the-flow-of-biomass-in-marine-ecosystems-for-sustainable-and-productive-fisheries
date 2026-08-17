@@ -1,5 +1,5 @@
 ---
-title: "Day 41: A Regime That Collapses, But Still Has No MSY"
+title: "Day 41: From a Regime That Collapses to One That Finally Peaks"
 author: "Samia"
 date: "2026-08-17"
 format:
@@ -9,12 +9,12 @@ format:
     theme: flatly
     code-fold: true
 categories: [research, mizer, anchovy, fishing, cannibalism, cultivation-effect, extinction, blog]
-description: "Two sessions' worth of follow-up to Day 40's own mortality-fix discovery. The first closes out the fix's immediate follow-ups and searches theta/interaction_resource extremes for a clean sustainable-yield curve -- finding none of them has one. The second goes looking specifically for a regime that collapses outright, finds it (knife_edge, not theta or interaction_resource, turns out to be the dominant lever), and then discovers that regime doesn't have a real MSY either -- it flickers into extinction rather than settling into one. Closes with the concrete target this project now needs: a regime with both an interior peak and a population still genuinely cycling at it."
+description: "Three sessions' worth of follow-up to Day 40's own mortality-fix discovery. The first closes out the fix's immediate follow-ups and searches theta/interaction_resource extremes for a clean sustainable-yield curve -- finding none of them has one. The second goes looking specifically for a regime that collapses outright, finds it (knife_edge, not theta or interaction_resource, turns out to be the dominant lever), and then discovers that regime doesn't have a real MSY either -- it flickers into extinction rather than settling into one. The third screens 56 candidates from that search and finds the first regime in this whole project with a genuine interior yield peak and a population that's still actually cycling at it: theta=0.3, interaction_resource=3. Closes with an unrelated but genuinely new discovery: removing cannibalism entirely stops the oscillation, as expected, but under Constant fishing the population turns out to be bistable -- two different stable equilibria coexisting at the same effort, confirmed directly via hysteresis rather than inferred from a convergence-time proxy."
 ---
 
 ## The Brief
 
-Day 40's own Section 6 found that every model in this project's Days 39-40 -- baseline and every `theta` variant alike -- had been running on a flat, buggy background mortality rather than the paper's own U-shaped curve, and queued a batch of follow-up work rather than answering it in place. This post covers two further sessions on top of that fix. The first (`finding_jams/40_changed_mort_experiments.R`, Sections 2-11) closes out the fix's own immediate follow-ups -- does dt tolerate raising, does the dip-then-rise yield shape survive a finer grid, does the knife_edge collapse boundary survive the fix -- and then goes looking across `theta` and `interaction_resource` for a point that gives a genuinely single-peaked sustainable-yield curve, the thing this project has been chasing since Day 38. None of the four points tested has one. The second session (Sections 12-13) changes the question: instead of hunting for a peak, hunt for an outright collapse. It finds one -- and then finds that regime doesn't have a real MSY either, just a population that cycles faster and faster on its way to extinction. That result sets up the concrete target the next session needs to hit.
+Day 40's own Section 6 found that every model in this project's Days 39-40 -- baseline and every `theta` variant alike -- had been running on a flat, buggy background mortality rather than the paper's own U-shaped curve, and queued a batch of follow-up work rather than answering it in place. This post covers three further sessions on top of that fix. The first (`finding_jams/40_changed_mort_experiments.R`, Sections 2-11) closes out the fix's own immediate follow-ups -- does dt tolerate raising, does the dip-then-rise yield shape survive a finer grid, does the knife_edge collapse boundary survive the fix -- and then goes looking across `theta` and `interaction_resource` for a point that gives a genuinely single-peaked sustainable-yield curve, the thing this project has been chasing since Day 38. None of the four points tested has one. The second session (Sections 12-13) changes the question: instead of hunting for a peak, hunt for an outright collapse. It finds one -- and then finds that regime doesn't have a real MSY either, just a population that cycles faster and faster on its way to extinction. The third session (Section 14) screens 56 candidates surfaced by that search and finds it: `theta=0.3, interaction_resource=3` is the first regime in this whole project with a genuine interior yield peak and a population that's still actually oscillating, not flickering into collapse, at it. A direct check of Section 6's own mechanism against a more accurate numerical scheme (Section 7) comes back inconclusive rather than confirming it -- the scheme itself turns out not to produce a usable comparison. A last, unrelated check -- what happens with cannibalism removed entirely -- turns up something new: Section 8 finds a genuine bistability under Constant fishing, confirmed by hysteresis rather than asserted from a convergence-time proxy alone.
 
 ------------------------------------------------------------------------
 
@@ -103,18 +103,125 @@ By fish_level=25 the population is cycling nearly annually, still at large relat
 
 **There is a numerical yield peak (0.366 at fish_level=18) -- but it isn't a real MSY.** `mean_total` biomass declines monotonically across the *entire* fine grid with no sign of restabilising (0.522 at fish_level=7, already down to 0.107 by the yield peak, 0.011 by fish_level=30, and under 1e-9 by fish_level=50 per Section 3's own coarser data). The oscillation check confirms the dynamics underneath the "peak" are still rapidly cycling, not settled. This is exactly the artefact Day 40's own Section 5 caveat warned about: a transient catch spike measured mid-collapse, not a sustainable equilibrium yield. (One data anomaly worth flagging rather than reading into: fish_level=7 shows a yield *dip* despite having the highest biomass in the whole grid -- almost certainly the 12-year averaging window landing on an unusually trough-heavy phase of the still-large-amplitude cycle, the same sampling-window-phase sensitivity flagged elsewhere in this project, not a real feature of that specific effort level.)
 
-So this project now has two clean examples and neither is the target: `theta=0.3/ir=1/knife_edge=10` never collapses and never peaks; `theta=0.3/ir=1/knife_edge=3` collapses outright and *also* never peaks -- it just fails a different way, by flickering into extinction rather than declining forever without consequence.
+So at this point this project had two clean examples and neither was the target: `theta=0.3/ir=1/knife_edge=10` never collapses and never peaks; `theta=0.3/ir=1/knife_edge=3` collapses outright and *also* never peaks -- it just fails a different way, by flickering into extinction rather than declining forever without consequence.
+
+------------------------------------------------------------------------
+
+## Section 5: The Fine MSY Scan Finds It -- `theta=0.3, interaction_resource=3`
+
+Section 4's own screening logic generalises directly: pull every combination from the fine sweep that fishing meaningfully reduces (`0.03 < fraction_of_unfished < 0.6` at fish_level=100) without it already being extinct there -- 56 candidates, spanning `knife_edge=3` (7), `5` (13), `7` (22), and `10` (14) -- and run a Constant-effort grid on each, screening for a genuine interior yield peak. Ten points per combination (`1,3,5,9,15,20,25,30,50,100`, denser below 30 where the extinction regime's own peak sat, deliberately coarse above it to keep this a single-sitting job rather than another overnight run), 560 simulations total. No heatmap -- a CSV to filter afterward, the same call made for Section 3's own three-axis sweep.
+
+**17 of the 56 show a numerical interior peak.** That alone would have been a promising headline. But checking `rel_amplitude`, not just whether the mean stabilises, tells a very different story: **15 of those 17 are the exact same late-uptick-into-flickering-collapse artefact** Section 4 found for the extinction regime. Amplitude climbs to 1.68-2.00 -- Day 39's own near-extinction ceiling -- even at combinations where the *mean* biomass looks like it has settled down, which checking the mean alone would have missed entirely.
+
+**Two combinations pass both tests.**
+
+|   | `knife_edge=3` | `knife_edge=5` |
+|----|----|----|
+| peak yield | 0.0820 at fish_level=9 | 0.0804 at fish_level=15 |
+| biomass, fish_level 1 -\> 100 | 0.786 -\> 0.410 | 0.792 -\> 0.435 |
+| max `rel_amplitude` | 0.529 | 0.461 |
+
+Both settle into a reduced-but-stable biomass range by fish_level=50-100 (essentially flat across the last three grid points), with a real interior peak beforehand and amplitude staying well clear of the collapse-flicker ceiling across the entire tested range -- the first candidates in this whole project that look right on both counts at once.
+
+The parameter itself is almost an embarrassment: `interaction_resource=3` was in the *original* Overnight grid from the very start of Day 40's own mortality-fix work (`resource_grid_seq <- c(1, 1.3, 2, 3, 5)`), sitting there the whole time. Every subsequent section -- Sections 2 and 3 above, all of Day 40's own follow-up work -- focused on `ir=1`, `1.3`, `2`, or `5` instead; `ir=3` never got its own dedicated effort/knife_edge sweep until this screen surfaced it by elimination.
+
+Two honest caveats before treating this as fully confirmed. First, this is a coarse 10-point grid, not the 21-point fine grid Section 4 used to pin down the extinction regime's own peak -- the true peak location and shape are not yet precisely resolved. Second, `rel_amplitude` staying low is a summary-statistic proxy for "the cycle looks healthy," not a genuine oscillation check -- Section 4's own convention (full biomass time series across several effort levels, period detection) is what actually confirmed the extinction regime's flickering, and the same check hasn't yet been run on `theta=0.3/ir=3`. Both are the direct next step, not optional polish.
+
+------------------------------------------------------------------------
+
+## Section 6: Why `theta=0.3/ir=3` Works -- a Jam, and Where It Goes When It Breaks Up
+
+Section 5 found *that* `theta=0.3, interaction_resource=3` has a real MSY. It didn't say why. This project's own central framing -- a jam is a pile-up of biomass at a size class rather than a location, the traffic-flow analogy `report-background-mizer.qmd` builds the whole modelling approach on -- gives a direct way to look for a mechanism: plot the size spectrum and the biomass flux (`getFlux(power=1)`, grams/year, mizer's own built-in growth-flux calculation) for four points at `knife_edge=10`, this project's own default gear -- the plain default, each single-parameter change on its own, and both together -- all snapshotted at the same unfished fork state (`t_fork=20`) every other section in this post uses as its own reference point.
+
+![Default (theta=1, ir=1): a sharp bump in the size spectrum right around w=1-2g.](../interesting_plots/day41_spectrum_default.png)
+
+![Default: biomass flux peaks sharply at the same w=1-2g, 0.395 g/year.](../interesting_plots/day41_flux_default.png)
+
+**The default model has a jam, and it's visible in both plots at once.** The size spectrum isn't the smooth, roughly power-law decline a textbook unjammed spectrum would show -- there's a distinct local peak in biomass density right around w=1-2g, sitting on top of an otherwise declining curve. The flux plot shows exactly what that bump is: a sharp spike of 0.395 g/year in growth flux at the same size, meaning a disproportionate share of all the biomass moving through this population's whole size range is funnelled through that one narrow band, not spread out. Biomass is piling up and surging through one choke point rather than flowing evenly.
+
+![Reduced theta only (theta=0.3, ir=1): the bump survives, just relocated and shrunk.](../interesting_plots/day41_spectrum_theta_low.png)
+
+![Reduced theta only: flux peak shifts to w=4-5g, narrower, 0.35 g/year.](../interesting_plots/day41_flux_theta_low.png)
+
+**Cutting cannibalism alone doesn't remove the jam -- it relocates it.** The bump is still there, just pushed out to a larger size (w≈4-5g rather than 1-2g, since juveniles now survive the small sizes for longer before running into whatever *does* constrain them) and reduced in the spectrum's own peak height (roughly 10x lower). The flux peak barely changes in magnitude (0.35 vs. 0.395 g/year) but becomes narrower and sharper. Still one dominant choke point, just moved.
+
+![Increased ir only (theta=1, ir=3): the bump barely moves from default at all.](../interesting_plots/day41_spectrum_ir_high.png)
+
+![Increased ir only: flux peak stays at the same w=1-2g, just damped to 0.147 g/year.](../interesting_plots/day41_flux_ir_high.png)
+
+**Boosting resource access alone does even less.** The spectrum's bump sits at essentially the same location as the default (w≈1-2g) and reaches almost the same peak height -- more resource doesn't move the jam anywhere. The flux peak does drop substantially, from 0.395 to 0.147 g/year (roughly a third), and a small secondary shoulder appears around w=8-10g, but the single dominant choke point at w≈1-2g is still clearly the main feature.
+
+![Both together (theta=0.3, ir=3): no sharp bump -- a smooth, gentle rise instead.](../interesting_plots/day41_spectrum_theta_low_ir_high.png)
+
+![Both together: a genuinely bimodal flux, split between w=0.1g and w=8-10g, with a real trough exactly where every other scenario peaks.](../interesting_plots/day41_flux_theta_low_ir_high.png)
+
+**Only combining both changes actually breaks the jam up.** The size spectrum has no sharp bump at all -- just a gentle, broad rise from w≈0.05-0.3g before declining smoothly, much closer to what an unjammed spectrum should look like. The flux tells the same story more sharply: it's genuinely **bimodal**, with a peak of 0.118 g/year at w≈0.1g, a real trough down to 0.02 g/year at w≈1g -- exactly the size where all three other scenarios have their own single dominant peak -- and a second, smaller peak of 0.05 g/year at w≈8-10g, sitting almost exactly on `w_mat=10`/`knife_edge=10`, the maturity and harvestable size. Growth flux that was concentrated at one choke point in every other scenario is here split across two smaller surges, with the former choke point turned into a trough instead.
+
+That split is very likely the mechanism behind Section 5's own finding. A population with all its growth funnelled through one narrow size band is a population where a single perturbation -- fishing pressure landing on or near that band, in particular -- has an outsized, non-linear effect: relieve the jam even slightly and the compositional-shift dynamics this project has traced since Day 39 take over, producing the recover-and-climb or monotonic-forever shapes Sections 1-3 found everywhere else. A population whose growth is already distributed across two smaller surges instead has no single point of failure for fishing to exploit or relieve that dramatically -- which is consistent with `theta=0.3/ir=3` being the one regime found so far where Constant fishing effort produces an honest trade-off (a real peak, then a real decline) rather than a discontinuous jump between "barely responds" and "collapses."
+
+------------------------------------------------------------------------
+
+## Section 7: Does the Jam-Resolution Finding Survive a More Accurate Scheme?
+
+Section 6's whole mechanism rests on a single-scheme snapshot. MIZER-AGENTS.md's own documented fix for the default scheme's numerical diffusion is `second_order_w(params) <- TRUE` paired with `method="tr_bdf2"` in `project()` -- the natural next question is whether the bimodal flux Section 6 found is a real feature of the dynamics, or an artefact of the default scheme's own smearing that a more accurate scheme would iron out.
+
+**`steady()`/`steadyNewton()` doesn't apply here, so it wasn't used.** Both assume mizer's own standard semichemostat resource dynamics; this project's own custom `plankton_logistic()` (the exact analytic logistic-plus-immigration stepper adopted Day 40) is not that, independent of which consumer-side scheme is attached. This rules it out rather than just avoiding it -- confirmed by checking, not assumed.
+
+**Restarting the second-order run from an arbitrary spectrum was also ruled out**, for a reason already on record: this file's own earlier dt-raising test found that exact procedure (a 10-year settle from an arbitrary tiny spectrum, then rescale by `1e7`) collapses to numerical extinction under `second_order_w`+`tr_bdf2`. So instead: run the first-order fork as usual (known-good, Section 6's own convention) to reach a physically sensible, already-oscillating state, then seed a second-order copy of the *same* params from that *same* state and continue under `tr_bdf2` -- not restarting from scratch, just switching which scheme takes over from a sensible starting point.
+
+![First-order reference: the bimodal flux Section 6 built its whole mechanism on.](../interesting_plots/day41_scheme_flux_1st.png)
+
+The first-order snapshot reproduces Section 6's own bimodal flux exactly, as it should -- same model, same seed point.
+
+![Second-order, +4 years past the same seed point: the bimodal structure is already gone.](../interesting_plots/day41_scheme_flux_2nd_4yr.png)
+
+Four years in, the second peak and the trough between them have vanished, replaced by a single sharp peak (0.22 g/year at w≈0.5g) -- the same *shape* of jam Section 6 found in the default/theta-only/ir-only scenarios, not the split structure the whole section's argument was built on. Four years is less than one full cycle at this model's own \~5-6 year period, though, so this alone doesn't distinguish a real correction from an incomplete transient -- extending the check was the obvious next step, not stopping here.
+
+![Second-order, +12 years: still a single peak, now smaller and shifted.](../interesting_plots/day41_scheme_flux_2nd_12yr.png)
+
+![Second-order, +20 years: the peak has collapsed by three orders of magnitude.](../interesting_plots/day41_scheme_flux_2nd_20yr.png)
+
+Extending to +12 and +20 years (roughly 3.6 cycles total) resolves the ambiguity, but not toward either of the two readings that mattered. The flux does not re-settle into the bimodal shape (which would have confirmed Section 6's mechanism survives a better scheme), and it does not reveal a genuine alternative single-peaked equilibrium either (which would have refuted it cleanly). Instead it declines monotonically and steepens: 0.22 g/year at +4yr, to 0.062 at +12yr, to 0.00014 at +20yr -- roughly three orders of magnitude in sixteen years -- while the resource spectrum loses its own grazed kink entirely and reverts to an almost untouched power law, because there's barely any anchovy population left under `tr_bdf2` to graze it down. That is a population heading toward extinction under the second-order scheme regardless of where it starts, not a population settling into any comparable state, jammed or otherwise.
+
+The likely cause is a deeper incompatibility between this project's own custom resource dynamics and `tr_bdf2`'s own two-stage rate evaluation, not simply the fork-and-settle constants the earlier dt-raising test blamed -- this run was seeded from a perfectly good state, not an arbitrary one, and still failed the same way, just more slowly. Section 6's mechanism therefore stands **unconfirmed but also un-contradicted** by a more accurate scheme: the tool used to check it doesn't produce a usable comparison at all, which is a different and more basic problem than the mechanism being wrong. Diagnosing that incompatibility properly -- not just re-documenting its symptom -- is queued as its own overnight sweep (see "What's Next").
+
+------------------------------------------------------------------------
+
+## Section 8: No Cannibalism, No Oscillation -- and a Genuine Bistability Hiding Inside It
+
+Every oscillation in this project traces back to cannibalism: self-predation via `interaction_matrix` is the destabilising feedback Datta, Delius and Law (2011) describe for this class of equation, and `report-background-mizer.qmd`'s own background section names it as such. `theta=0.3` cuts that feedback to 30% of baseline; what happens at `theta=0` -- cannibalism removed entirely, `interaction_resource=1`, `knife_edge=10` -- is a clean test of whether removing it outright removes the oscillation, and whether the collapse behaviour found throughout Sections 3/5 above needs the cycling dynamics in the mix at all.
+
+**It does stop oscillating -- but not quickly, and what's underneath that turned out to be more interesting than the original question.** A 60-year unfished run past the usual `t_fork=20` found zero local peaks: not small-amplitude cycling, genuinely none, because the trajectory was still climbing monotonically the entire time (selected biomass +28% from year 20.5 to 80) and had not yet finished settling. `t_fork=20` was tuned for the `theta=0.3` models' own fast oscillatory attractor; theta=0 relaxes on a slower, non-cyclic timescale that convention was never built for.
+
+Mizer's own `projectToSteady()` resolves this properly -- not `steady()`/`steadyNewton()`, which fails here for the same reason it fails for every oscillating model in this project (it assumes standard semichemostat resource dynamics, and this project's own custom `plankton_logistic()` is not that, independent of whether the consumer side happens to cycle). Run directly on a fresh model build, bypassing this project's own fork procedure entirely, it converges to a genuine fixed point (`type="steady"`, not `"cycle"`) in 28.8 years -- and every one of 11 fishing efforts tested from 1 to 100 also converges cleanly to a fixed point, confirming fishing does not induce any oscillation in this regime either.
+
+The corrected numbers change a great deal from an earlier, unconverged pass at the same sweep: `fraction_of_unfished` at `fish_level=100` is 0.368, not the 0.730 that sweep reported -- roughly half. More strikingly, the curve is not monotonic. It declines from 0.986 (`fish_level=1`) to a local minimum of 0.866 (`fish_level=9`), genuinely *recovers* to 0.898-0.905 (`fish_level=15-20`), then drops sharply to 0.515 between `fish_level=20` and `30`, continuing down to 0.368 by 100. The yield curve echoes it: a real interior peak of 0.0514 at `fish_level=9`, a dip to 0.0223 at `fish_level=30` -- exactly where the biomass drop lands -- then a slight rise back to 0.0272 by 100. This project has read that peak-dip-rise shape as a signature of oscillating, compositional-shift dynamics everywhere else it's appeared (Day 40's own headline finding, Sections 1-3 above); here it shows up with **zero oscillation anywhere in the range**.
+
+**Is the sharp drop between `fish_level=20` and `30` actually a bifurcation, or just a steep-but-continuous decline that a coarse 11-point grid makes look sudden?** That's worth being skeptical of rather than asserting from a convergence-time proxy alone, so it was checked directly rather than assumed.
+
+**A fine bracket first.** Stepping through `fish_level=21` to `29` in single-unit steps, from the same unfished branch as the coarse sweep: `fraction_of_unfished` declines smoothly and gently from 0.894 to 0.820 across `fish_level=21`-`27` (about 0.012 per unit of effort), then jumps to 0.578 between `27` and `28` -- a 0.24 drop in a single unit of effort, twenty times steeper than the trend it interrupts. `conv_years` moves in lockstep: 23.0 at `fish_level=21` rising gently to 29.6 at `27`, then jumping to 45.4 at `28`. A genuinely continuous curve, even a steep one, does not do this on a grid this fine -- this looks like a real discontinuity, not a sampling artefact.
+
+**The decisive test is hysteresis, not steepness.** A single curve, however steep, is still single-valued: one state per effort level, regardless of history. A genuine fold means the *same* effort value can have two different stable states depending on which direction you approach it from. So: converge at `fish_level=30` (past the jump), then step *down* through the same effort values the upward sweep already covered, and check whether they land on the same numbers.
+
+They don't. At `fish_level=25`: approached from the unfished branch, `fraction_of_unfished=0.862`, converging in 26.6 years. Approached from above (converged at 30, stepped down), the same effort gives `fraction_of_unfished=0.507`, converging in 0.8 years. At `fish_level=20`: 0.898 from below (22.2yr) versus 0.502 from above (1.0yr). Two different stable equilibria, coexisting at the identical fishing effort, each one reached almost instantly once the system is already in its basin and each one taking decades to reach if the system starts near the *other* branch's own fold. That fast-near-home/slow-near-the-fold asymmetry on both sides is exactly what standard bifurcation theory predicts, not just a plausible-sounding label -- this is genuine bistability, not a steep single curve. Confirmed bistable across `fish_level=20`-`27` at minimum; where the low branch stops being reachable from above, below `fish_level=20`, isn't mapped yet.
+
+What two coexisting equilibria in a *non-oscillating* population might physically represent -- something like two different stable size-compositions, a version of the compositional shift Sections 3-5 found driving oscillation elsewhere, but frozen into two static configurations instead of cycled between -- is exactly the kind of question this project's own traffic-jam framing was built to ask, and hasn't been answered yet. This is a genuinely new phenomenon for this project, not a corollary of anything found so far, and it deserves its own dedicated investigation rather than a paragraph here.
 
 ------------------------------------------------------------------------
 
 ## What's Next
 
-The concrete target this project now needs is narrower than "find a peak" or "find a collapse" separately -- it's **a regime with a genuine interior yield peak where the population is still actually oscillating (not yet flickering into collapse) at that peak.** That's the precondition for the next real piece of work: applying the threshold-schedule machinery (`thresholdFMort()`, the peaks/troughs rule this project has built and tested since Day 36) *on top of* a Constant-effort MSY that means something. Every threshold-schedule comparison run so far -- Day 40's own Sections 2-3, this post's own `ir=1.3`/`theta=0.5-ir=2`/`theta=0.7-ir=5` reruns -- was layered on a floor that was either an arbitrary constant or a peak this post has since found reason to doubt. A regime with a real, still-cycling MSY is what would let those schedule results actually mean "boosting fishing at the population's peaks/troughs, on top of its own best sustainable constant effort" rather than "on top of an effort chosen for lack of a better one."
+The concrete target this project has been chasing across this whole post -- **a regime with a genuine interior yield peak where the population is still actually oscillating, not flickering into collapse, at that peak** -- has a real candidate for the first time: `theta=0.3, interaction_resource=3`, at `knife_edge=3` or `knife_edge=5`. That's the precondition for the next real piece of work: applying the threshold-schedule machinery (`thresholdFMort()`, the peaks/troughs rule this project has built and tested since Day 36) *on top of* a Constant-effort MSY that means something, rather than on top of a floor that was either arbitrary or a peak this project has since found reason to doubt.
 
-1.  **Land Section 4's own fine MSY scan.** 56 "promising" combinations -- meaningfully fishing-responsive but not yet extinct by fish_level=100 in the fine sweep above -- are queued for a 10-point Constant-effort grid (1 to 100, deliberately coarser past effort=30 so this doesn't need another overnight run) specifically screening for an interior peak. As of writing it's partially run; finishing it and checking which (if any) of the 56 have both a real peak *and* biomass that's still stabilising rather than in freefall at that peak (an oscillation check, Section 4's own convention, on the best candidates) is the direct next step.
-2.  **If Section 4's scan comes up empty, widen the search rather than assume no such regime exists.** The fine sweep's own grid (`theta` in 5 steps, `ir` in 8, `knife_edge` in 5) was deliberately coarse to keep the overnight run tractable -- a genuine MSY-with-oscillation regime could easily sit between the tested grid points rather than on one of them.
-3.  **The Overnight interaction grid's own theta x interaction_resource story** (Day 40 Section 0's `interaction_grid_df`) still hasn't had its own growth-recovery/fishing-sensitivity trade-off read all the way through against this post's own findings -- worth reconciling once a target regime is in hand, so the choice is justified on both axes at once rather than picked from the extinction search alone.
-4.  **Day 40 Section 7's threshold_frac x boost heatmap** has still not been rerun under the fixed mortality -- lower priority than finding the right regime to run it on in the first place, but still queued.
+1.  **Confirm `theta=0.3/ir=3` properly before building anything on top of it.** A finer effort grid around fish_level=9 (`ke=3`) and 15 (`ke=5`) -- Section 4's own 21-point convention -- to pin the peak down precisely, plus a genuine oscillation check (full time series across several effort levels, period detection, Section 4's own convention rather than the `rel_amplitude` proxy Section 5 used to screen 56 candidates cheaply) on both `knife_edge` values.
+2.  **Once confirmed, this is the regime to run the threshold schedule on.** Every peaks/troughs comparison so far in this project (Day 40's own Sections 2-3, this post's own `ir=1.3`/`theta=0.5-ir=2`/`theta=0.7-ir=5` reruns) was layered on a floor that turned out to be arbitrary or doubtful. `theta=0.3/ir=3`'s own Constant-effort MSY -- once pinned down by item 1 -- is the first floor in this project that would actually mean "boosting fishing at the population's peaks/troughs, on top of its own best sustainable constant effort."
+3.  **If item 1 finds `theta=0.3/ir=3` doesn't hold up under closer inspection, the other 15 near-miss combinations are the fallback list**, not a dead end -- Section 5's own screen ranks them by how close their amplitude gets to the collapse-flicker ceiling, so the next-best candidates are already sorted.
+4.  **The Overnight interaction grid's own theta x interaction_resource story** (Day 40 Section 0's `interaction_grid_df`) still hasn't had its own growth-recovery/fishing-sensitivity trade-off read all the way through against this post's own findings -- worth reconciling now that `ir=3` specifically is the regime in hand, not picked from the extinction search alone.
+5.  **Day 40 Section 7's threshold_frac x boost heatmap** has still not been rerun under the fixed mortality, or at `theta=0.3/ir=3` rather than `ir=1` -- queued behind item 2.
+6.  **Test the jam-breaking mechanism under fishing, not just unfished.** Section 6's own spectrum/flux snapshots are all at the unfished fork state -- the natural next check is whether `theta=0.3/ir=3`'s bimodal, jam-free flux structure survives as Constant effort rises toward its own MSY and past it, or whether fishing pressure on the harvestable-size peak (w≈8-10g) reconstitutes a single choke point the way it does in the other three scenarios. If the two-surge structure holds up under fishing, that would be direct mechanistic confirmation of Section 6's own hypothesis, not just a plausible story fit to the unfished snapshot alone.
+7.  **An overnight sweep is queued to test the second-order incompatibility properly**, rather than leave Section 6's own caveat sitting on a single, hand-seeded checkpoint run. The goal is to actually diagnose the failure rather than just keep re-documenting its symptom: sweep `tr_bdf2`/`second_order_w` across a range of `(theta, interaction_resource, knife_edge)` combinations (not just `theta=0.3/ir=3`) and a range of `dt` to check whether the slow decline to extinction is universal across this project's whole model space or specific to particular regions of it; run the same scheme against mizer's own default semichemostat resource dynamics (not this project's own custom `plankton_logistic()`) as a control, to isolate whether the incompatibility is with the custom resource stepper specifically or with `tr_bdf2` more generally in this project's setup; and check whether finer `dt` narrows or widens the gap, which would point toward a stiffness/step-size interaction rather than a structural bug. Only once the actual mechanism of the incompatibility is understood does it make sense to either fix it or trust a workaround.
+8.  **Section 8's own bistability is the most novel open thread in this post and deserves a dedicated follow-up, not a footnote.** Concretely: (a) map the lower edge of the bistable window -- how far below `fish_level=20` does the "low" branch stay reachable by approaching from above, and does the window have a sharp lower fold too, or does it taper off; (b) look at *why* -- pull the size spectrum and biomass flux (Section 6's own tools) on both branches at the same effort (e.g. `fish_level=25`) to see whether the two coexisting equilibria are compositionally different populations (a frozen, static version of the compositional shift that drives oscillation elsewhere in this project) or something else entirely; (c) get a cleaner confirmation than the convergence-time/hysteresis combination already gathered -- `getStability()` on `steadyNewton()`'s own fixed points at efforts on either side of the fold would give the leading eigenvalue directly, the textbook way to confirm a fold bifurcation rather than inferring one from trajectory behaviour.
+9.  **A dedicated overnight sweep is queued to test whether Section 8's own bistability is a global feature of this model, not a `theta=0`/`ir=1`/`ke=10` curiosity.** Item 8(d) above sketches the single-`theta` version of this question; this formalises it into the same kind of systematic search Section 3's own overnight sweep already ran for collapse: a grid across `theta`, `interaction_resource` and `knife_edge`, at each point running both an *upward* Constant-effort sweep (seeded from the unfished branch, as every earlier sweep in this project has done) and a *downward* one (seeded from a high-effort converged state, stepping down), then comparing the two paths at matching effort values -- any point where they disagree is a bistable point, exactly the test Section 8 already applied once by hand. The direct question is whether hysteresis is a `theta=0`-specific artefact of removing cannibalism entirely, or whether weaker versions of it are sitting undetected in the theta\<1, ir=1 combinations this whole project has already swept using only single-direction (upward) sweeps -- every collapse and every MSY finding so far, including `theta=0.3/ir=3` itself, has only ever been checked from one direction, so a real answer here could mean parts of this project's own story need re-examining for a fold nobody was looking for at the time.
 
 ------------------------------------------------------------------------
 
@@ -287,49 +394,37 @@ The model is now fully specified. Everything below just runs it.
 
 ### A.4 Does It Oscillate?
 
-Starting the population from an arbitrary tiny spectrum and running it forward produces a large, non-physical transient before it finds its way onto the model's real attractor -- so the reliable way to reach the oscillating state is two stages: settle for 10 years first, then rescale down by `1e7` (the settling transient overshoots by many orders of magnitude) before continuing. This is the exact procedure used throughout this project.
+The rest of this project reaches the oscillating state through a hand-tuned, two-stage procedure: settle for 10 years from an arbitrary starting spectrum, then rescale down by `1e7` (the settling transient overshoots by many orders of magnitude) before continuing. That procedure is specific to the default first-order scheme -- this section uses mizer's own `projectToSteady()` instead, which projects forward until the population's own oscillation amplitude stops changing by more than `amplitude_tol` between checks, with no hand-tuned settle time or rescale constant. It also switches the *time*-stepping method to `tr_bdf2`, mizer's second-order-in-time scheme -- not `second_order_w` (the *spatial* flux scheme, left at its default here), which is a narrower, different test from the full second-order combination this project's own Day 41 caveat found trouble with. Whether this still shows the same roughly five-to-six year cycle found everywhere else in this project, or whether `projectToSteady()`/`tr_bdf2` changes it, is exactly what running this checks.
 
 ```{r appendix-settle}
-# Stage 1: settle from an arbitrary starting spectrum.
-n0 <- initialN(params); n0[] <- 0.001 * w(params)^(-1.8)
-initialN(params) <- n0
-initialNResource(params) <- resource_capacity(params)
+p$method <- "tr_bdf2"   # time-stepping method only -- second_order_w (the spatial
+                        # flux scheme) is left at its own default, deliberately
 
-settled <- project(params, t_max = 10, dt = p$dt, progress_bar = FALSE)
-
-# Stage 2: rescale and continue with no fishing.
-n0 <- initialN(params); n0[] <- finalN(settled) / 1e7
-initialN(params) <- n0
-npp0 <- initialNResource(params); npp0[] <- finalNResource(settled)
-initialNResource(params) <- npp0
-
-sim_unfished <- project(params, t_max = 20, t_start = 10, dt = p$dt, t_save = 0.2,
-                        progress_bar = FALSE, effort = 0)
+sim_unfished <- projectToSteady(params, t_max = 150, t_per = 0.2, dt = p$dt,
+                                method = p$method, return_sim = TRUE,
+                                amplitude_tol = 0.0001)
 ```
 
 ```{r appendix-plot-oscillation}
-#| fig-cap: "Unfished biomass settles into a regular ~5-6 year limit cycle."
+#| fig-cap: "Unfished biomass under projectToSteady()'s own tr_bdf2 convergence run -- whatever length that took to satisfy amplitude_tol=0.0001, up to its own t_max=150 cap, not a fixed window chosen in advance."
+#| message: false
 plot(getBiomass(sim_unfished))
 ```
 
-It does: after the initial transient, biomass rises and falls on a regular cycle of roughly five to six years, indefinitely, with no fishing at all.
-
 ### A.5 Its Yield Curve
 
-Seed a new run from wherever the unfished trajectory ended up -- a real point on the cycle, not an arbitrary starting spectrum -- then project forward 12 years at each of a range of constant fishing efforts, and average the yield over the second half of that window (the first 6 years after an effort change are transient).
+Rather than a fixed-length projection and an arbitrary post-transient window, run `projectToSteady()` again, once per fishing effort -- `finalParams(sim_unfished)` hands the model's own converged state straight back in as the next run's starting parameters, no manual `initialN<-()`/`initialNResource<-()` bookkeeping needed. `projectToSteady()` reports the cycle length it actually detected in `attr(sim, "convergence")$period`; averaging yield only over that final, detected period -- not a hand-picked number of years -- gives a genuinely smooth per-cycle mean rather than one that depends on exactly which stretch happened to be sampled.
 
 ```{r appendix-yield-curve}
-n0 <- initialN(params); n0[] <- finalN(sim_unfished)
-initialN(params) <- n0
-npp0 <- initialNResource(params); npp0[] <- finalNResource(sim_unfished)
-initialNResource(params) <- npp0
-
 effort_seq <- c(1, 2, 3, 5, 9, 20, 50, 100)
+params <- finalParams(sim_unfished)
 
 mean_yield <- sapply(effort_seq, function(effort) {
-  sim <- project(params, t_max = 12, t_start = 30, dt = p$dt, t_save = 0.2,
-                 progress_bar = FALSE, effort = effort)
-  mean(getYield(sim)[getTimes(sim) > 36, ])
+  sim <- projectToSteady(params, dt = p$dt, method = p$method, t_per = 0.2,
+                 return_sim = TRUE, effort = effort)
+  conv <- attr(sim, "convergence")
+  start <- conv$years - conv$period
+  mean(getYield(sim)[getTimes(sim) >= start, ])
 })
 
 yield_df <- data.frame(effort = effort_seq, yield = mean_yield)
@@ -346,4 +441,4 @@ ggplot(yield_df, aes(effort, yield)) +
   theme_minimal()
 ```
 
-Worth saying plainly rather than glossing over: this particular curve is **not** a clean single peak, for exactly the reasons Sections 1-4 above go through in detail -- a local peak around effort 9-12, a genuine dip through 15-20, then a second, larger rise all the way out to 100, driven by the compositional shift rather than a healthy fishery. The model built above is exactly what produces that shape; having it written out this plainly, with nothing hidden behind a helper function, is what makes that mechanism explainable rather than just assertable.
+Under the project's own default settle procedure and first-order scheme (Sections 1-4 above), this curve is **not** a clean single peak -- a local peak around effort 9-12, a genuine dip through 15-20, then a second, larger rise all the way out to 100, driven by the compositional shift rather than a healthy fishery. Whether `projectToSteady()`/`tr_bdf2`'s own different seed state reproduces that same shape, or something else, is an open question this rewrite is set up to answer rather than a foregone conclusion -- worth comparing directly against the earlier figure once this actually runs, not assuming the two must agree.

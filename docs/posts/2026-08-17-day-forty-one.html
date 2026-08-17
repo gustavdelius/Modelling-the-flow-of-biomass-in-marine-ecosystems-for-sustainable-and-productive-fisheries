@@ -8,9 +8,9 @@
 
 <meta name="author" content="Samia">
 <meta name="dcterms.date" content="2026-08-17">
-<meta name="description" content="Two sessions’ worth of follow-up to Day 40’s own mortality-fix discovery. The first closes out the fix’s immediate follow-ups and searches theta/interaction_resource extremes for a clean sustainable-yield curve – finding none of them has one. The second goes looking specifically for a regime that collapses outright, finds it (knife_edge, not theta or interaction_resource, turns out to be the dominant lever), and then discovers that regime doesn’t have a real MSY either – it flickers into extinction rather than settling into one. Closes with the concrete target this project now needs: a regime with both an interior peak and a population still genuinely cycling at it.">
+<meta name="description" content="Three sessions’ worth of follow-up to Day 40’s own mortality-fix discovery. The first closes out the fix’s immediate follow-ups and searches theta/interaction_resource extremes for a clean sustainable-yield curve – finding none of them has one. The second goes looking specifically for a regime that collapses outright, finds it (knife_edge, not theta or interaction_resource, turns out to be the dominant lever), and then discovers that regime doesn’t have a real MSY either – it flickers into extinction rather than settling into one. The third screens 56 candidates from that search and finds the first regime in this whole project with a genuine interior yield peak and a population that’s still actually cycling at it: theta=0.3, interaction_resource=3. Closes with an unrelated but genuinely new discovery: removing cannibalism entirely stops the oscillation, as expected, but under Constant fishing the population turns out to be bistable – two different stable equilibria coexisting at the same effort, confirmed directly via hysteresis rather than inferred from a convergence-time proxy.">
 
-<title>Day 41: A Regime That Collapses, But Still Has No MSY – Modelling-the-flow-of-biomass</title>
+<title>Day 41: From a Regime That Collapses to One That Finally Peaks – Modelling-the-flow-of-biomass</title>
 <style>
 /* Default styles provided by pandoc.
 ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
@@ -188,6 +188,10 @@ window.Quarto = {
   <li><a href="#section-2-searching-theta-x-interaction_resource-for-a-cleaner-point" id="toc-section-2-searching-theta-x-interaction_resource-for-a-cleaner-point" class="nav-link" data-scroll-target="#section-2-searching-theta-x-interaction_resource-for-a-cleaner-point">Section 2: Searching <code>theta</code> x <code>interaction_resource</code> for a Cleaner Point</a></li>
   <li><a href="#section-3-the-overnight-fine-sweep-knife-edge-is-the-real-lever" id="toc-section-3-the-overnight-fine-sweep-knife-edge-is-the-real-lever" class="nav-link" data-scroll-target="#section-3-the-overnight-fine-sweep-knife-edge-is-the-real-lever">Section 3: The Overnight Fine Sweep – Knife Edge Is the Real Lever</a></li>
   <li><a href="#section-4-does-the-extinction-regime-have-a-real-msy-no." id="toc-section-4-does-the-extinction-regime-have-a-real-msy-no." class="nav-link" data-scroll-target="#section-4-does-the-extinction-regime-have-a-real-msy-no.">Section 4: Does the Extinction Regime Have a Real MSY? No.</a></li>
+  <li><a href="#section-5-the-fine-msy-scan-finds-it-theta0.3-interaction_resource3" id="toc-section-5-the-fine-msy-scan-finds-it-theta0.3-interaction_resource3" class="nav-link" data-scroll-target="#section-5-the-fine-msy-scan-finds-it-theta0.3-interaction_resource3">Section 5: The Fine MSY Scan Finds It – <code>theta=0.3, interaction_resource=3</code></a></li>
+  <li><a href="#section-6-why-theta0.3ir3-works-a-jam-and-where-it-goes-when-it-breaks-up" id="toc-section-6-why-theta0.3ir3-works-a-jam-and-where-it-goes-when-it-breaks-up" class="nav-link" data-scroll-target="#section-6-why-theta0.3ir3-works-a-jam-and-where-it-goes-when-it-breaks-up">Section 6: Why <code>theta=0.3/ir=3</code> Works – a Jam, and Where It Goes When It Breaks Up</a></li>
+  <li><a href="#section-7-does-the-jam-resolution-finding-survive-a-more-accurate-scheme" id="toc-section-7-does-the-jam-resolution-finding-survive-a-more-accurate-scheme" class="nav-link" data-scroll-target="#section-7-does-the-jam-resolution-finding-survive-a-more-accurate-scheme">Section 7: Does the Jam-Resolution Finding Survive a More Accurate Scheme?</a></li>
+  <li><a href="#section-8-no-cannibalism-no-oscillation-and-a-genuine-bistability-hiding-inside-it" id="toc-section-8-no-cannibalism-no-oscillation-and-a-genuine-bistability-hiding-inside-it" class="nav-link" data-scroll-target="#section-8-no-cannibalism-no-oscillation-and-a-genuine-bistability-hiding-inside-it">Section 8: No Cannibalism, No Oscillation – and a Genuine Bistability Hiding Inside It</a></li>
   <li><a href="#whats-next" id="toc-whats-next" class="nav-link" data-scroll-target="#whats-next">What’s Next</a></li>
   <li><a href="#appendix-building-the-model-from-scratch" id="toc-appendix-building-the-model-from-scratch" class="nav-link" data-scroll-target="#appendix-building-the-model-from-scratch">Appendix: Building the Model From Scratch</a>
   <ul class="collapse">
@@ -205,7 +209,7 @@ window.Quarto = {
 
 <header id="title-block-header" class="quarto-title-block default">
 <div class="quarto-title">
-<h1 class="title">Day 41: A Regime That Collapses, But Still Has No MSY</h1>
+<h1 class="title">Day 41: From a Regime That Collapses to One That Finally Peaks</h1>
   <div class="quarto-categories">
     <div class="quarto-category">research</div>
     <div class="quarto-category">mizer</div>
@@ -220,7 +224,7 @@ window.Quarto = {
 
 <div>
   <div class="description">
-    Two sessions’ worth of follow-up to Day 40’s own mortality-fix discovery. The first closes out the fix’s immediate follow-ups and searches theta/interaction_resource extremes for a clean sustainable-yield curve – finding none of them has one. The second goes looking specifically for a regime that collapses outright, finds it (knife_edge, not theta or interaction_resource, turns out to be the dominant lever), and then discovers that regime doesn’t have a real MSY either – it flickers into extinction rather than settling into one. Closes with the concrete target this project now needs: a regime with both an interior peak and a population still genuinely cycling at it.
+    Three sessions’ worth of follow-up to Day 40’s own mortality-fix discovery. The first closes out the fix’s immediate follow-ups and searches theta/interaction_resource extremes for a clean sustainable-yield curve – finding none of them has one. The second goes looking specifically for a regime that collapses outright, finds it (knife_edge, not theta or interaction_resource, turns out to be the dominant lever), and then discovers that regime doesn’t have a real MSY either – it flickers into extinction rather than settling into one. The third screens 56 candidates from that search and finds the first regime in this whole project with a genuine interior yield peak and a population that’s still actually cycling at it: theta=0.3, interaction_resource=3. Closes with an unrelated but genuinely new discovery: removing cannibalism entirely stops the oscillation, as expected, but under Constant fishing the population turns out to be bistable – two different stable equilibria coexisting at the same effort, confirmed directly via hysteresis rather than inferred from a convergence-time proxy.
   </div>
 </div>
 
@@ -251,7 +255,7 @@ window.Quarto = {
 
 <section id="the-brief" class="level2">
 <h2 class="anchored" data-anchor-id="the-brief">The Brief</h2>
-<p>Day 40’s own Section 6 found that every model in this project’s Days 39-40 – baseline and every <code>theta</code> variant alike – had been running on a flat, buggy background mortality rather than the paper’s own U-shaped curve, and queued a batch of follow-up work rather than answering it in place. This post covers two further sessions on top of that fix. The first (<code>finding_jams/40_changed_mort_experiments.R</code>, Sections 2-11) closes out the fix’s own immediate follow-ups – does dt tolerate raising, does the dip-then-rise yield shape survive a finer grid, does the knife_edge collapse boundary survive the fix – and then goes looking across <code>theta</code> and <code>interaction_resource</code> for a point that gives a genuinely single-peaked sustainable-yield curve, the thing this project has been chasing since Day 38. None of the four points tested has one. The second session (Sections 12-13) changes the question: instead of hunting for a peak, hunt for an outright collapse. It finds one – and then finds that regime doesn’t have a real MSY either, just a population that cycles faster and faster on its way to extinction. That result sets up the concrete target the next session needs to hit.</p>
+<p>Day 40’s own Section 6 found that every model in this project’s Days 39-40 – baseline and every <code>theta</code> variant alike – had been running on a flat, buggy background mortality rather than the paper’s own U-shaped curve, and queued a batch of follow-up work rather than answering it in place. This post covers three further sessions on top of that fix. The first (<code>finding_jams/40_changed_mort_experiments.R</code>, Sections 2-11) closes out the fix’s own immediate follow-ups – does dt tolerate raising, does the dip-then-rise yield shape survive a finer grid, does the knife_edge collapse boundary survive the fix – and then goes looking across <code>theta</code> and <code>interaction_resource</code> for a point that gives a genuinely single-peaked sustainable-yield curve, the thing this project has been chasing since Day 38. None of the four points tested has one. The second session (Sections 12-13) changes the question: instead of hunting for a peak, hunt for an outright collapse. It finds one – and then finds that regime doesn’t have a real MSY either, just a population that cycles faster and faster on its way to extinction. The third session (Section 14) screens 56 candidates surfaced by that search and finds it: <code>theta=0.3, interaction_resource=3</code> is the first regime in this whole project with a genuine interior yield peak and a population that’s still actually oscillating, not flickering into collapse, at it. A direct check of Section 6’s own mechanism against a more accurate numerical scheme (Section 7) comes back inconclusive rather than confirming it – the scheme itself turns out not to produce a usable comparison. A last, unrelated check – what happens with cannibalism removed entirely – turns up something new: Section 8 finds a genuine bistability under Constant fishing, confirmed by hysteresis rather than asserted from a convergence-time proxy alone.</p>
 <hr>
 </section>
 <section id="section-1-closing-out-the-mortality-fixs-own-follow-ups" class="level2">
@@ -413,17 +417,164 @@ window.Quarto = {
 </figure>
 </div>
 <p><strong>There is a numerical yield peak (0.366 at fish_level=18) – but it isn’t a real MSY.</strong> <code>mean_total</code> biomass declines monotonically across the <em>entire</em> fine grid with no sign of restabilising (0.522 at fish_level=7, already down to 0.107 by the yield peak, 0.011 by fish_level=30, and under 1e-9 by fish_level=50 per Section 3’s own coarser data). The oscillation check confirms the dynamics underneath the “peak” are still rapidly cycling, not settled. This is exactly the artefact Day 40’s own Section 5 caveat warned about: a transient catch spike measured mid-collapse, not a sustainable equilibrium yield. (One data anomaly worth flagging rather than reading into: fish_level=7 shows a yield <em>dip</em> despite having the highest biomass in the whole grid – almost certainly the 12-year averaging window landing on an unusually trough-heavy phase of the still-large-amplitude cycle, the same sampling-window-phase sensitivity flagged elsewhere in this project, not a real feature of that specific effort level.)</p>
-<p>So this project now has two clean examples and neither is the target: <code>theta=0.3/ir=1/knife_edge=10</code> never collapses and never peaks; <code>theta=0.3/ir=1/knife_edge=3</code> collapses outright and <em>also</em> never peaks – it just fails a different way, by flickering into extinction rather than declining forever without consequence.</p>
+<p>So at this point this project had two clean examples and neither was the target: <code>theta=0.3/ir=1/knife_edge=10</code> never collapses and never peaks; <code>theta=0.3/ir=1/knife_edge=3</code> collapses outright and <em>also</em> never peaks – it just fails a different way, by flickering into extinction rather than declining forever without consequence.</p>
+<hr>
+</section>
+<section id="section-5-the-fine-msy-scan-finds-it-theta0.3-interaction_resource3" class="level2">
+<h2 class="anchored" data-anchor-id="section-5-the-fine-msy-scan-finds-it-theta0.3-interaction_resource3">Section 5: The Fine MSY Scan Finds It – <code>theta=0.3, interaction_resource=3</code></h2>
+<p>Section 4’s own screening logic generalises directly: pull every combination from the fine sweep that fishing meaningfully reduces (<code>0.03 &lt; fraction_of_unfished &lt; 0.6</code> at fish_level=100) without it already being extinct there – 56 candidates, spanning <code>knife_edge=3</code> (7), <code>5</code> (13), <code>7</code> (22), and <code>10</code> (14) – and run a Constant-effort grid on each, screening for a genuine interior yield peak. Ten points per combination (<code>1,3,5,9,15,20,25,30,50,100</code>, denser below 30 where the extinction regime’s own peak sat, deliberately coarse above it to keep this a single-sitting job rather than another overnight run), 560 simulations total. No heatmap – a CSV to filter afterward, the same call made for Section 3’s own three-axis sweep.</p>
+<p><strong>17 of the 56 show a numerical interior peak.</strong> That alone would have been a promising headline. But checking <code>rel_amplitude</code>, not just whether the mean stabilises, tells a very different story: <strong>15 of those 17 are the exact same late-uptick-into-flickering-collapse artefact</strong> Section 4 found for the extinction regime. Amplitude climbs to 1.68-2.00 – Day 39’s own near-extinction ceiling – even at combinations where the <em>mean</em> biomass looks like it has settled down, which checking the mean alone would have missed entirely.</p>
+<p><strong>Two combinations pass both tests.</strong></p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th></th>
+<th><code>knife_edge=3</code></th>
+<th><code>knife_edge=5</code></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>peak yield</td>
+<td>0.0820 at fish_level=9</td>
+<td>0.0804 at fish_level=15</td>
+</tr>
+<tr class="even">
+<td>biomass, fish_level 1 -&gt; 100</td>
+<td>0.786 -&gt; 0.410</td>
+<td>0.792 -&gt; 0.435</td>
+</tr>
+<tr class="odd">
+<td>max <code>rel_amplitude</code></td>
+<td>0.529</td>
+<td>0.461</td>
+</tr>
+</tbody>
+</table>
+<p>Both settle into a reduced-but-stable biomass range by fish_level=50-100 (essentially flat across the last three grid points), with a real interior peak beforehand and amplitude staying well clear of the collapse-flicker ceiling across the entire tested range – the first candidates in this whole project that look right on both counts at once.</p>
+<p>The parameter itself is almost an embarrassment: <code>interaction_resource=3</code> was in the <em>original</em> Overnight grid from the very start of Day 40’s own mortality-fix work (<code>resource_grid_seq &lt;- c(1, 1.3, 2, 3, 5)</code>), sitting there the whole time. Every subsequent section – Sections 2 and 3 above, all of Day 40’s own follow-up work – focused on <code>ir=1</code>, <code>1.3</code>, <code>2</code>, or <code>5</code> instead; <code>ir=3</code> never got its own dedicated effort/knife_edge sweep until this screen surfaced it by elimination.</p>
+<p>Two honest caveats before treating this as fully confirmed. First, this is a coarse 10-point grid, not the 21-point fine grid Section 4 used to pin down the extinction regime’s own peak – the true peak location and shape are not yet precisely resolved. Second, <code>rel_amplitude</code> staying low is a summary-statistic proxy for “the cycle looks healthy,” not a genuine oscillation check – Section 4’s own convention (full biomass time series across several effort levels, period detection) is what actually confirmed the extinction regime’s flickering, and the same check hasn’t yet been run on <code>theta=0.3/ir=3</code>. Both are the direct next step, not optional polish.</p>
+<hr>
+</section>
+<section id="section-6-why-theta0.3ir3-works-a-jam-and-where-it-goes-when-it-breaks-up" class="level2">
+<h2 class="anchored" data-anchor-id="section-6-why-theta0.3ir3-works-a-jam-and-where-it-goes-when-it-breaks-up">Section 6: Why <code>theta=0.3/ir=3</code> Works – a Jam, and Where It Goes When It Breaks Up</h2>
+<p>Section 5 found <em>that</em> <code>theta=0.3, interaction_resource=3</code> has a real MSY. It didn’t say why. This project’s own central framing – a jam is a pile-up of biomass at a size class rather than a location, the traffic-flow analogy <code>report-background-mizer.qmd</code> builds the whole modelling approach on – gives a direct way to look for a mechanism: plot the size spectrum and the biomass flux (<code>getFlux(power=1)</code>, grams/year, mizer’s own built-in growth-flux calculation) for four points at <code>knife_edge=10</code>, this project’s own default gear – the plain default, each single-parameter change on its own, and both together – all snapshotted at the same unfished fork state (<code>t_fork=20</code>) every other section in this post uses as its own reference point.</p>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="../interesting_plots/day41_spectrum_default.png" class="img-fluid figure-img"></p>
+<figcaption>Default (theta=1, ir=1): a sharp bump in the size spectrum right around w=1-2g.</figcaption>
+</figure>
+</div>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="../interesting_plots/day41_flux_default.png" class="img-fluid figure-img"></p>
+<figcaption>Default: biomass flux peaks sharply at the same w=1-2g, 0.395 g/year.</figcaption>
+</figure>
+</div>
+<p><strong>The default model has a jam, and it’s visible in both plots at once.</strong> The size spectrum isn’t the smooth, roughly power-law decline a textbook unjammed spectrum would show – there’s a distinct local peak in biomass density right around w=1-2g, sitting on top of an otherwise declining curve. The flux plot shows exactly what that bump is: a sharp spike of 0.395 g/year in growth flux at the same size, meaning a disproportionate share of all the biomass moving through this population’s whole size range is funnelled through that one narrow band, not spread out. Biomass is piling up and surging through one choke point rather than flowing evenly.</p>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="../interesting_plots/day41_spectrum_theta_low.png" class="img-fluid figure-img"></p>
+<figcaption>Reduced theta only (theta=0.3, ir=1): the bump survives, just relocated and shrunk.</figcaption>
+</figure>
+</div>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="../interesting_plots/day41_flux_theta_low.png" class="img-fluid figure-img"></p>
+<figcaption>Reduced theta only: flux peak shifts to w=4-5g, narrower, 0.35 g/year.</figcaption>
+</figure>
+</div>
+<p><strong>Cutting cannibalism alone doesn’t remove the jam – it relocates it.</strong> The bump is still there, just pushed out to a larger size (w≈4-5g rather than 1-2g, since juveniles now survive the small sizes for longer before running into whatever <em>does</em> constrain them) and reduced in the spectrum’s own peak height (roughly 10x lower). The flux peak barely changes in magnitude (0.35 vs.&nbsp;0.395 g/year) but becomes narrower and sharper. Still one dominant choke point, just moved.</p>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="../interesting_plots/day41_spectrum_ir_high.png" class="img-fluid figure-img"></p>
+<figcaption>Increased ir only (theta=1, ir=3): the bump barely moves from default at all.</figcaption>
+</figure>
+</div>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="../interesting_plots/day41_flux_ir_high.png" class="img-fluid figure-img"></p>
+<figcaption>Increased ir only: flux peak stays at the same w=1-2g, just damped to 0.147 g/year.</figcaption>
+</figure>
+</div>
+<p><strong>Boosting resource access alone does even less.</strong> The spectrum’s bump sits at essentially the same location as the default (w≈1-2g) and reaches almost the same peak height – more resource doesn’t move the jam anywhere. The flux peak does drop substantially, from 0.395 to 0.147 g/year (roughly a third), and a small secondary shoulder appears around w=8-10g, but the single dominant choke point at w≈1-2g is still clearly the main feature.</p>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="../interesting_plots/day41_spectrum_theta_low_ir_high.png" class="img-fluid figure-img"></p>
+<figcaption>Both together (theta=0.3, ir=3): no sharp bump – a smooth, gentle rise instead.</figcaption>
+</figure>
+</div>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="../interesting_plots/day41_flux_theta_low_ir_high.png" class="img-fluid figure-img"></p>
+<figcaption>Both together: a genuinely bimodal flux, split between w=0.1g and w=8-10g, with a real trough exactly where every other scenario peaks.</figcaption>
+</figure>
+</div>
+<p><strong>Only combining both changes actually breaks the jam up.</strong> The size spectrum has no sharp bump at all – just a gentle, broad rise from w≈0.05-0.3g before declining smoothly, much closer to what an unjammed spectrum should look like. The flux tells the same story more sharply: it’s genuinely <strong>bimodal</strong>, with a peak of 0.118 g/year at w≈0.1g, a real trough down to 0.02 g/year at w≈1g – exactly the size where all three other scenarios have their own single dominant peak – and a second, smaller peak of 0.05 g/year at w≈8-10g, sitting almost exactly on <code>w_mat=10</code>/<code>knife_edge=10</code>, the maturity and harvestable size. Growth flux that was concentrated at one choke point in every other scenario is here split across two smaller surges, with the former choke point turned into a trough instead.</p>
+<p>That split is very likely the mechanism behind Section 5’s own finding. A population with all its growth funnelled through one narrow size band is a population where a single perturbation – fishing pressure landing on or near that band, in particular – has an outsized, non-linear effect: relieve the jam even slightly and the compositional-shift dynamics this project has traced since Day 39 take over, producing the recover-and-climb or monotonic-forever shapes Sections 1-3 found everywhere else. A population whose growth is already distributed across two smaller surges instead has no single point of failure for fishing to exploit or relieve that dramatically – which is consistent with <code>theta=0.3/ir=3</code> being the one regime found so far where Constant fishing effort produces an honest trade-off (a real peak, then a real decline) rather than a discontinuous jump between “barely responds” and “collapses.”</p>
+<hr>
+</section>
+<section id="section-7-does-the-jam-resolution-finding-survive-a-more-accurate-scheme" class="level2">
+<h2 class="anchored" data-anchor-id="section-7-does-the-jam-resolution-finding-survive-a-more-accurate-scheme">Section 7: Does the Jam-Resolution Finding Survive a More Accurate Scheme?</h2>
+<p>Section 6’s whole mechanism rests on a single-scheme snapshot. MIZER-AGENTS.md’s own documented fix for the default scheme’s numerical diffusion is <code>second_order_w(params) &lt;- TRUE</code> paired with <code>method="tr_bdf2"</code> in <code>project()</code> – the natural next question is whether the bimodal flux Section 6 found is a real feature of the dynamics, or an artefact of the default scheme’s own smearing that a more accurate scheme would iron out.</p>
+<p><strong><code>steady()</code>/<code>steadyNewton()</code> doesn’t apply here, so it wasn’t used.</strong> Both assume mizer’s own standard semichemostat resource dynamics; this project’s own custom <code>plankton_logistic()</code> (the exact analytic logistic-plus-immigration stepper adopted Day 40) is not that, independent of which consumer-side scheme is attached. This rules it out rather than just avoiding it – confirmed by checking, not assumed.</p>
+<p><strong>Restarting the second-order run from an arbitrary spectrum was also ruled out</strong>, for a reason already on record: this file’s own earlier dt-raising test found that exact procedure (a 10-year settle from an arbitrary tiny spectrum, then rescale by <code>1e7</code>) collapses to numerical extinction under <code>second_order_w</code>+<code>tr_bdf2</code>. So instead: run the first-order fork as usual (known-good, Section 6’s own convention) to reach a physically sensible, already-oscillating state, then seed a second-order copy of the <em>same</em> params from that <em>same</em> state and continue under <code>tr_bdf2</code> – not restarting from scratch, just switching which scheme takes over from a sensible starting point.</p>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="../interesting_plots/day41_scheme_flux_1st.png" class="img-fluid figure-img"></p>
+<figcaption>First-order reference: the bimodal flux Section 6 built its whole mechanism on.</figcaption>
+</figure>
+</div>
+<p>The first-order snapshot reproduces Section 6’s own bimodal flux exactly, as it should – same model, same seed point.</p>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="../interesting_plots/day41_scheme_flux_2nd_4yr.png" class="img-fluid figure-img"></p>
+<figcaption>Second-order, +4 years past the same seed point: the bimodal structure is already gone.</figcaption>
+</figure>
+</div>
+<p>Four years in, the second peak and the trough between them have vanished, replaced by a single sharp peak (0.22 g/year at w≈0.5g) – the same <em>shape</em> of jam Section 6 found in the default/theta-only/ir-only scenarios, not the split structure the whole section’s argument was built on. Four years is less than one full cycle at this model’s own ~5-6 year period, though, so this alone doesn’t distinguish a real correction from an incomplete transient – extending the check was the obvious next step, not stopping here.</p>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="../interesting_plots/day41_scheme_flux_2nd_12yr.png" class="img-fluid figure-img"></p>
+<figcaption>Second-order, +12 years: still a single peak, now smaller and shifted.</figcaption>
+</figure>
+</div>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="../interesting_plots/day41_scheme_flux_2nd_20yr.png" class="img-fluid figure-img"></p>
+<figcaption>Second-order, +20 years: the peak has collapsed by three orders of magnitude.</figcaption>
+</figure>
+</div>
+<p>Extending to +12 and +20 years (roughly 3.6 cycles total) resolves the ambiguity, but not toward either of the two readings that mattered. The flux does not re-settle into the bimodal shape (which would have confirmed Section 6’s mechanism survives a better scheme), and it does not reveal a genuine alternative single-peaked equilibrium either (which would have refuted it cleanly). Instead it declines monotonically and steepens: 0.22 g/year at +4yr, to 0.062 at +12yr, to 0.00014 at +20yr – roughly three orders of magnitude in sixteen years – while the resource spectrum loses its own grazed kink entirely and reverts to an almost untouched power law, because there’s barely any anchovy population left under <code>tr_bdf2</code> to graze it down. That is a population heading toward extinction under the second-order scheme regardless of where it starts, not a population settling into any comparable state, jammed or otherwise.</p>
+<p>The likely cause is a deeper incompatibility between this project’s own custom resource dynamics and <code>tr_bdf2</code>’s own two-stage rate evaluation, not simply the fork-and-settle constants the earlier dt-raising test blamed – this run was seeded from a perfectly good state, not an arbitrary one, and still failed the same way, just more slowly. Section 6’s mechanism therefore stands <strong>unconfirmed but also un-contradicted</strong> by a more accurate scheme: the tool used to check it doesn’t produce a usable comparison at all, which is a different and more basic problem than the mechanism being wrong. Diagnosing that incompatibility properly – not just re-documenting its symptom – is queued as its own overnight sweep (see “What’s Next”).</p>
+<hr>
+</section>
+<section id="section-8-no-cannibalism-no-oscillation-and-a-genuine-bistability-hiding-inside-it" class="level2">
+<h2 class="anchored" data-anchor-id="section-8-no-cannibalism-no-oscillation-and-a-genuine-bistability-hiding-inside-it">Section 8: No Cannibalism, No Oscillation – and a Genuine Bistability Hiding Inside It</h2>
+<p>Every oscillation in this project traces back to cannibalism: self-predation via <code>interaction_matrix</code> is the destabilising feedback Datta, Delius and Law (2011) describe for this class of equation, and <code>report-background-mizer.qmd</code>’s own background section names it as such. <code>theta=0.3</code> cuts that feedback to 30% of baseline; what happens at <code>theta=0</code> – cannibalism removed entirely, <code>interaction_resource=1</code>, <code>knife_edge=10</code> – is a clean test of whether removing it outright removes the oscillation, and whether the collapse behaviour found throughout Sections 3/5 above needs the cycling dynamics in the mix at all.</p>
+<p><strong>It does stop oscillating – but not quickly, and what’s underneath that turned out to be more interesting than the original question.</strong> A 60-year unfished run past the usual <code>t_fork=20</code> found zero local peaks: not small-amplitude cycling, genuinely none, because the trajectory was still climbing monotonically the entire time (selected biomass +28% from year 20.5 to 80) and had not yet finished settling. <code>t_fork=20</code> was tuned for the <code>theta=0.3</code> models’ own fast oscillatory attractor; theta=0 relaxes on a slower, non-cyclic timescale that convention was never built for.</p>
+<p>Mizer’s own <code>projectToSteady()</code> resolves this properly – not <code>steady()</code>/<code>steadyNewton()</code>, which fails here for the same reason it fails for every oscillating model in this project (it assumes standard semichemostat resource dynamics, and this project’s own custom <code>plankton_logistic()</code> is not that, independent of whether the consumer side happens to cycle). Run directly on a fresh model build, bypassing this project’s own fork procedure entirely, it converges to a genuine fixed point (<code>type="steady"</code>, not <code>"cycle"</code>) in 28.8 years – and every one of 11 fishing efforts tested from 1 to 100 also converges cleanly to a fixed point, confirming fishing does not induce any oscillation in this regime either.</p>
+<p>The corrected numbers change a great deal from an earlier, unconverged pass at the same sweep: <code>fraction_of_unfished</code> at <code>fish_level=100</code> is 0.368, not the 0.730 that sweep reported – roughly half. More strikingly, the curve is not monotonic. It declines from 0.986 (<code>fish_level=1</code>) to a local minimum of 0.866 (<code>fish_level=9</code>), genuinely <em>recovers</em> to 0.898-0.905 (<code>fish_level=15-20</code>), then drops sharply to 0.515 between <code>fish_level=20</code> and <code>30</code>, continuing down to 0.368 by 100. The yield curve echoes it: a real interior peak of 0.0514 at <code>fish_level=9</code>, a dip to 0.0223 at <code>fish_level=30</code> – exactly where the biomass drop lands – then a slight rise back to 0.0272 by 100. This project has read that peak-dip-rise shape as a signature of oscillating, compositional-shift dynamics everywhere else it’s appeared (Day 40’s own headline finding, Sections 1-3 above); here it shows up with <strong>zero oscillation anywhere in the range</strong>.</p>
+<p><strong>Is the sharp drop between <code>fish_level=20</code> and <code>30</code> actually a bifurcation, or just a steep-but-continuous decline that a coarse 11-point grid makes look sudden?</strong> That’s worth being skeptical of rather than asserting from a convergence-time proxy alone, so it was checked directly rather than assumed.</p>
+<p><strong>A fine bracket first.</strong> Stepping through <code>fish_level=21</code> to <code>29</code> in single-unit steps, from the same unfished branch as the coarse sweep: <code>fraction_of_unfished</code> declines smoothly and gently from 0.894 to 0.820 across <code>fish_level=21</code>-<code>27</code> (about 0.012 per unit of effort), then jumps to 0.578 between <code>27</code> and <code>28</code> – a 0.24 drop in a single unit of effort, twenty times steeper than the trend it interrupts. <code>conv_years</code> moves in lockstep: 23.0 at <code>fish_level=21</code> rising gently to 29.6 at <code>27</code>, then jumping to 45.4 at <code>28</code>. A genuinely continuous curve, even a steep one, does not do this on a grid this fine – this looks like a real discontinuity, not a sampling artefact.</p>
+<p><strong>The decisive test is hysteresis, not steepness.</strong> A single curve, however steep, is still single-valued: one state per effort level, regardless of history. A genuine fold means the <em>same</em> effort value can have two different stable states depending on which direction you approach it from. So: converge at <code>fish_level=30</code> (past the jump), then step <em>down</em> through the same effort values the upward sweep already covered, and check whether they land on the same numbers.</p>
+<p>They don’t. At <code>fish_level=25</code>: approached from the unfished branch, <code>fraction_of_unfished=0.862</code>, converging in 26.6 years. Approached from above (converged at 30, stepped down), the same effort gives <code>fraction_of_unfished=0.507</code>, converging in 0.8 years. At <code>fish_level=20</code>: 0.898 from below (22.2yr) versus 0.502 from above (1.0yr). Two different stable equilibria, coexisting at the identical fishing effort, each one reached almost instantly once the system is already in its basin and each one taking decades to reach if the system starts near the <em>other</em> branch’s own fold. That fast-near-home/slow-near-the-fold asymmetry on both sides is exactly what standard bifurcation theory predicts, not just a plausible-sounding label – this is genuine bistability, not a steep single curve. Confirmed bistable across <code>fish_level=20</code>-<code>27</code> at minimum; where the low branch stops being reachable from above, below <code>fish_level=20</code>, isn’t mapped yet.</p>
+<p>What two coexisting equilibria in a <em>non-oscillating</em> population might physically represent – something like two different stable size-compositions, a version of the compositional shift Sections 3-5 found driving oscillation elsewhere, but frozen into two static configurations instead of cycled between – is exactly the kind of question this project’s own traffic-jam framing was built to ask, and hasn’t been answered yet. This is a genuinely new phenomenon for this project, not a corollary of anything found so far, and it deserves its own dedicated investigation rather than a paragraph here.</p>
 <hr>
 </section>
 <section id="whats-next" class="level2">
 <h2 class="anchored" data-anchor-id="whats-next">What’s Next</h2>
-<p>The concrete target this project now needs is narrower than “find a peak” or “find a collapse” separately – it’s <strong>a regime with a genuine interior yield peak where the population is still actually oscillating (not yet flickering into collapse) at that peak.</strong> That’s the precondition for the next real piece of work: applying the threshold-schedule machinery (<code>thresholdFMort()</code>, the peaks/troughs rule this project has built and tested since Day 36) <em>on top of</em> a Constant-effort MSY that means something. Every threshold-schedule comparison run so far – Day 40’s own Sections 2-3, this post’s own <code>ir=1.3</code>/<code>theta=0.5-ir=2</code>/<code>theta=0.7-ir=5</code> reruns – was layered on a floor that was either an arbitrary constant or a peak this post has since found reason to doubt. A regime with a real, still-cycling MSY is what would let those schedule results actually mean “boosting fishing at the population’s peaks/troughs, on top of its own best sustainable constant effort” rather than “on top of an effort chosen for lack of a better one.”</p>
+<p>The concrete target this project has been chasing across this whole post – <strong>a regime with a genuine interior yield peak where the population is still actually oscillating, not flickering into collapse, at that peak</strong> – has a real candidate for the first time: <code>theta=0.3, interaction_resource=3</code>, at <code>knife_edge=3</code> or <code>knife_edge=5</code>. That’s the precondition for the next real piece of work: applying the threshold-schedule machinery (<code>thresholdFMort()</code>, the peaks/troughs rule this project has built and tested since Day 36) <em>on top of</em> a Constant-effort MSY that means something, rather than on top of a floor that was either arbitrary or a peak this project has since found reason to doubt.</p>
 <ol type="1">
-<li><strong>Land Section 4’s own fine MSY scan.</strong> 56 “promising” combinations – meaningfully fishing-responsive but not yet extinct by fish_level=100 in the fine sweep above – are queued for a 10-point Constant-effort grid (1 to 100, deliberately coarser past effort=30 so this doesn’t need another overnight run) specifically screening for an interior peak. As of writing it’s partially run; finishing it and checking which (if any) of the 56 have both a real peak <em>and</em> biomass that’s still stabilising rather than in freefall at that peak (an oscillation check, Section 4’s own convention, on the best candidates) is the direct next step.</li>
-<li><strong>If Section 4’s scan comes up empty, widen the search rather than assume no such regime exists.</strong> The fine sweep’s own grid (<code>theta</code> in 5 steps, <code>ir</code> in 8, <code>knife_edge</code> in 5) was deliberately coarse to keep the overnight run tractable – a genuine MSY-with-oscillation regime could easily sit between the tested grid points rather than on one of them.</li>
-<li><strong>The Overnight interaction grid’s own theta x interaction_resource story</strong> (Day 40 Section 0’s <code>interaction_grid_df</code>) still hasn’t had its own growth-recovery/fishing-sensitivity trade-off read all the way through against this post’s own findings – worth reconciling once a target regime is in hand, so the choice is justified on both axes at once rather than picked from the extinction search alone.</li>
-<li><strong>Day 40 Section 7’s threshold_frac x boost heatmap</strong> has still not been rerun under the fixed mortality – lower priority than finding the right regime to run it on in the first place, but still queued.</li>
+<li><strong>Confirm <code>theta=0.3/ir=3</code> properly before building anything on top of it.</strong> A finer effort grid around fish_level=9 (<code>ke=3</code>) and 15 (<code>ke=5</code>) – Section 4’s own 21-point convention – to pin the peak down precisely, plus a genuine oscillation check (full time series across several effort levels, period detection, Section 4’s own convention rather than the <code>rel_amplitude</code> proxy Section 5 used to screen 56 candidates cheaply) on both <code>knife_edge</code> values.</li>
+<li><strong>Once confirmed, this is the regime to run the threshold schedule on.</strong> Every peaks/troughs comparison so far in this project (Day 40’s own Sections 2-3, this post’s own <code>ir=1.3</code>/<code>theta=0.5-ir=2</code>/<code>theta=0.7-ir=5</code> reruns) was layered on a floor that turned out to be arbitrary or doubtful. <code>theta=0.3/ir=3</code>’s own Constant-effort MSY – once pinned down by item 1 – is the first floor in this project that would actually mean “boosting fishing at the population’s peaks/troughs, on top of its own best sustainable constant effort.”</li>
+<li><strong>If item 1 finds <code>theta=0.3/ir=3</code> doesn’t hold up under closer inspection, the other 15 near-miss combinations are the fallback list</strong>, not a dead end – Section 5’s own screen ranks them by how close their amplitude gets to the collapse-flicker ceiling, so the next-best candidates are already sorted.</li>
+<li><strong>The Overnight interaction grid’s own theta x interaction_resource story</strong> (Day 40 Section 0’s <code>interaction_grid_df</code>) still hasn’t had its own growth-recovery/fishing-sensitivity trade-off read all the way through against this post’s own findings – worth reconciling now that <code>ir=3</code> specifically is the regime in hand, not picked from the extinction search alone.</li>
+<li><strong>Day 40 Section 7’s threshold_frac x boost heatmap</strong> has still not been rerun under the fixed mortality, or at <code>theta=0.3/ir=3</code> rather than <code>ir=1</code> – queued behind item 2.</li>
+<li><strong>Test the jam-breaking mechanism under fishing, not just unfished.</strong> Section 6’s own spectrum/flux snapshots are all at the unfished fork state – the natural next check is whether <code>theta=0.3/ir=3</code>’s bimodal, jam-free flux structure survives as Constant effort rises toward its own MSY and past it, or whether fishing pressure on the harvestable-size peak (w≈8-10g) reconstitutes a single choke point the way it does in the other three scenarios. If the two-surge structure holds up under fishing, that would be direct mechanistic confirmation of Section 6’s own hypothesis, not just a plausible story fit to the unfished snapshot alone.</li>
+<li><strong>An overnight sweep is queued to test the second-order incompatibility properly</strong>, rather than leave Section 6’s own caveat sitting on a single, hand-seeded checkpoint run. The goal is to actually diagnose the failure rather than just keep re-documenting its symptom: sweep <code>tr_bdf2</code>/<code>second_order_w</code> across a range of <code>(theta, interaction_resource, knife_edge)</code> combinations (not just <code>theta=0.3/ir=3</code>) and a range of <code>dt</code> to check whether the slow decline to extinction is universal across this project’s whole model space or specific to particular regions of it; run the same scheme against mizer’s own default semichemostat resource dynamics (not this project’s own custom <code>plankton_logistic()</code>) as a control, to isolate whether the incompatibility is with the custom resource stepper specifically or with <code>tr_bdf2</code> more generally in this project’s setup; and check whether finer <code>dt</code> narrows or widens the gap, which would point toward a stiffness/step-size interaction rather than a structural bug. Only once the actual mechanism of the incompatibility is understood does it make sense to either fix it or trust a workaround.</li>
+<li><strong>Section 8’s own bistability is the most novel open thread in this post and deserves a dedicated follow-up, not a footnote.</strong> Concretely: (a) map the lower edge of the bistable window – how far below <code>fish_level=20</code> does the “low” branch stay reachable by approaching from above, and does the window have a sharp lower fold too, or does it taper off; (b) look at <em>why</em> – pull the size spectrum and biomass flux (Section 6’s own tools) on both branches at the same effort (e.g.&nbsp;<code>fish_level=25</code>) to see whether the two coexisting equilibria are compositionally different populations (a frozen, static version of the compositional shift that drives oscillation elsewhere in this project) or something else entirely; (c) get a cleaner confirmation than the convergence-time/hysteresis combination already gathered – <code>getStability()</code> on <code>steadyNewton()</code>’s own fixed points at efforts on either side of the fold would give the leading eigenvalue directly, the textbook way to confirm a fold bifurcation rather than inferring one from trajectory behaviour.</li>
+<li><strong>A dedicated overnight sweep is queued to test whether Section 8’s own bistability is a global feature of this model, not a <code>theta=0</code>/<code>ir=1</code>/<code>ke=10</code> curiosity.</strong> Item 8(d) above sketches the single-<code>theta</code> version of this question; this formalises it into the same kind of systematic search Section 3’s own overnight sweep already ran for collapse: a grid across <code>theta</code>, <code>interaction_resource</code> and <code>knife_edge</code>, at each point running both an <em>upward</em> Constant-effort sweep (seeded from the unfished branch, as every earlier sweep in this project has done) and a <em>downward</em> one (seeded from a high-effort converged state, stepping down), then comparing the two paths at matching effort values – any point where they disagree is a bistable point, exactly the test Section 8 already applied once by hand. The direct question is whether hysteresis is a <code>theta=0</code>-specific artefact of removing cannibalism entirely, or whether weaker versions of it are sitting undetected in the theta&lt;1, ir=1 combinations this whole project has already swept using only single-direction (upward) sweeps – every collapse and every MSY finding so far, including <code>theta=0.3/ir=3</code> itself, has only ever been checked from one direction, so a real answer here could mean parts of this project’s own story need re-examining for a fold nobody was looking for at the time.</li>
 </ol>
 <hr>
 </section>
@@ -563,7 +714,7 @@ window.Quarto = {
 <span id="cb5-15"><a href="#cb5-15" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </details>
 <div class="cell-output cell-output-stderr">
-<pre><code>Using z0 = z0pre * w_inf ^ z0exp for missing z0 values.</code></pre>
+<pre><code>Using z0 = z0pre * w_inf ^ z0exp for calculated z0 values.</code></pre>
 </div>
 <details class="code-fold">
 <summary>Code</summary>
@@ -610,75 +761,92 @@ window.Quarto = {
 </section>
 <section id="a.4-does-it-oscillate" class="level3">
 <h3 class="anchored" data-anchor-id="a.4-does-it-oscillate">A.4 Does It Oscillate?</h3>
-<p>Starting the population from an arbitrary tiny spectrum and running it forward produces a large, non-physical transient before it finds its way onto the model’s real attractor – so the reliable way to reach the oscillating state is two stages: settle for 10 years first, then rescale down by <code>1e7</code> (the settling transient overshoots by many orders of magnitude) before continuing. This is the exact procedure used throughout this project.</p>
+<p>The rest of this project reaches the oscillating state through a hand-tuned, two-stage procedure: settle for 10 years from an arbitrary starting spectrum, then rescale down by <code>1e7</code> (the settling transient overshoots by many orders of magnitude) before continuing. That procedure is specific to the default first-order scheme – this section uses mizer’s own <code>projectToSteady()</code> instead, which projects forward until the population’s own oscillation amplitude stops changing by more than <code>amplitude_tol</code> between checks, with no hand-tuned settle time or rescale constant. It also switches the <em>time</em>-stepping method to <code>tr_bdf2</code>, mizer’s second-order-in-time scheme – not <code>second_order_w</code> (the <em>spatial</em> flux scheme, left at its default here), which is a narrower, different test from the full second-order combination this project’s own Day 41 caveat found trouble with. Whether this still shows the same roughly five-to-six year cycle found everywhere else in this project, or whether <code>projectToSteady()</code>/<code>tr_bdf2</code> changes it, is exactly what running this checks.</p>
 <div class="cell">
 <details class="code-fold">
 <summary>Code</summary>
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb11"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Stage 1: settle from an arbitrary starting spectrum.</span></span>
-<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a>n0 <span class="ot">&lt;-</span> <span class="fu">initialN</span>(params); n0[] <span class="ot">&lt;-</span> <span class="fl">0.001</span> <span class="sc">*</span> <span class="fu">w</span>(params)<span class="sc">^</span>(<span class="sc">-</span><span class="fl">1.8</span>)</span>
-<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a><span class="fu">initialN</span>(params) <span class="ot">&lt;-</span> n0</span>
-<span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a><span class="fu">initialNResource</span>(params) <span class="ot">&lt;-</span> <span class="fu">resource_capacity</span>(params)</span>
-<span id="cb11-5"><a href="#cb11-5" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-6"><a href="#cb11-6" aria-hidden="true" tabindex="-1"></a>settled <span class="ot">&lt;-</span> <span class="fu">project</span>(params, <span class="at">t_max =</span> <span class="dv">10</span>, <span class="at">dt =</span> p<span class="sc">$</span>dt, <span class="at">progress_bar =</span> <span class="cn">FALSE</span>)</span>
-<span id="cb11-7"><a href="#cb11-7" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-8"><a href="#cb11-8" aria-hidden="true" tabindex="-1"></a><span class="co"># Stage 2: rescale and continue with no fishing.</span></span>
-<span id="cb11-9"><a href="#cb11-9" aria-hidden="true" tabindex="-1"></a>n0 <span class="ot">&lt;-</span> <span class="fu">initialN</span>(params); n0[] <span class="ot">&lt;-</span> <span class="fu">finalN</span>(settled) <span class="sc">/</span> <span class="fl">1e7</span></span>
-<span id="cb11-10"><a href="#cb11-10" aria-hidden="true" tabindex="-1"></a><span class="fu">initialN</span>(params) <span class="ot">&lt;-</span> n0</span>
-<span id="cb11-11"><a href="#cb11-11" aria-hidden="true" tabindex="-1"></a>npp0 <span class="ot">&lt;-</span> <span class="fu">initialNResource</span>(params); npp0[] <span class="ot">&lt;-</span> <span class="fu">finalNResource</span>(settled)</span>
-<span id="cb11-12"><a href="#cb11-12" aria-hidden="true" tabindex="-1"></a><span class="fu">initialNResource</span>(params) <span class="ot">&lt;-</span> npp0</span>
-<span id="cb11-13"><a href="#cb11-13" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-14"><a href="#cb11-14" aria-hidden="true" tabindex="-1"></a>sim_unfished <span class="ot">&lt;-</span> <span class="fu">project</span>(params, <span class="at">t_max =</span> <span class="dv">20</span>, <span class="at">t_start =</span> <span class="dv">10</span>, <span class="at">dt =</span> p<span class="sc">$</span>dt, <span class="at">t_save =</span> <span class="fl">0.2</span>,</span>
-<span id="cb11-15"><a href="#cb11-15" aria-hidden="true" tabindex="-1"></a>                        <span class="at">progress_bar =</span> <span class="cn">FALSE</span>, <span class="at">effort =</span> <span class="dv">0</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb11"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a>p<span class="sc">$</span>method <span class="ot">&lt;-</span> <span class="st">"tr_bdf2"</span>   <span class="co"># time-stepping method only -- second_order_w (the spatial</span></span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a>                        <span class="co"># flux scheme) is left at its own default, deliberately</span></span>
+<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a>sim_unfished <span class="ot">&lt;-</span> <span class="fu">projectToSteady</span>(params, <span class="at">t_max =</span> <span class="dv">150</span>, <span class="at">t_per =</span> <span class="fl">0.2</span>, <span class="at">dt =</span> p<span class="sc">$</span>dt,</span>
+<span id="cb11-5"><a href="#cb11-5" aria-hidden="true" tabindex="-1"></a>                                <span class="at">method =</span> p<span class="sc">$</span>method, <span class="at">return_sim =</span> <span class="cn">TRUE</span>,</span>
+<span id="cb11-6"><a href="#cb11-6" aria-hidden="true" tabindex="-1"></a>                                <span class="at">amplitude_tol =</span> <span class="fl">0.0001</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </details>
+<div class="cell-output cell-output-stderr">
+<pre><code>Simulation run did not converge after 150 years. Value returned by the distance function was: 10.5967411978635</code></pre>
+</div>
 </div>
 <div class="cell">
 <details class="code-fold">
 <summary>Code</summary>
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb12"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(<span class="fu">getBiomass</span>(sim_unfished))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb13"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(<span class="fu">getBiomass</span>(sim_unfished))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </details>
 <div class="cell-output-display">
 <div class="quarto-figure quarto-figure-center">
 <figure class="figure">
 <p><img src="2026-08-17-day-forty-one_files/figure-html/appendix-plot-oscillation-1.png" class="img-fluid figure-img" width="672"></p>
-<figcaption>Unfished biomass settles into a regular ~5-6 year limit cycle.</figcaption>
+<figcaption>Unfished biomass under projectToSteady()’s own tr_bdf2 convergence run – whatever length that took to satisfy amplitude_tol=0.0001, up to its own t_max=150 cap, not a fixed window chosen in advance.</figcaption>
 </figure>
 </div>
 </div>
 </div>
-<p>It does: after the initial transient, biomass rises and falls on a regular cycle of roughly five to six years, indefinitely, with no fishing at all.</p>
 </section>
 <section id="a.5-its-yield-curve" class="level3">
 <h3 class="anchored" data-anchor-id="a.5-its-yield-curve">A.5 Its Yield Curve</h3>
-<p>Seed a new run from wherever the unfished trajectory ended up – a real point on the cycle, not an arbitrary starting spectrum – then project forward 12 years at each of a range of constant fishing efforts, and average the yield over the second half of that window (the first 6 years after an effort change are transient).</p>
+<p>Rather than a fixed-length projection and an arbitrary post-transient window, run <code>projectToSteady()</code> again, once per fishing effort – <code>finalParams(sim_unfished)</code> hands the model’s own converged state straight back in as the next run’s starting parameters, no manual <code>initialN&lt;-()</code>/<code>initialNResource&lt;-()</code> bookkeeping needed. <code>projectToSteady()</code> reports the cycle length it actually detected in <code>attr(sim, "convergence")$period</code>; averaging yield only over that final, detected period – not a hand-picked number of years – gives a genuinely smooth per-cycle mean rather than one that depends on exactly which stretch happened to be sampled.</p>
 <div class="cell">
 <details class="code-fold">
 <summary>Code</summary>
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb13"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a>n0 <span class="ot">&lt;-</span> <span class="fu">initialN</span>(params); n0[] <span class="ot">&lt;-</span> <span class="fu">finalN</span>(sim_unfished)</span>
-<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a><span class="fu">initialN</span>(params) <span class="ot">&lt;-</span> n0</span>
-<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a>npp0 <span class="ot">&lt;-</span> <span class="fu">initialNResource</span>(params); npp0[] <span class="ot">&lt;-</span> <span class="fu">finalNResource</span>(sim_unfished)</span>
-<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a><span class="fu">initialNResource</span>(params) <span class="ot">&lt;-</span> npp0</span>
-<span id="cb13-5"><a href="#cb13-5" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-6"><a href="#cb13-6" aria-hidden="true" tabindex="-1"></a>effort_seq <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="dv">1</span>, <span class="dv">2</span>, <span class="dv">3</span>, <span class="dv">5</span>, <span class="dv">9</span>, <span class="dv">20</span>, <span class="dv">50</span>, <span class="dv">100</span>)</span>
-<span id="cb13-7"><a href="#cb13-7" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-8"><a href="#cb13-8" aria-hidden="true" tabindex="-1"></a>mean_yield <span class="ot">&lt;-</span> <span class="fu">sapply</span>(effort_seq, <span class="cf">function</span>(effort) {</span>
-<span id="cb13-9"><a href="#cb13-9" aria-hidden="true" tabindex="-1"></a>  sim <span class="ot">&lt;-</span> <span class="fu">project</span>(params, <span class="at">t_max =</span> <span class="dv">12</span>, <span class="at">t_start =</span> <span class="dv">30</span>, <span class="at">dt =</span> p<span class="sc">$</span>dt, <span class="at">t_save =</span> <span class="fl">0.2</span>,</span>
-<span id="cb13-10"><a href="#cb13-10" aria-hidden="true" tabindex="-1"></a>                 <span class="at">progress_bar =</span> <span class="cn">FALSE</span>, <span class="at">effort =</span> effort)</span>
-<span id="cb13-11"><a href="#cb13-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mean</span>(<span class="fu">getYield</span>(sim)[<span class="fu">getTimes</span>(sim) <span class="sc">&gt;</span> <span class="dv">36</span>, ])</span>
-<span id="cb13-12"><a href="#cb13-12" aria-hidden="true" tabindex="-1"></a>})</span>
-<span id="cb13-13"><a href="#cb13-13" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-14"><a href="#cb13-14" aria-hidden="true" tabindex="-1"></a>yield_df <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(<span class="at">effort =</span> effort_seq, <span class="at">yield =</span> mean_yield)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb14"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a>effort_seq <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="dv">1</span>, <span class="dv">2</span>, <span class="dv">3</span>, <span class="dv">5</span>, <span class="dv">9</span>, <span class="dv">20</span>, <span class="dv">50</span>, <span class="dv">100</span>)</span>
+<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a>params <span class="ot">&lt;-</span> <span class="fu">finalParams</span>(sim_unfished)</span>
+<span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-4"><a href="#cb14-4" aria-hidden="true" tabindex="-1"></a>mean_yield <span class="ot">&lt;-</span> <span class="fu">sapply</span>(effort_seq, <span class="cf">function</span>(effort) {</span>
+<span id="cb14-5"><a href="#cb14-5" aria-hidden="true" tabindex="-1"></a>  sim <span class="ot">&lt;-</span> <span class="fu">projectToSteady</span>(params, <span class="at">dt =</span> p<span class="sc">$</span>dt, <span class="at">method =</span> p<span class="sc">$</span>method, <span class="at">t_per =</span> <span class="fl">0.2</span>,</span>
+<span id="cb14-6"><a href="#cb14-6" aria-hidden="true" tabindex="-1"></a>                 <span class="at">return_sim =</span> <span class="cn">TRUE</span>, <span class="at">effort =</span> effort)</span>
+<span id="cb14-7"><a href="#cb14-7" aria-hidden="true" tabindex="-1"></a>  conv <span class="ot">&lt;-</span> <span class="fu">attr</span>(sim, <span class="st">"convergence"</span>)</span>
+<span id="cb14-8"><a href="#cb14-8" aria-hidden="true" tabindex="-1"></a>  start <span class="ot">&lt;-</span> conv<span class="sc">$</span>years <span class="sc">-</span> conv<span class="sc">$</span>period</span>
+<span id="cb14-9"><a href="#cb14-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mean</span>(<span class="fu">getYield</span>(sim)[<span class="fu">getTimes</span>(sim) <span class="sc">&gt;=</span> start, ])</span>
+<span id="cb14-10"><a href="#cb14-10" aria-hidden="true" tabindex="-1"></a>})</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stderr">
+<pre><code>Converged to a limit cycle of period 5.69 years (relative amplitude 0.63) after 17.2 years.</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Converged to a limit cycle of period 5.97 years (relative amplitude 0.72) after 18 years.</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Converged to a limit cycle of period 6.22 years (relative amplitude 0.78) after 18.8 years.</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Converged to a limit cycle of period 6.57 years (relative amplitude 0.87) after 19.8 years.</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Converged to a limit cycle of period 6.84 years (relative amplitude 0.95) after 20.6 years.</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Converged to a limit cycle of period 6.59 years (relative amplitude 1) after 19.8 years.</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Converged to a limit cycle of period 5.81 years (relative amplitude 1.1) after 17.6 years.</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Converged to a limit cycle of period 5.34 years (relative amplitude 1.1) after 16.2 years.</code></pre>
+</div>
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb23"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true" tabindex="-1"></a>yield_df <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(<span class="at">effort =</span> effort_seq, <span class="at">yield =</span> mean_yield)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </details>
 </div>
 <div class="cell">
 <details class="code-fold">
 <summary>Code</summary>
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb14"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(yield_df, <span class="fu">aes</span>(effort, yield)) <span class="sc">+</span></span>
-<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>() <span class="sc">+</span></span>
-<span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_point</span>(<span class="at">size =</span> <span class="dv">2</span>) <span class="sc">+</span></span>
-<span id="cb14-4"><a href="#cb14-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_x_log10</span>() <span class="sc">+</span></span>
-<span id="cb14-5"><a href="#cb14-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"Fishing effort (Constant, log scale)"</span>, <span class="at">y =</span> <span class="st">"Mean yield"</span>,</span>
-<span id="cb14-6"><a href="#cb14-6" aria-hidden="true" tabindex="-1"></a>       <span class="at">title =</span> <span class="st">"Yield curve: theta=0.3, interaction_resource=1, knife_edge=10"</span>) <span class="sc">+</span></span>
-<span id="cb14-7"><a href="#cb14-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_minimal</span>()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb24"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb24-1"><a href="#cb24-1" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(yield_df, <span class="fu">aes</span>(effort, yield)) <span class="sc">+</span></span>
+<span id="cb24-2"><a href="#cb24-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>() <span class="sc">+</span></span>
+<span id="cb24-3"><a href="#cb24-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_point</span>(<span class="at">size =</span> <span class="dv">2</span>) <span class="sc">+</span></span>
+<span id="cb24-4"><a href="#cb24-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_x_log10</span>() <span class="sc">+</span></span>
+<span id="cb24-5"><a href="#cb24-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"Fishing effort (Constant, log scale)"</span>, <span class="at">y =</span> <span class="st">"Mean yield"</span>,</span>
+<span id="cb24-6"><a href="#cb24-6" aria-hidden="true" tabindex="-1"></a>       <span class="at">title =</span> <span class="st">"Yield curve: theta=0.3, interaction_resource=1, knife_edge=10"</span>) <span class="sc">+</span></span>
+<span id="cb24-7"><a href="#cb24-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_minimal</span>()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </details>
 <div class="cell-output-display">
 <div class="quarto-figure quarto-figure-center">
@@ -689,7 +857,7 @@ window.Quarto = {
 </div>
 </div>
 </div>
-<p>Worth saying plainly rather than glossing over: this particular curve is <strong>not</strong> a clean single peak, for exactly the reasons Sections 1-4 above go through in detail – a local peak around effort 9-12, a genuine dip through 15-20, then a second, larger rise all the way out to 100, driven by the compositional shift rather than a healthy fishery. The model built above is exactly what produces that shape; having it written out this plainly, with nothing hidden behind a helper function, is what makes that mechanism explainable rather than just assertable.</p>
+<p>Under the project’s own default settle procedure and first-order scheme (Sections 1-4 above), this curve is <strong>not</strong> a clean single peak – a local peak around effort 9-12, a genuine dip through 15-20, then a second, larger rise all the way out to 100, driven by the compositional shift rather than a healthy fishery. Whether <code>projectToSteady()</code>/<code>tr_bdf2</code>’s own different seed state reproduces that same shape, or something else, is an open question this rewrite is set up to answer rather than a foregone conclusion – worth comparing directly against the earlier figure once this actually runs, not assuming the two must agree.</p>
 
 
 </section>
