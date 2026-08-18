@@ -2430,6 +2430,254 @@ cat(sprintf(
 print(bistab_candidates)
 
 ################################################################################
+# Section 19: bifurcation diagrams from the Section 18 sweep, knife_edge_size
+# = 10 only. Sections 1/19's own knife_edge=5/15 rows already show both
+# bistability and the fishing-induced cycle at every knife_edge tested (just
+# at different rates -- more common at ke=5, rarer at ke=15) -- the phenomenon
+# itself isn't a knife_edge=5 artefact, so one representative gear width
+# (ke=10, this project's own default since Day 20) carries the story without
+# three near-identical panels of gear-width columns competing for attention.
+#
+# fraction_of_unfished vs fish_level, up and down chains overlaid, one panel
+# per interaction_resource, one plot per theta. Where the two coloured lines
+# sit apart is exactly a candidate bistable point (Section 18's own
+# rel_diff > 0.05 test, just made visible instead of only tabulated); where a
+# line's own points switch from circle to triangle is the steady-to-cycle
+# transition documented in the Day 42 post's own Section 1. Reads
+# day41_bistability_sweep.csv fresh each call, so this is safe to rerun as-is
+# on the partial sweep now and again once theta=1 finishes -- NOT run here,
+# same convention as Section 18 itself.
+#
+# NA fraction_of_unfished (extinction rows, Section 18's own convention) drop
+# out of the line/point geoms automatically -- an extinction shows up here as
+# a broken line at the effort where it happens, which is itself the right
+# picture, not a gap to fill in.
+################################################################################
+
+bistab_df <- read.csv(bistab_path)
+
+plot_bifurcation_theta <- function(theta_val, ke_val = 10) {
+  df <- bistab_df %>% filter(theta == theta_val, knife_edge_size == ke_val)
+  if (nrow(df) == 0) return(NULL)
+
+  ggplot(df, aes(x = fish_level, y = fraction_of_unfished, colour = direction,
+                 group = direction)) +
+    geom_line(linewidth = 0.6, na.rm = TRUE) +
+    geom_point(aes(shape = conv_type), size = 2.2, na.rm = TRUE) +
+    facet_wrap(~ interaction_resource, labeller = label_both, nrow = 1) +
+    scale_colour_manual(values = c(up = "#d95f02", down = "#1b9e77")) +
+    scale_shape_manual(values = c(steady = 16, cycle = 17, extinction = 4),
+                       drop = FALSE) +
+    labs(title = sprintf("Bifurcation diagram, theta = %.2f, knife_edge = %d", theta_val, ke_val),
+         subtitle = "Panels: interaction_resource. Triangle = limit cycle. Gap between lines = candidate bistable.",
+         x = "fish_level (Constant effort)",
+         y = "fraction of unfished total biomass",
+         colour = "direction", shape = "conv_type") +
+    theme_minimal()
+}
+
+for (theta_val in sort(unique(bistab_df$theta))) {
+  p_bif <- plot_bifurcation_theta(theta_val, ke_val = 10)
+  if (!is.null(p_bif)) {
+    theta_tag <- gsub("\\.", "", sprintf("%.1f", theta_val))
+    save_plot(p_bif, sprintf("day42_bifurc_ke10_th%s.png", theta_tag))
+  }
+}
+
+################################################################################
+# Section 20: yield envelope (min/max, not just a single-phase snapshot) over
+# a FINE Constant-effort grid, 0 to 100, for one or two representative
+# (theta, interaction_resource, knife_edge=10) cases. Sections 17c/17d/18 all
+# read getYield() off a single projectToSteady() MizerParams result -- exact
+# and correct for a genuine "steady" state, but for a "cycle" state that is
+# only the yield at whatever ARBITRARY phase the run happened to stop on, not
+# the cycle's own range. This section fixes that specifically: return_sim =
+# TRUE keeps the whole trajectory, so the min and max yield over the settled
+# window can be read off directly instead of guessed at from a single point.
+#
+# Two examples only (not the full Section 18 grid) -- ke=10 throughout, this
+# project's own default gear width and this post's own focus:
+#   1. theta=0.3, interaction_resource=1 -- Section 1's own "already-known"
+#      cannibalism-driven cycling case, cycling at every effort level tested
+#      in the coarse Section 18 grid. The fine grid here should show HOW the
+#      yield envelope (amplitude) actually changes with effort, not just
+#      that cycling happens.
+#   2. theta=0, interaction_resource=1 -- Day 41 Section 8's own headline
+#      bistable case (there, at a 5-point coarse grid). A fine grid here
+#      should resolve the fold/jump far more precisely than Section 18's own
+#      screen could, on the same up-only branch used by 17c/17d.
+#
+# NOT run here -- each point is a full projectToSteady() call with
+# return_sim = TRUE (a saved trajectory, somewhat more expensive than the
+# params-only return Section 18 uses), chained exactly as in Sections 17c/18
+# (each effort seeded from the previous one's own converged state), stepping
+# from the returned MizerSim back to a MizerParams via finalParams() --
+# untested live this session (the console was occupied by Section 18's own
+# sweep both times it was tried), so run the coarse effort_seq_test check
+# below FIRST and confirm current stays a MizerParams (class(current)) and
+# yield_min <= yield_mean <= yield_max everywhere before committing to the
+# fine effort_seq_fine_env grid, which is ~4x the compute for ~4x the
+# resolution.
+################################################################################
+
+run_yield_envelope_sweep <- function(theta_val, ir_val, ke_val = 10,
+                                     effort_seq = seq(0, 100, by = 5),
+                                     t_per = 0.2, t_max = 100) {
+  current <- anchovy_params(theta_val, ir_val, knife_edge_size = ke_val)
+  bind_rows(lapply(effort_seq, function(fl) {
+    sim <- projectToSteady(current, t_per = t_per, t_max = t_max, dt = p2$dt,
+                           effort = fl, return_sim = TRUE, progress_bar = FALSE)
+    current <<- finalParams(sim)
+    conv <- attr(sim, "convergence")
+
+    yield_ts <- rowSums(getYield(sim))
+    n <- length(yield_ts)
+    # Settled window: last 3 cycle periods if a cycle was detected (matching
+    # projectToSteady()'s own 3-window amplitude-stability check), otherwise
+    # the back half of the saved trajectory. A genuinely steady point's
+    # min/max/mean collapse to (near) the same value under either choice, so
+    # this only changes anything for a real cycle.
+    window_n <- if (identical(conv$type, "cycle") && !is.na(conv$period)) {
+      min(n, max(2, round(3 * conv$period / t_per)))
+    } else {
+      max(2, n %/% 2)
+    }
+    tail_ts <- utils::tail(yield_ts, window_n)
+
+    data.frame(fish_level = fl, conv_type = conv$type, conv_years = conv$years,
+              conv_period = conv$period, yield_mean = mean(tail_ts),
+              yield_min = min(tail_ts), yield_max = max(tail_ts))
+  }))
+}
+
+plot_yield_envelope <- function(df, title_suffix) {
+  ggplot(df, aes(x = fish_level)) +
+    geom_ribbon(aes(ymin = yield_min, ymax = yield_max), alpha = 0.25, fill = "#1b9e77") +
+    geom_line(aes(y = yield_mean), colour = "#1b9e77", linewidth = 0.7) +
+    geom_point(aes(y = yield_mean, shape = conv_type), size = 2, colour = "#1b9e77") +
+    scale_shape_manual(values = c(steady = 16, cycle = 17, extinction = 4), drop = FALSE) +
+    labs(title = sprintf("Yield envelope, %s", title_suffix),
+        subtitle = "Ribbon = min-to-max yield over the settled window (the cycle's own amplitude, where one exists).",
+        x = "fish_level (Constant effort)", y = "yield (g/year)", shape = "conv_type") +
+    theme_minimal()
+}
+
+## -- Quick coarse check first: confirms the chaining/window logic works
+## before committing to the fine grid below. --
+effort_seq_test <- c(0, 20, 40, 60, 80, 100)
+env_test_th03 <- run_yield_envelope_sweep(0.3, 1, 10, effort_seq = effort_seq_test)
+print(env_test_th03)
+
+## -- Fine grid, 0 to 100, the two examples -- only run once the check above
+## looks right (conv_type/conv_years sane, yield_min <= yield_mean <= yield_max
+## everywhere, current stayed a MizerParams throughout). --
+effort_seq_fine_env <- seq(0, 100, by = 5)
+
+env_th03_ir1 <- run_yield_envelope_sweep(0.3, 1, 10, effort_seq = effort_seq_fine_env)
+write.csv(env_th03_ir1, file.path(plot_dir, "day42_yield_env_th03_ir1.csv"), row.names = FALSE)
+save_plot(plot_yield_envelope(env_th03_ir1, "theta=0.3, ir=1, ke=10"), "day42_yield_env_th03.png")
+
+env_th0_ir1 <- run_yield_envelope_sweep(0, 1, 10, effort_seq = effort_seq_fine_env)
+write.csv(env_th0_ir1, file.path(plot_dir, "day42_yield_env_th0_ir1.csv"), row.names = FALSE)
+save_plot(plot_yield_envelope(env_th0_ir1, "theta=0, ir=1, ke=10"), "day42_yield_env_th0.png")
+
+################################################################################
+# Section 21: bifurcation diagrams with THETA as the swept parameter, not
+# fish_level -- fixed knife_edge=10, fixed fish_level=10 (close to unfished,
+# where Section 19's own ke=10 figures showed the widest up/down gaps), two
+# examples only: interaction_resource=1 and =5.
+#
+# Motivation, read straight off Section 18's own already-completed rows at
+# ke=10/fish_level=10 (the only ones examined here; that's 3 discrete theta
+# points, not yet a real curve):
+#   ir=1: theta=0 is a bistable STEADY fold (0.87 up vs 0.68 down, fraction
+#     of unfished -- a 22% relative gap); theta=0.3 and 0.7 are CYCLES
+#     instead, with the up/down gap shrunk to ~5%, right at this project's
+#     own bistability threshold. The fold and the onset of cycling look like
+#     they sit close together in theta -- a fine sweep between 0 and 0.3 is
+#     the only way to see whether the fold turns directly into the cycle
+#     boundary or whether there is a gap between them.
+#   ir=5: bistability is strong at every theta tested so far, but NOT
+#     monotonically -- a 42% relative gap at theta=0, a much larger 70% gap
+#     at theta=0.3, back down to 16% at theta=0.7. Three points can't tell a
+#     genuine local maximum in bistability strength around theta=0.3 apart
+#     from three points that just happen to land that way -- this sweep is
+#     the direct test.
+#
+# Mechanism: theta is baked into the MizerParams structure itself (the
+# interaction/cannibalism matrix), so it can't be chained the way fish_level
+# is in Section 18/19/20 (a plain argument to projectToSteady()). Each step
+# rebuilds a fresh anchovy_params() at the new theta, then copies the
+# PREVIOUS theta's converged abundance state into it via initialN()<-/
+# initialNResource()<- before calling projectToSteady() -- carrying the
+# state across a theta step the same way Section 18 carries it across an
+# effort step, just via the explicit accessor setters instead of an
+# argument, since there is no "theta=" argument to lean on here.
+#
+# NOT run here -- attempted live twice this session and both calls (one of
+# them just Sys.time(), no model code at all) timed out after 120s with the
+# console occupied elsewhere, so this is UNVERIFIED end-to-end. The
+# individual pieces are each separately confirmed, though: initialN()<-/
+# initialNResource()<- against the installed docs this session, and
+# projectToSteady()/getBiomass()/getYield()/anchovy_params() already proven
+# throughout the rest of this file. Sanity-check the small theta_seq_test
+# grid first -- conv_type/conv_years should look sane and mean_total should
+# stay positive throughout -- before committing to the fine grid below.
+################################################################################
+
+run_theta_chain <- function(ir_val, ke_val, fl, theta_seq, t_per = 0.2, t_max = 80) {
+  current <- anchovy_params(theta_seq[1], ir_val, knife_edge_size = ke_val)
+  bind_rows(lapply(theta_seq, function(th) {
+    params_th <- anchovy_params(th, ir_val, knife_edge_size = ke_val)
+    initialN(params_th) <- initialN(current)
+    initialNResource(params_th) <- initialNResource(current)
+    p_run <- projectToSteady(params_th, t_per = t_per, t_max = t_max, dt = p2$dt,
+                             effort = fl, progress_bar = FALSE)
+    current <<- p_run
+    conv <- attr(p_run, "convergence")
+    data.frame(theta = th, mean_total = unname(getBiomass(p_run)),
+              mean_yield = unname(getYield(p_run)), conv_type = conv$type,
+              conv_years = conv$years)
+  }))
+}
+
+plot_theta_bifurcation <- function(up_df, down_df, title_suffix) {
+  df <- bind_rows(mutate(up_df, direction = "up"), mutate(down_df, direction = "down"))
+  ggplot(df, aes(x = theta, y = mean_total, colour = direction, group = direction)) +
+    geom_line(linewidth = 0.6) +
+    geom_point(aes(shape = conv_type), size = 2.2) +
+    scale_colour_manual(values = c(up = "#d95f02", down = "#1b9e77")) +
+    scale_shape_manual(values = c(steady = 16, cycle = 17, extinction = 4), drop = FALSE) +
+    labs(title = sprintf("Bifurcation diagram vs theta, %s", title_suffix),
+        subtitle = "fish_level fixed at 10, knife_edge=10. Triangle = limit cycle. Gap between lines = candidate bistable.",
+        x = "theta (cannibalism strength)", y = "total biomass (g)",
+        colour = "direction", shape = "conv_type") +
+    theme_minimal()
+}
+
+## -- Quick check first: 4-point grid, up direction only, ir=1. --
+theta_seq_test <- c(0, 0.3, 0.7, 1)
+theta_test_up <- run_theta_chain(ir_val = 1, ke_val = 10, fl = 10, theta_seq = theta_seq_test)
+print(theta_test_up)
+
+## -- Fine grid, both examples, up and down -- only once the check above
+## looks right. --
+theta_seq_fine <- seq(0, 1, by = 0.1)
+
+for (ir_val in c(1, 5)) {
+  up_df   <- run_theta_chain(ir_val = ir_val, ke_val = 10, fl = 10, theta_seq = theta_seq_fine)
+  down_df <- run_theta_chain(ir_val = ir_val, ke_val = 10, fl = 10, theta_seq = rev(theta_seq_fine))
+
+  out_df <- bind_rows(mutate(up_df, direction = "up"), mutate(down_df, direction = "down")) %>%
+    mutate(interaction_resource = ir_val, knife_edge_size = 10, fish_level = 10)
+  write.csv(out_df, file.path(plot_dir, sprintf("day42_theta_bifurc_ir%d.csv", ir_val)), row.names = FALSE)
+
+  p_theta <- plot_theta_bifurcation(up_df, down_df,
+                                    sprintf("interaction_resource=%d, ke=10, fish_level=10", ir_val))
+  save_plot(p_theta, sprintf("day42_theta_bifurc_ir%d.png", ir_val))
+}
+
+################################################################################
 # What's Next
 ################################################################################
 #
